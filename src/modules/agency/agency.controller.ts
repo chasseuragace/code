@@ -1,6 +1,7 @@
 import { Controller, Post, HttpCode, Param, Body, Patch, Get, ParseUUIDPipe, ForbiddenException } from '@nestjs/common';
 import { AgencyService, CreateAgencyDto } from './agency.service';
 import { JobPostingService, CreateJobPostingDto } from '../domain/domain.service';
+import { CreateJobPostingWithTagsDto } from '../domain/dto/create-job-posting-with-tags.dto';
 import { UpdateJobTagsDto } from '../domain/dto/update-job-tags.dto';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -55,7 +56,7 @@ export class AgencyController {
   @HttpCode(201)
   async createJobPostingForAgency(
     @Param('license') license: string,
-    @Body() body: Omit<CreateJobPostingDto, 'posting_agency'>,
+    @Body() body: CreateJobPostingWithTagsDto,
   ) {
     // Ensure agency exists
     const agency = await this.agencyService.findAgencyByLicense(license);
@@ -71,7 +72,14 @@ export class AgencyController {
       },
     } as any;
     const created = await this.jobPostingService.createJobPosting(dto);
-    return { id: created.id, posting_title: created.posting_title };
+    return {
+      id: created.id,
+      posting_title: created.posting_title,
+      skills: (created as any).skills,
+      education_requirements: (created as any).education_requirements,
+      experience_requirements: (created as any).experience_requirements,
+      canonical_titles: (created as any).canonical_titles ?? [],
+    };
   }
 
   // Update tags for a job posting (ownership enforced by license match)

@@ -241,6 +241,9 @@ export class CandidateService {
       country?: string | string[];
       salary?: { min?: number; max?: number; currency?: string; source?: 'base' | 'converted' };
       combineWith?: 'AND' | 'OR';
+      useCanonicalTitles?: boolean; // default: false
+      includeScore?: boolean; // default: false
+      preferredOverride?: string[]; // internal: use specific titles instead of computing
       page?: number;
       limit?: number;
     },
@@ -259,8 +262,11 @@ export class CandidateService {
         order: { updated_at: 'DESC' },
       });
       preferred = ((profile?.profile_blob as any)?.preferred_titles as string[] | undefined) ?? [];
-    } 
-   if (!preferred || preferred.length === 0) {
+    }
+    if (opts?.preferredOverride && opts.preferredOverride.length) {
+      preferred = opts.preferredOverride;
+    }
+    if (!preferred || preferred.length === 0) {
       throw new BadRequestException('Candidate has no preferred job titles');
     }
 
@@ -278,6 +284,68 @@ export class CandidateService {
     // Title predicate (from preferences)
     const titleGroup = new Brackets((qb1) => {
       qb1.where('positions.title IN (:...titles)', { titles: preferred });
+    });
+
+    // Tag-aware predicate: skills/education overlap and optional canonical title match
+    // Extract candidate skills as array of strings
+    const candSkills = Array.isArray((cand as any).skills)
+      ? (cand as any).skills
+          .map((s: any) => (typeof s === 'string' ? s : s?.title))
+          .filter((v: any) => typeof v === 'string' && v.trim().length > 0)
+      : [];
+    const candSkillsLower = candSkills.map((s: string) => s.toLowerCase());
+
+    // Extract candidate education strings from objects (degree/title/name)
+    const candEdu = Array.isArray((cand as any).education)
+      ? (cand as any).education
+          .map((e: any) => (typeof e === 'string' ? e : (e?.degree ?? e?.title ?? e?.name)))
+          .filter((v: any) => typeof v === 'string' && v.trim().length > 0)
+      : [];
+    const candEduLower = candEdu.map((e: string) => e.toLowerCase());
+
+    const tagsGroup = new Brackets((qbT) => {
+      let applied = false;
+      if (candSkillsLower.length) {
+        // EXISTS (SELECT 1 FROM jsonb_array_elements_text(jp.skills) AS s(value) WHERE LOWER(s.value) = ANY(:candSkillsLower))
+        qbT.where(
+          `EXISTS (
+            SELECT 1
+            FROM jsonb_array_elements_text(jp.skills) AS s(value)
+            WHERE LOWER(s.value) = ANY(:candSkillsLower)
+          )`,
+          { candSkillsLower },
+        );
+        applied = true;
+      }
+      if (candEduLower.length) {
+        // OR education overlap: jp.education_requirements contains any candidate education token
+        qbT[applied ? 'orWhere' : 'where'](
+          `EXISTS (
+            SELECT 1
+            FROM jsonb_array_elements_text(jp.education_requirements) AS ed(value)
+            WHERE LOWER(ed.value) = ANY(:candEduLower)
+          )`,
+          { candEduLower },
+        );
+        applied = true;
+      }
+      if (opts?.useCanonicalTitles && preferred.length) {
+        // OR canonical title match against preferred titles
+        qbT[applied ? 'orWhere' : 'where'](
+          `EXISTS (
+            SELECT 1
+            FROM job_posting_titles jpt
+            JOIN job_titles jt ON jt.id = jpt.job_title_id
+            WHERE jpt.job_posting_id = jp.id AND jt.title IN (:...titles)
+          )`,
+          { titles: preferred },
+        );
+        applied = true;
+      }
+      if (!applied) {
+        // If no tag predicates available, ensure group is a tautology to not exclude everything when ORed
+        qbT.where('1=0'); // no tags -> group false so it doesn't accidentally include
+      }
     });
 
     // Collect dynamic params (e.g., multi-country)
@@ -352,17 +420,21 @@ export class CandidateService {
       }
     });
 
-    // Combine predicates
+    // Combine predicates: base match is title OR tags (skills overlap)
+    const baseMatch = new Brackets((root) => {
+      root.where(titleGroup).orWhere(tagsGroup);
+    });
+
     if (opts?.country || (opts?.salary && (opts.salary.min != null || opts.salary.max != null))) {
       if (combineWith === 'OR') {
         qb.andWhere(new Brackets((root) => {
-          root.where(titleGroup).orWhere(otherGroup);
+          root.where(baseMatch).orWhere(otherGroup);
         }));
       } else {
-        qb.andWhere(titleGroup).andWhere(otherGroup);
+        qb.andWhere(baseMatch).andWhere(otherGroup);
       }
     } else {
-      qb.andWhere(titleGroup);
+      qb.andWhere(baseMatch);
     }
 
     // Apply any accumulated dynamic params (e.g., multi-country)
@@ -372,6 +444,99 @@ export class CandidateService {
 
     const total = await qb.getCount();
     const data = await qb.skip((page - 1) * limit).take(limit).getMany();
+
+    if (opts?.includeScore) {
+      // Compute simple fitness score per posting: average of present requirement matches in [%]
+      // Components: skills overlap, education overlap, experience numeric compatibility
+      // Experience years heuristic: sum of candidate skill durations (duration_months/12) or 'years' property
+      const candYears = Array.isArray((cand as any).skills)
+        ? (cand as any).skills.reduce((acc: number, s: any) => {
+            if (typeof s?.duration_months === 'number') return acc + s.duration_months / 12;
+            if (typeof s?.years === 'number') return acc + s.years;
+            return acc;
+          }, 0)
+        : 0;
+
+      for (const p of data as any[]) {
+        let parts = 0;
+        let sumPct = 0;
+        // skills
+        const js: string[] = Array.isArray(p.skills) ? p.skills : [];
+        if (js.length) {
+          const jsLower = js.map((x) => String(x).toLowerCase());
+          const inter = candSkillsLower.filter((s) => jsLower.includes(s));
+          const pct = js.length ? inter.length / js.length : 0;
+          parts++;
+          sumPct += pct;
+        }
+        // education
+        const je: string[] = Array.isArray(p.education_requirements) ? p.education_requirements : [];
+        if (je.length) {
+          const jeLower = je.map((x) => String(x).toLowerCase());
+          const inter = candEduLower.filter((e) => jeLower.includes(e));
+          const pct = je.length ? inter.length / je.length : 0;
+          parts++;
+          sumPct += pct;
+        }
+        // experience numeric
+        const xr = p.experience_requirements as { min_years?: number; max_years?: number } | undefined;
+        if (xr && (typeof xr.min_years === 'number' || typeof xr.max_years === 'number')) {
+          const minOk = typeof xr.min_years === 'number' ? candYears >= xr.min_years : true;
+          const maxOk = typeof xr.max_years === 'number' ? candYears <= xr.max_years : true;
+          const pct = minOk && maxOk ? 1 : 0;
+          parts++;
+          sumPct += pct;
+        }
+        if (parts > 0) {
+          p.fitness_score = Math.round((sumPct / parts) * 100);
+        }
+      }
+    }
+
     return { data, total, page, limit };
+  }
+
+  // Group relevant jobs by each preferred title; jobs ordered by fitness_score desc
+  async getRelevantJobsGrouped(
+    candidateId: string,
+    opts?: {
+      country?: string | string[];
+      salary?: { min?: number; max?: number; currency?: string; source?: 'base' | 'converted' };
+      combineWith?: 'AND' | 'OR';
+      useCanonicalTitles?: boolean;
+      includeScore?: boolean;
+      page?: number;
+      limit?: number;
+      preferredOverride?: string[];
+    },
+  ): Promise<{ groups: { title: string; jobs: JobPosting[] }[] }> {
+    const prefs = await this.preferences.find({ where: { candidate_id: candidateId }, order: { priority: 'ASC' } });
+    let preferred: string[] = [];
+    if (prefs.length) {
+      preferred = prefs.map((p) => p.title);
+    } else {
+      // fallback to most recent job profile
+      const jp = await this.jobProfiles.findOne({ where: { candidate_id: candidateId }, order: { updated_at: 'DESC' } });
+      const blob = jp?.profile_blob as any;
+      if (blob && Array.isArray(blob.preferred_titles)) {
+        preferred = blob.preferred_titles.filter((t: any) => typeof t === 'string');
+      }
+    }
+    if (opts?.preferredOverride && opts.preferredOverride.length) {
+      preferred = opts.preferredOverride;
+    }
+
+    const groups: { title: string; jobs: JobPosting[] }[] = [];
+    for (const title of preferred) {
+      const res = await this.getRelevantJobs(candidateId, {
+        ...opts,
+        includeScore: true, // ensure scoring for ordering
+        preferredOverride: [title],
+      });
+      // order by fitness_score desc when present
+      const ordered = (res.data as any[]).slice().sort((a, b) => ((b.fitness_score ?? 0) - (a.fitness_score ?? 0)));
+      groups.push({ title, jobs: ordered as any });
+    }
+    return { groups };
   }
 }

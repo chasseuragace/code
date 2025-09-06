@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ApplicationController } from './application.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JobApplication } from './job-application.entity';
 import { ApplicationService } from './application.service';
@@ -12,6 +13,7 @@ import { JobPosting } from '../domain/domain.entity';
     DomainModule,
   ],
   providers: [ApplicationService],
+  controllers: [ApplicationController],
   exports: [ApplicationService],
 })
 export class ApplicationModule {}

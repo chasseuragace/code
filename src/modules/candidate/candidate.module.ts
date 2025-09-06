@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { CandidateController } from './candidate.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Candidate } from './candidate.entity';
 import { CandidateService } from './candidate.service';
@@ -10,6 +11,7 @@ import { CandidatePreference } from './candidate-preference.entity';
 @Module({
   imports: [TypeOrmModule.forFeature([Candidate, CandidateJobProfile, CandidatePreference, JobTitle, JobPosting])],
   providers: [CandidateService],
+  controllers: [CandidateController],
   exports: [CandidateService],
 })
 export class CandidateModule {}

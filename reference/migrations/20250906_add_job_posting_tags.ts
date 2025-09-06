@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class AddJobPostingTags20250906123456789 implements MigrationInterface {
-  name = 'AddJobPostingTags20250906123456789'
+export class AddJobPostingTags1693999999999 implements MigrationInterface {
+  name = 'AddJobPostingTags1693999999999'
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`ALTER TABLE job_postings ADD COLUMN IF NOT EXISTS skills JSONB`);

@@ -72,11 +72,11 @@ export class JobPosting extends BaseEntity {
   @Column({ type: 'jsonb', nullable: true })
   education_requirements?: string[];
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column('jsonb', { nullable: true })
   experience_requirements?: {
     min_years?: number;
     max_years?: number;
-    level?: 'entry' | 'mid' | 'senior' | 'lead';
+    level?: 'fresher' | 'experienced' | 'skilled' | 'expert';
   };
 
   @ManyToMany(() => JobTitle)

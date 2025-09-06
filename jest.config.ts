@@ -12,6 +12,11 @@ const config: Config = {
     '^.+\\.(t|j)s$': 'ts-jest',
   },
   verbose: true,
+  // Increase stability for migration-heavy tests and ensure sequential execution
+  testTimeout: 30000,
+  maxWorkers: 1,
+  detectOpenHandles: true,
+  forceExit: true,
 };
 
 export default config;

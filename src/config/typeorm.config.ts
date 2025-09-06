@@ -16,4 +16,6 @@ export const dataSourceOptions: DataSourceOptions = {
   ],
   // Auto-run migrations on app start; safe for dev, acceptable for our deployment until we adopt a CLI pipeline
   migrationsRun: true,
+  // In development, also synchronize to create base tables before migrations add indexes/constraints
+  synchronize: process.env.NODE_ENV !== 'production',
 };

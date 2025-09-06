@@ -101,4 +101,41 @@ export class CandidateController {
     }
     return this.candidates.getRelevantJobsGrouped(id, opts);
   }
+
+  // Relevant jobs for a single preferred title (paginated)
+  // GET /candidates/:id/relevant-jobs/by-title?title=Electrician&page=1&limit=10&useCanonicalTitles=true&includeScore=true
+  @Get(':id/relevant-jobs/by-title')
+  async getRelevantJobsByTitle(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Query('title') title: string,
+    @Query('country') country?: string | string[],
+    @Query('combineWith') combineWith?: 'AND' | 'OR',
+    @Query('useCanonicalTitles') useCanonicalTitles?: string,
+    @Query('includeScore') includeScore?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('salary_min') salaryMin?: string,
+    @Query('salary_max') salaryMax?: string,
+    @Query('salary_currency') salaryCurrency?: string,
+    @Query('salary_source') salarySource?: 'base' | 'converted',
+  ) {
+    const opts: any = {
+      country,
+      combineWith: combineWith === 'OR' ? 'OR' : 'AND',
+      useCanonicalTitles: toBool(useCanonicalTitles) ?? false,
+      includeScore: toBool(includeScore) ?? false,
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      preferredOverride: title ? [title] : undefined,
+    };
+    if (salaryMin || salaryMax || salaryCurrency || salarySource) {
+      opts.salary = {
+        min: salaryMin ? parseFloat(salaryMin) : undefined,
+        max: salaryMax ? parseFloat(salaryMax) : undefined,
+        currency: salaryCurrency,
+        source: salarySource === 'converted' ? 'converted' : 'base',
+      };
+    }
+    return this.candidates.getRelevantJobs(id, opts);
+  }
 }

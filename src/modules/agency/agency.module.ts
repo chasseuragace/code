@@ -4,6 +4,7 @@ import { AgencyService } from './agency.service';
 import { AgencyController } from './agency.controller';
 import { DomainModule } from '../domain/domain.module';
 import { PostingAgency, JobPosting, JobContract, JobPosition, InterviewDetail } from '../domain/domain.entity';
+import { JobApplication } from '../application/job-application.entity';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { PostingAgency, JobPosting, JobContract, JobPosition, InterviewDetail } 
       JobContract,
       JobPosition,
       InterviewDetail,
+      JobApplication,
     ]),
   ],
   providers: [AgencyService],

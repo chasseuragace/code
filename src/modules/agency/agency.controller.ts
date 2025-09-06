@@ -1,8 +1,12 @@
 import { Controller, Post, HttpCode, Param, Body, Patch, Get, ParseUUIDPipe, ForbiddenException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { AgencyService, CreateAgencyDto } from './agency.service';
 import { JobPostingService, CreateJobPostingDto } from '../domain/domain.service';
 import { CreateJobPostingWithTagsDto } from '../domain/dto/create-job-posting-with-tags.dto';
 import { UpdateJobTagsDto } from '../domain/dto/update-job-tags.dto';
+import { JobApplication } from '../application/job-application.entity';
+import { JobPosting } from '../domain/domain.entity';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -11,6 +15,8 @@ export class AgencyController {
   constructor(
     private readonly agencyService: AgencyService,
     private readonly jobPostingService: JobPostingService,
+    @InjectRepository(JobApplication) private readonly jobAppRepo: Repository<JobApplication>,
+    @InjectRepository(JobPosting) private readonly jobPostingRepo: Repository<JobPosting>,
   ) {}
 
   // Create agency (production-friendly controller)
@@ -19,6 +25,48 @@ export class AgencyController {
   async createAgency(@Body() body: CreateAgencyDto) {
     const saved = await this.agencyService.createAgency(body);
     return { id: saved.id, license_number: saved.license_number };
+  }
+
+  // Analytics: applicants count grouped by phase, per posting for an agency
+  @Get(':license/analytics/applicants-by-phase')
+  @HttpCode(200)
+  async getApplicantsByPhase(@Param('license') license: string) {
+    // Ensure agency exists
+    await this.agencyService.findAgencyByLicense(license);
+
+    const rows = await this.jobAppRepo
+      .createQueryBuilder('ja')
+      .innerJoin(JobPosting, 'jp', 'jp.id = ja.job_posting_id')
+      .innerJoin('jp.contracts', 'c')
+      .innerJoin('c.agency', 'ag')
+      .where('ag.license_number = :license', { license })
+      .select('jp.id', 'posting_id')
+      .addSelect('jp.posting_title', 'posting_title')
+      .addSelect("SUM(CASE WHEN ja.status = 'applied' THEN 1 ELSE 0 END)", 'applied')
+      .addSelect("SUM(CASE WHEN ja.status = 'shortlisted' THEN 1 ELSE 0 END)", 'shortlisted')
+      .addSelect("SUM(CASE WHEN ja.status = 'interview_scheduled' THEN 1 ELSE 0 END)", 'interview_scheduled')
+      .addSelect("SUM(CASE WHEN ja.status = 'interview_rescheduled' THEN 1 ELSE 0 END)", 'interview_rescheduled')
+      .addSelect("SUM(CASE WHEN ja.status = 'interview_passed' THEN 1 ELSE 0 END)", 'interview_passed')
+      .addSelect("SUM(CASE WHEN ja.status = 'interview_failed' THEN 1 ELSE 0 END)", 'interview_failed')
+      .addSelect("SUM(CASE WHEN ja.status = 'withdrawn' THEN 1 ELSE 0 END)", 'withdrawn')
+      .groupBy('jp.id')
+      .addGroupBy('jp.posting_title')
+      .orderBy('jp.posting_title', 'ASC')
+      .getRawMany();
+
+    return rows.map((r) => ({
+      posting_id: r.posting_id,
+      posting_title: r.posting_title,
+      counts: {
+        applied: Number(r.applied || 0),
+        shortlisted: Number(r.shortlisted || 0),
+        interview_scheduled: Number(r.interview_scheduled || 0),
+        interview_rescheduled: Number(r.interview_rescheduled || 0),
+        interview_passed: Number(r.interview_passed || 0),
+        interview_failed: Number(r.interview_failed || 0),
+        withdrawn: Number(r.withdrawn || 0),
+      },
+    }));
   }
 
   // SeedV1: insert dummy agencies from JSON file

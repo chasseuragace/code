@@ -8,6 +8,7 @@ import { Candidate } from 'src/modules/candidate/candidate.entity';
 import { CandidateJobProfile } from 'src/modules/candidate/candidate-job-profile.entity';
 import { JobTitleModule } from 'src/modules/job-title/job-title.module';
 import { CandidatePreference } from 'src/modules/candidate/candidate-preference.entity';
+import { CountryModule } from 'src/modules/country/country.module';
 
 export async function bootstrapCandidateTestModule(): Promise<{
   moduleRef: TestingModule;
@@ -26,6 +27,7 @@ export async function bootstrapCandidateTestModule(): Promise<{
         synchronize: true,
       }),
       DomainModule,
+      CountryModule,
       JobTitleModule,
       CandidateModule,
     ],

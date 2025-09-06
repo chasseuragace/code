@@ -3,6 +3,7 @@ import { TestingModule } from '@nestjs/testing';
 import { bootstrapDomainTestModule } from './utils/testModule';
 import { createPostingWithDefaults } from './utils/ops/domainOps';
 import { uniqueSuffix } from './utils/id';
+import { CountryService } from 'src/modules/country/country.service';
 
 describe('Domain Posting - pagination edges (CC-2)', () => {
   let moduleRef: TestingModule;
@@ -16,6 +17,11 @@ describe('Domain Posting - pagination edges (CC-2)', () => {
     jobs = boot.jobs;
 
     // Seed an isolated dataset for this test suite
+    // Also seed the dynamic country marker so country validation passes
+    const countries = moduleRef.get(CountryService, { strict: false });
+    await countries.upsertMany([
+      { country_code: marker.slice(0, 3).toUpperCase(), country_name: marker, currency_code: 'CUR', currency_name: 'Currency', npr_multiplier: '1.00' },
+    ]);
     const N = 13;
     for (let i = 0; i < N; i++) {
       await createPostingWithDefaults(jobs, {

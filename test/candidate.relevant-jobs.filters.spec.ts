@@ -8,6 +8,7 @@ import { JobPostingService } from 'src/modules/domain/domain.service';
 import { Candidate } from 'src/modules/candidate/candidate.entity';
 import { CandidateJobProfile } from 'src/modules/candidate/candidate-job-profile.entity';
 import { clearDomain } from './utils/ops/clearDomain';
+import { CountryService } from 'src/modules/country/country.service';
 
 // NOTE: This suite scaffolds advanced filtering behavior.
 // Some tests may be skipped until service implementation catches up.
@@ -31,6 +32,14 @@ describe('Candidate relevant jobs - advanced filters', () => {
     const jobProfileRepo = moduleRef.get<any>(getRepositoryToken(CandidateJobProfile));
     await jobProfileRepo.clear();
     await candidateRepo.clear();
+
+    // Seed required countries for this suite
+    const countries = moduleRef.get(CountryService, { strict: false });
+    await countries.upsertMany([
+      { country_code: 'UAE', country_name: 'UAE', currency_code: 'AED', currency_name: 'Dirham', npr_multiplier: '36.00' },
+      { country_code: 'QAT', country_name: 'Qatar', currency_code: 'QAR', currency_name: 'Riyal', npr_multiplier: '36.50' },
+      { country_code: 'OMN', country_name: 'Oman', currency_code: 'OMR', currency_name: 'Rial', npr_multiplier: '350.00' },
+    ]);
 
     // Seed titles used in tests
     await titles.upsertMany([

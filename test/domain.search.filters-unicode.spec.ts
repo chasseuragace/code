@@ -3,6 +3,7 @@ import { TestingModule } from '@nestjs/testing';
 import { bootstrapDomainTestModule } from './utils/testModule';
 import { createPostingWithDefaults } from './utils/ops/domainOps';
 import { uniqueSuffix } from './utils/id';
+import { CountryService } from 'src/modules/country/country.service';
 
 /**
  * Covers:
@@ -23,6 +24,12 @@ describe('Domain Posting - search filters (ILIKE, Unicode) and deactivation prop
     jobs = boot.jobs;
 
     // Seed dataset with Unicode and mixed case values
+    const countries = moduleRef.get(CountryService, { strict: false });
+    await countries.upsertMany([
+      { country_code: 'NEP', country_name: 'Népal', currency_code: 'CUR', currency_name: 'Currency', npr_multiplier: '1.00' },
+      { country_code: 'NE1', country_name: 'nepal', currency_code: 'CUR', currency_name: 'Currency', npr_multiplier: '1.00' },
+      { country_code: marker.slice(0,3).toUpperCase(), country_name: marker, currency_code: 'CUR', currency_name: 'Currency', npr_multiplier: '1.00' },
+    ]);
     await createPostingWithDefaults(jobs, {
       posting_title: `${marker}-A`,
       country: 'Népal', // Unicode accented

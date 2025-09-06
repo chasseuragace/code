@@ -1,0 +1,68 @@
+[
+  {
+    "posting_title": "Skilled Workers for ACME Co.",
+    "country": "UAE",
+    "city": "Dubai",
+    "lt_number": "LT-001",
+    "chalani_number": "CH-2025-08",
+    "approval_date_bs": "2082-05-05",
+    "approval_date_ad": "2025-09-01",
+    "posting_date_ad": "2025-09-01",
+    "posting_date_bs": "2082-05-10",
+    "announcement_type": "full_ad",
+    "notes": "Seeded job posting for smoke testing",
+    "posting_agency": {
+      "name": "Global Recruiters",
+      "license_number": "LIC-AG-0001",
+      "address": "Kathmandu",
+      "phones": ["+977-1-5555555"],
+      "emails": ["contact@globalrecruiters.example.com"],
+      "website": "https://globalrecruiters.example.com"
+    },
+    "employer": {
+      "company_name": "ACME Co.",
+      "country": "UAE",
+      "city": "Dubai"
+    },
+    "contract": {
+      "period_years": 2,
+      "renewable": true,
+      "hours_per_day": 8,
+      "days_per_week": 6,
+      "overtime_policy": "paid",
+      "weekly_off_days": 1,
+      "food": "free",
+      "accommodation": "free",
+      "transport": "paid",
+      "annual_leave_days": 14
+    },
+    "positions": [
+      {
+        "title": "Welder",
+        "vacancies": { "male": 5, "female": 0 },
+        "salary": {
+          "monthly_amount": 1500,
+          "currency": "AED",
+          "converted": [ { "amount": 54000, "currency": "NPR" } ]
+        },
+        "hours_per_day_override": 8,
+        "days_per_week_override": 6,
+        "overtime_policy_override": "paid",
+        "weekly_off_days_override": 1,
+        "food_override": "free",
+        "accommodation_override": "free",
+        "transport_override": "paid",
+        "position_notes": "Hot work PPE mandatory"
+      },
+      {
+        "title": "Electrician",
+        "vacancies": { "male": 3, "female": 1 },
+        "salary": {
+          "monthly_amount": 1600,
+          "currency": "AED",
+          "converted": [ { "amount": 57600, "currency": "NPR" } ]
+        }
+      }
+    ]
+  }
+]

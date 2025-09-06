@@ -7,6 +7,7 @@ import { ApplicationModule } from './modules/application/application.module';
 import { AgencyModule } from './modules/agency/agency.module';
 import { CandidateModule } from './modules/candidate/candidate.module';
 import { OwnerAnalyticsModule } from './modules/owner-analytics/owner-analytics.module';
+import { CountryModule } from './modules/country/country.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { OwnerAnalyticsModule } from './modules/owner-analytics/owner-analytics.
     AgencyModule,
     CandidateModule,
     OwnerAnalyticsModule,
+    CountryModule,
   ],
 })
 export class AppModule {}

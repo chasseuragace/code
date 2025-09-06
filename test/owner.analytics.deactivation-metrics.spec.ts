@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import { bootstrapDomainTestModule } from './utils/testModule';
+import { CountryService } from 'src/modules/country/country.service';
 import { buildPostingDto } from './utils/builders/posting';
 
 function postingDto(overrides: Partial<any> = {}) {
@@ -20,6 +21,11 @@ describe('OwnerAnalyticsService - Deactivation Metrics', () => {
   it('computes global deactivation rate and per-country breakdown', async () => {
     const { moduleRef, jobs, owners } = await bootstrapDomainTestModule();
     try {
+      const countries = moduleRef.get(CountryService, { strict: false });
+      await countries.upsertMany([
+        { country_code: 'DX1', country_name: 'DX-C1', currency_code: 'CUR', currency_name: 'Currency', npr_multiplier: '1.00' },
+        { country_code: 'DX2', country_name: 'DX-C2', currency_code: 'CUR', currency_name: 'Currency', npr_multiplier: '1.00' },
+      ]);
       // Create 4 postings across two countries
       const p1 = await jobs.createJobPosting(postingDto({ country: 'DX-C1', posting_agency: { name: 'DX-A1', license_number: 'DX-LIC-A1' } }));
       const p2 = await jobs.createJobPosting(postingDto({ country: 'DX-C1', posting_agency: { name: 'DX-A2', license_number: 'DX-LIC-A2' } }));

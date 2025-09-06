@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import { bootstrapDomainTestModule } from './utils/testModule';
+import { CountryService } from 'src/modules/country/country.service';
 import { buildPostingDto } from './utils/builders/posting';
 import { DataSource } from 'typeorm';
 
@@ -22,6 +23,11 @@ describe('OwnerAnalyticsService - Salary Stats By Currency', () => {
          )`
       );
       await ds.query(`DELETE FROM job_postings WHERE country = 'TST-C'`);
+      // Seed required country for validation
+      const countries = moduleRef.get(CountryService, { strict: false });
+      await countries.upsertMany([
+        { country_code: 'TSC', country_name: 'TST-C', currency_code: 'CUR', currency_name: 'Currency', npr_multiplier: '1.00' },
+      ]);
       // Seed TST1 salaries: [1000, 1500, 2000]
       await jobs.createJobPosting(buildPostingDto({ country: 'TST-C', posting_date_ad: '2031-01-05', positions: [ { title: 'Role A1', vacancies: { male: 1, female: 0 }, salary: { monthly_amount: 1000, currency: 'TST1' } } ] }));
       await jobs.createJobPosting(buildPostingDto({ country: 'TST-C', posting_date_ad: '2031-01-06', positions: [ { title: 'Role A2', vacancies: { male: 1, female: 0 }, salary: { monthly_amount: 1500, currency: 'TST1' } } ] }));

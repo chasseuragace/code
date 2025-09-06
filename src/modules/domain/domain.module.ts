@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { DomainController } from './domain.controller';
+import { Country } from '../country/country.entity';
+import { JobTitle } from '../job-title/job-title.entity';
 import {
   JobPosting,
   PostingAgency,
@@ -26,6 +29,7 @@ import { ExpenseService, InterviewService, JobPostingService } from './domain.se
       Employer,
       JobContract,
       JobPosition,
+      JobTitle,
       SalaryConversion,
       MedicalExpense,
       InsuranceExpense,
@@ -35,9 +39,11 @@ import { ExpenseService, InterviewService, JobPostingService } from './domain.se
       WelfareServiceExpense,
       InterviewDetail,
       InterviewExpense,
+      Country,
     ]),
   ],
   providers: [JobPostingService, ExpenseService, InterviewService],
+  controllers: [DomainController],
   exports: [TypeOrmModule, JobPostingService, ExpenseService, InterviewService],
 })
 export class DomainModule {}

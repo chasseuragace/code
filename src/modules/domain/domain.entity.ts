@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToOne, JoinColumn, ManyToMany, JoinTable } from 'typeorm';
+import { JobTitle } from '../job-title/job-title.entity';
 
 // Base Entity with common fields
 abstract class BaseEntity {
@@ -63,6 +64,28 @@ export class JobPosting extends BaseEntity {
 
   @Column({ type: 'boolean', default: true })
   is_active: boolean;
+
+  // --- Tagging fields (optional) ---
+  @Column({ type: 'jsonb', nullable: true })
+  skills?: string[];
+
+  @Column({ type: 'jsonb', nullable: true })
+  education_requirements?: string[];
+
+  @Column({ type: 'jsonb', nullable: true })
+  experience_requirements?: {
+    min_years?: number;
+    max_years?: number;
+    level?: 'entry' | 'mid' | 'senior' | 'lead';
+  };
+
+  @ManyToMany(() => JobTitle)
+  @JoinTable({
+    name: 'job_posting_titles',
+    joinColumn: { name: 'job_posting_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'job_title_id', referencedColumnName: 'id' }
+  })
+  canonical_titles?: JobTitle[];
 
   @OneToMany(() => JobContract, contract => contract.job_posting, { cascade: true })
   contracts: JobContract[];

@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import { bootstrapDomainTestModule } from './utils/testModule';
+import { CountryService } from 'src/modules/country/country.service';
 import { buildPostingDto } from './utils/builders/posting';
 import { createInterviewWithExpense, createPostingWithDefaults } from './utils/ops/domainOps';
 
@@ -8,6 +9,10 @@ describe('OwnerAnalyticsService - Interviews Weekly Time Series', () => {
     const { moduleRef, jobs, interviews, owners } = await bootstrapDomainTestModule();
 
     try {
+      const countries = moduleRef.get(CountryService, { strict: false });
+      await countries.upsertMany([
+        { country_code: 'CIT', country_name: 'C-INT-TS', currency_code: 'CUR', currency_name: 'Currency', npr_multiplier: '1.00' },
+      ]);
       // Clean any prior interviews in our future test window to avoid pollution
       const ds = moduleRef.get(require('typeorm').DataSource, { strict: false });
       await ds.query(`DELETE FROM interview_details WHERE interview_date_ad BETWEEN '2031-01-01' AND '2031-12-31'`);

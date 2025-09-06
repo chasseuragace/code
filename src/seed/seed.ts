@@ -14,9 +14,9 @@ async function run() {
   const intSvc = app.get(InterviewService);
   const dataSource = app.get(DataSource);
 
-  // Seed Job Titles from reference JSON
+  // Seed Job Titles from src/seed/jobs.seed.json
   try {
-    const seedFile = path.resolve(__dirname, '../../reference/jobs/jobs.seed.json');
+    const seedFile = path.resolve(process.cwd(), 'src/seed/jobs.seed.json');
     const raw = fs.readFileSync(seedFile, 'utf-8');
     const rows: Array<{ title: string; rank: number; is_active?: boolean; difficulty?: string; skills_summary?: string; description?: string; }> = JSON.parse(raw);
     if (!Array.isArray(rows)) throw new Error('jobs.seed.json must contain an array');

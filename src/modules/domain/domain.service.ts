@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, ILike, In } from 'typeorm';
 import {
   JobPosting,
   PostingAgency,
@@ -17,6 +17,8 @@ import {
   InterviewDetail,
   InterviewExpense,
 } from './domain.entity';
+import { Country } from '../country/country.entity';
+import { JobTitle } from '../job-title/job-title.entity';
 
 // Minimal DTOs mirrored from reference/service.ts
 export enum AnnouncementType {
@@ -119,6 +121,8 @@ export class JobPostingService {
     @InjectRepository(Employer) private employerRepository: Repository<Employer>,
     @InjectRepository(JobContract) private contractRepository: Repository<JobContract>,
     @InjectRepository(JobPosition) private positionRepository: Repository<JobPosition>,
+    @InjectRepository(Country) private countryRepository: Repository<Country>,
+    @InjectRepository(JobTitle) private jobTitleRepository: Repository<JobTitle>,
     private dataSource: DataSource,
   ) {}
 
@@ -127,6 +131,17 @@ export class JobPostingService {
     await qr.connect();
     await qr.startTransaction();
     try {
+      // Validate country exists in countries table (accepts code or name, case-insensitive)
+      const country = await this.countryRepository.findOne({
+        where: [
+          { country_code: dto.country.toUpperCase() },
+          { country_name: ILike(dto.country) },
+        ],
+      });
+      if (!country) {
+        throw new BadRequestException(`Unknown country '${dto.country}'. Seed countries first or use a valid code/name.`);
+      }
+
       // Agency
       let agency = await qr.manager.findOne(PostingAgency, { where: { license_number: dto.posting_agency.license_number } });
       if (!agency) {
@@ -141,7 +156,13 @@ export class JobPostingService {
         employer = await qr.manager.save(employer);
       }
 
-      // Posting
+      // Posting (with optional tags)
+      const extra: any = {};
+      const anyDto = dto as any;
+      if (anyDto.skills !== undefined) extra.skills = anyDto.skills;
+      if (anyDto.education_requirements !== undefined) extra.education_requirements = anyDto.education_requirements;
+      if (anyDto.experience_requirements !== undefined) extra.experience_requirements = anyDto.experience_requirements;
+
       const jp = qr.manager.create(JobPosting, {
         posting_title: dto.posting_title,
         country: dto.country,
@@ -154,8 +175,19 @@ export class JobPostingService {
         posting_date_bs: dto.posting_date_bs,
         announcement_type: dto.announcement_type || AnnouncementType.FULL_AD,
         notes: dto.notes,
+        ...extra,
       });
       const savedJP = await qr.manager.save(jp);
+
+      // Optional: canonical titles many-to-many
+      const canonicalIds: string[] | undefined = anyDto.canonical_title_ids;
+      const canonicalNames: string[] | undefined = anyDto.canonical_title_names;
+      if ((canonicalIds && canonicalIds.length) || (canonicalNames && canonicalNames.length)) {
+        const titles = await this.validateCanonicalTitles(canonicalIds, canonicalNames, qr.manager);
+        // set relation
+        savedJP.canonical_titles = titles;
+        await qr.manager.save(savedJP);
+      }
 
       // Contract
       const contract = qr.manager.create(JobContract, {
@@ -221,9 +253,59 @@ export class JobPostingService {
   async findJobPostingById(id: string): Promise<JobPosting> {
     const jp = await this.jobPostingRepository.findOne({
       where: { id },
-      relations: ['contracts', 'contracts.employer', 'contracts.agency', 'contracts.positions', 'contracts.positions.salaryConversions'],
+      relations: ['canonical_titles', 'contracts', 'contracts.employer', 'contracts.agency', 'contracts.positions', 'contracts.positions.salaryConversions'],
     });
     if (!jp) throw new NotFoundException(`Job posting with ID ${id} not found`);
+    return jp;
+  }
+
+  // Validate canonical titles by IDs and/or names (active-only)
+  private async validateCanonicalTitles(titleIds?: string[], titleNames?: string[], manager?: import('typeorm').EntityManager): Promise<JobTitle[]> {
+    const repo = manager ? manager.getRepository(JobTitle) : this.jobTitleRepository;
+    const results: JobTitle[] = [];
+    if (titleIds && titleIds.length) {
+      const byId = await repo.find({ where: { id: In(titleIds), is_active: true } });
+      if (byId.length !== titleIds.length) {
+        const found = new Set(byId.map(t => t.id));
+        const missing = titleIds.filter(id => !found.has(id));
+        throw new BadRequestException(`Invalid or inactive job title IDs: ${missing.join(', ')}`);
+      }
+      results.push(...byId);
+    }
+    if (titleNames && titleNames.length) {
+      const byName = await repo.find({ where: { title: In(titleNames), is_active: true } });
+      if (byName.length !== titleNames.length) {
+        const found = new Set(byName.map(t => t.title));
+        const missing = titleNames.filter(n => !found.has(n));
+        throw new BadRequestException(`Invalid or inactive job titles: ${missing.join(', ')}`);
+      }
+      results.push(...byName);
+    }
+    return results;
+  }
+
+  // Update only tags (ownership check should be in controller via license, but we also return entity with canonical_titles)
+  async updateJobPostingTags(id: string, dto: any): Promise<JobPosting> {
+    // tags: skills, education_requirements, experience_requirements, canonical_title_ids
+    const jp = await this.jobPostingRepository.findOne({ where: { id }, relations: ['canonical_titles'] });
+    if (!jp) throw new NotFoundException('Job posting not found');
+
+    const updates: Partial<JobPosting> = {};
+    if (dto.skills !== undefined) updates.skills = dto.skills;
+    if (dto.education_requirements !== undefined) updates.education_requirements = dto.education_requirements;
+    if (dto.experience_requirements !== undefined) updates.experience_requirements = dto.experience_requirements;
+    if (dto.canonical_title_ids?.length) {
+      const titles = await this.validateCanonicalTitles(dto.canonical_title_ids, undefined);
+      jp.canonical_titles = titles;
+    }
+    Object.assign(jp, updates);
+    await this.jobPostingRepository.save(jp);
+    return this.findJobPostingById(id);
+  }
+
+  async findOneWithTags(id: string): Promise<JobPosting> {
+    const jp = await this.jobPostingRepository.findOne({ where: { id }, relations: ['canonical_titles'] });
+    if (!jp) throw new NotFoundException('Job posting not found');
     return jp;
   }
 

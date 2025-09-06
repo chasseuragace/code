@@ -1,4 +1,5 @@
 import { bootstrapDomainTestModule } from './utils/testModule';
+import { CountryService } from 'src/modules/country/country.service';
 import { buildPostingDto } from './utils/builders/posting';
 
 function posting(country: string, currency: string, salaries: number[]) {
@@ -20,6 +21,12 @@ describe('OwnerAnalyticsService - Salary By Country & Currency', () => {
       const short = () => (Date.now() % 1000).toString().padStart(3, '0');
       const c1 = `UAE_${short()}`;
       const c2 = `QAT_${short()}`;
+      // Seed dynamic countries to satisfy country validation
+      const countries = moduleRef.get(CountryService, { strict: false });
+      await countries.upsertMany([
+        { country_code: c1.slice(0,3).toUpperCase(), country_name: c1, currency_code: 'CUR', currency_name: 'Currency', npr_multiplier: '1.00' },
+        { country_code: c2.slice(0,3).toUpperCase(), country_name: c2, currency_code: 'CUR', currency_name: 'Currency', npr_multiplier: '1.00' },
+      ]);
       const curAED = `AED_${short()}`; // <=10 chars
       const curQAR = `QAR_${short()}`;
       // c1 / curAED: [1000, 1500]

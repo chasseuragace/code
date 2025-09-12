@@ -62,6 +62,10 @@ export class JobPosting extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   notes?: string;
 
+  // Public URL to job advert cutout image (e.g., /public/<agencyId>/<jobId>/cutout.<ext>)
+  @Column({ type: 'varchar', length: 1000, nullable: true })
+  cutout_url?: string;
+
   @Column({ type: 'boolean', default: true })
   is_active: boolean;
 

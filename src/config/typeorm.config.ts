@@ -14,8 +14,8 @@ export const dataSourceOptions: DataSourceOptions = {
     __dirname + '/../**/migrations/*{.ts,.js}',
     __dirname + '/../../reference/migrations/*{.ts,.js}',
   ],
-  // Auto-run migrations on app start; safe for dev, acceptable for our deployment until we adopt a CLI pipeline
-  migrationsRun: true,
-  // In development, also synchronize to create base tables before migrations add indexes/constraints
+  // Only auto-run migrations in production; in development we prefer synchronize to create base tables first
+  migrationsRun: process.env.NODE_ENV === 'production',
+  // In development, synchronize to create base tables before any manual migrations
   synchronize: process.env.NODE_ENV !== 'production',
 };

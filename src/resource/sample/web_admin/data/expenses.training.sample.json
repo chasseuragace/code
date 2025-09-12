@@ -1,0 +1,9 @@
+{
+  "who_pays": "agency",
+  "is_free": false,
+  "amount": 5000,
+  "currency": "NPR",
+  "duration_days": 3,
+  "mandatory": true,
+  "notes": "Pre-departure orientation shouldered by agency"
+}

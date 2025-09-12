@@ -1,4 +1,4 @@
-import { Controller, Post, HttpCode, Param, Body, Patch, Get, ParseUUIDPipe, ForbiddenException } from '@nestjs/common';
+import { Controller, Post, HttpCode, Param, Body, Patch, Get, ParseUUIDPipe, ForbiddenException, UploadedFile, UseInterceptors, Delete, Query } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AgencyService, CreateAgencyDto } from './agency.service';
@@ -9,12 +9,18 @@ import { JobApplication } from '../application/job-application.entity';
 import { JobPosting } from '../domain/domain.entity';
 import * as fs from 'fs';
 import * as path from 'path';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import type { Express } from 'express';
+import { ExpenseService, InterviewService } from '../domain/domain.service';
 
 @Controller('agencies')
 export class AgencyController {
   constructor(
     private readonly agencyService: AgencyService,
     private readonly jobPostingService: JobPostingService,
+    private readonly expenseService: ExpenseService,
+    private readonly interviewService: InterviewService,
     @InjectRepository(JobApplication) private readonly jobAppRepo: Repository<JobApplication>,
     @InjectRepository(JobPosting) private readonly jobPostingRepo: Repository<JobPosting>,
   ) {}
@@ -25,6 +31,21 @@ export class AgencyController {
   async createAgency(@Body() body: CreateAgencyDto) {
     const saved = await this.agencyService.createAgency(body);
     return { id: saved.id, license_number: saved.license_number };
+  }
+
+  // Get posting detail (minimal) including cutout_url
+  @Get(':license/job-postings/:id')
+  @HttpCode(200)
+  async getJobPosting(
+    @Param('license') license: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const posting = await this.jobPostingService.findJobPostingById(id);
+    const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
+    if (!belongs) {
+      throw new ForbiddenException('Cannot access job posting of another agency');
+    }
+    return { id: posting.id, posting_title: posting.posting_title, cutout_url: (posting as any).cutout_url ?? null };
   }
 
   // Analytics: applicants count grouped by phase, per posting for an agency
@@ -173,5 +194,218 @@ export class AgencyController {
       experience_requirements: (posting as any).experience_requirements,
       canonical_titles: (posting as any).canonical_titles ?? [],
     };
+  }
+
+  // Update posting core fields (details/contract subset) - ownership enforced
+  @Patch(':license/job-postings/:id')
+  @HttpCode(200)
+  async updateJobPosting(
+    @Param('license') license: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: Partial<CreateJobPostingDto>,
+  ) {
+    const posting = await this.jobPostingService.findJobPostingById(id);
+    const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
+    if (!belongs) {
+      throw new ForbiddenException('Cannot modify job posting of another agency');
+    }
+    const updated = await this.jobPostingService.updateJobPosting(id, body);
+    return { id: updated.id, posting_title: updated.posting_title };
+  }
+
+  // List job postings for an agency (basic)
+  @Get(':license/job-postings')
+  @HttpCode(200)
+  async listAgencyJobPostings(@Param('license') license: string) {
+    const rows = await this.jobPostingRepo
+      .createQueryBuilder('jp')
+      .leftJoinAndSelect('jp.contracts', 'c')
+      .leftJoinAndSelect('c.agency', 'ag')
+      .where('ag.license_number = :license', { license })
+      .orderBy('jp.posting_date_ad', 'DESC')
+      .getMany();
+    return rows.map(r => ({ id: r.id, posting_title: r.posting_title }));
+  }
+
+  // --- Expenses Endpoints ---
+  @Post(':license/job-postings/:id/expenses/medical')
+  @HttpCode(201)
+  async addMedicalExpense(
+    @Param('license') license: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { domestic?: any; foreign?: any },
+  ) {
+    const posting = await this.jobPostingService.findJobPostingById(id);
+    const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
+    if (!belongs) throw new ForbiddenException('Cannot modify job posting of another agency');
+    const saved = await this.expenseService.createMedicalExpense(id, body as any);
+    return { id: saved.id };
+  }
+
+  @Post(':license/job-postings/:id/expenses/insurance')
+  @HttpCode(201)
+  async addInsuranceExpense(
+    @Param('license') license: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: any,
+  ) {
+    const posting = await this.jobPostingService.findJobPostingById(id);
+    const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
+    if (!belongs) throw new ForbiddenException('Cannot modify job posting of another agency');
+    const saved = await this.expenseService.createInsuranceExpense(id, body as any);
+    return { id: saved.id };
+  }
+
+  @Post(':license/job-postings/:id/expenses/travel')
+  @HttpCode(201)
+  async addTravelExpense(
+    @Param('license') license: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: any,
+  ) {
+    const posting = await this.jobPostingService.findJobPostingById(id);
+    const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
+    if (!belongs) throw new ForbiddenException('Cannot modify job posting of another agency');
+    const saved = await this.expenseService.createTravelExpense(id, body as any);
+    return { id: saved.id };
+  }
+
+  @Post(':license/job-postings/:id/expenses/visa')
+  @HttpCode(201)
+  async addVisaExpense(
+    @Param('license') license: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: any,
+  ) {
+    const posting = await this.jobPostingService.findJobPostingById(id);
+    const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
+    if (!belongs) throw new ForbiddenException('Cannot modify job posting of another agency');
+    const saved = await this.expenseService.createVisaPermitExpense(id, body as any);
+    return { id: saved.id };
+  }
+
+  @Post(':license/job-postings/:id/expenses/training')
+  @HttpCode(201)
+  async addTrainingExpense(
+    @Param('license') license: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: any,
+  ) {
+    const posting = await this.jobPostingService.findJobPostingById(id);
+    const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
+    if (!belongs) throw new ForbiddenException('Cannot modify job posting of another agency');
+    const saved = await this.expenseService.createTrainingExpense(id, body as any);
+    return { id: saved.id };
+  }
+
+  @Post(':license/job-postings/:id/expenses/welfare')
+  @HttpCode(201)
+  async addWelfareExpense(
+    @Param('license') license: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: any,
+  ) {
+    const posting = await this.jobPostingService.findJobPostingById(id);
+    const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
+    if (!belongs) throw new ForbiddenException('Cannot modify job posting of another agency');
+    const saved = await this.expenseService.createWelfareServiceExpense(id, body as any);
+    return { id: saved.id };
+  }
+
+  // --- Interview Endpoints ---
+  @Post(':license/job-postings/:id/interview')
+  @HttpCode(201)
+  async createInterview(
+    @Param('license') license: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: any,
+  ) {
+    const posting = await this.jobPostingService.findJobPostingById(id);
+    const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
+    if (!belongs) throw new ForbiddenException('Cannot modify job posting of another agency');
+    const saved = await this.interviewService.createInterview(id, body as any);
+    return { id: saved.id };
+  }
+
+  @Get(':license/job-postings/:id/interview')
+  @HttpCode(200)
+  async getInterview(
+    @Param('license') license: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const posting = await this.jobPostingService.findJobPostingById(id);
+    const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
+    if (!belongs) throw new ForbiddenException('Cannot access job posting of another agency');
+    const found = await this.interviewService.findInterviewByJobPosting(id);
+    return found ?? null;
+  }
+
+  @Patch(':license/job-postings/:id/interview')
+  @HttpCode(200)
+  async updateInterview(
+    @Param('license') license: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: any,
+  ) {
+    const posting = await this.jobPostingService.findJobPostingById(id);
+    const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
+    if (!belongs) throw new ForbiddenException('Cannot modify job posting of another agency');
+    const existing = await this.interviewService.findInterviewByJobPosting(id);
+    if (!existing) {
+      throw new ForbiddenException('No interview found to update');
+    }
+    const updated = await this.interviewService.updateInterview(existing.id, body as any);
+    return { id: updated.id };
+  }
+
+  // --- Cutout Upload/Remove ---
+  @Post(':license/job-postings/:id/cutout')
+  @HttpCode(201)
+  @UseInterceptors(FileInterceptor('file', {
+    storage: diskStorage({
+      destination: (req, file, cb) => {
+        const license = req.params.license;
+        const id = req.params.id;
+        const dest = path.resolve(process.cwd(), 'public', license, id);
+        fs.mkdirSync(dest, { recursive: true });
+        cb(null, dest);
+      },
+      filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname) || '.bin';
+        cb(null, `cutout${ext}`);
+      }
+    })
+  }))
+  async uploadCutout(
+    @Param('license') license: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const posting = await this.jobPostingService.findJobPostingById(id);
+    const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
+    if (!belongs) throw new ForbiddenException('Cannot modify job posting of another agency');
+    const rel = `/public/${license}/${id}/${file.filename}`;
+    const updated = await this.jobPostingService.updateCutoutUrl(id, rel);
+    return { id: updated.id, cutout_url: rel };
+  }
+
+  @Delete(':license/job-postings/:id/cutout')
+  @HttpCode(200)
+  async removeCutout(
+    @Param('license') license: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('deleteFile') deleteFile?: string,
+  ) {
+    const posting = await this.jobPostingService.findJobPostingById(id);
+    const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
+    if (!belongs) throw new ForbiddenException('Cannot modify job posting of another agency');
+    const currentUrl = (posting as any).cutout_url as string | undefined;
+    const shouldDelete = (deleteFile || '').toLowerCase() === 'true';
+    if (shouldDelete && currentUrl) {
+      const absPath = path.resolve(process.cwd(), currentUrl.replace(/^\//, ''));
+      try { if (fs.existsSync(absPath)) fs.unlinkSync(absPath); } catch { /* ignore */ }
+    }
+    const updated = await this.jobPostingService.updateCutoutUrl(id, null);
+    return { id: updated.id, cutout_url: null };
   }
 }

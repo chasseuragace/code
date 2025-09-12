@@ -250,7 +250,9 @@ export class CandidateService {
   ): Promise<{ data: JobPosting[]; total: number; page: number; limit: number }> {
     const page = opts?.page ?? 1;
     const limit = opts?.limit ?? 10;
-
+// find all candidate and print id 
+    const candidates = await this.repo.find();
+    console.log(candidates.map((c) => c.id));
     const cand = await this.repo.findOne({ where: { id: candidateId } });
     if (!cand) throw new NotFoundException('Candidate not found');
     // Prefer explicit CandidatePreferences; fallback to most recent job profile preferred_titles

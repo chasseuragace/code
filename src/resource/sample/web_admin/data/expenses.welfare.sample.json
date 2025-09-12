@@ -1,0 +1,18 @@
+{
+  "welfare": {
+    "who_pays": "worker",
+    "is_free": false,
+    "amount": 1500,
+    "currency": "NPR",
+    "fund_purpose": "welfare_fund",
+    "refundable": false,
+    "notes": "Welfare fund contribution"
+  },
+  "service": {
+    "who_pays": "company",
+    "is_free": true,
+    "service_type": "accommodation",
+    "refundable": false,
+    "notes": "Accommodation service provided by employer"
+  }
+}

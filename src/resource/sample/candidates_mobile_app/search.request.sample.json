@@ -1,0 +1,14 @@
+{
+  "country": ["UAE", "Qatar"],
+  "salary": {
+    "min": 900,
+    "max": 1400,
+    "currency": "AED",
+    "source": "base"
+  },
+  "combineWith": "AND",
+  "page": 1,
+  "limit": 10,
+  "q": "driver",
+  "activeOnly": true
+}

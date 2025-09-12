@@ -303,6 +303,22 @@ export class JobPostingService {
     return this.findJobPostingById(id);
   }
 
+  async updateCutoutUrl(id: string, cutoutUrl: string | null): Promise<JobPosting> {
+    if (cutoutUrl === null) {
+      // Force NULL in DB for cutout_url
+      const qbRes = await this.jobPostingRepository.createQueryBuilder()
+        .update()
+        .set({ cutout_url: (null as unknown) as any, updated_at: new Date() as any })
+        .where({ id })
+        .execute();
+      if (qbRes.affected === 0) throw new NotFoundException(`Job posting with ID ${id} not found`);
+    } else {
+      const res = await this.jobPostingRepository.update(id, { cutout_url: cutoutUrl, updated_at: new Date() as any });
+      if (res.affected === 0) throw new NotFoundException(`Job posting with ID ${id} not found`);
+    }
+    return this.findJobPostingById(id);
+  }
+
   async findOneWithTags(id: string): Promise<JobPosting> {
     const jp = await this.jobPostingRepository.findOne({ where: { id }, relations: ['canonical_titles'] });
     if (!jp) throw new NotFoundException('Job posting not found');

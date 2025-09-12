@@ -1,0 +1,59 @@
+{
+  "id": "<jobId>",
+  "posting_title": "UAE-Welder-High",
+  "country": "UAE",
+  "city": "Dubai",
+  "announcement_type": "full_ad",
+  "posting_date_ad": "2025-09-11",
+  "notes": "...",
+  "agency": { "name": "A", "license_number": "LIC-AF-1" },
+  "employer": { "company_name": "UAE Co 1", "country": "UAE", "city": "Dubai" },
+  "contract": {
+    "period_years": 2,
+    "renewable": true,
+    "hours_per_day": 8,
+    "days_per_week": 6,
+    "overtime_policy": "paid",
+    "weekly_off_days": 1,
+    "food": "free",
+    "accommodation": "free",
+    "transport": "paid",
+    "annual_leave_days": 14
+  },
+  "positions": [
+    {
+      "title": "Welder",
+      "vacancies": { "male": 5, "female": 0, "total": 5 },
+      "salary": {
+        "monthly_amount": 1500,
+        "currency": "AED",
+        "converted": [ { "amount": 410, "currency": "USD" }, { "amount": 55000, "currency": "NPR" } ]
+      },
+      "overrides": {
+        "hours_per_day": null,
+        "days_per_week": null,
+        "overtime_policy": null,
+        "weekly_off_days": null,
+        "food": null,
+        "accommodation": null,
+        "transport": null
+      }
+    }
+  ],
+  "skills": ["arc welding", "safety"],
+  "education_requirements": ["SLC"],
+  "experience_requirements": { "min_years": 1, "max_years": 3, "level": "skilled" },
+  "canonical_titles": ["Welder"],
+  "expenses": {
+    "medical": [
+      { "domestic": { "who_pays": "worker", "is_free": false, "amount": 2000, "currency": "NPR" }, "foreign": { "who_pays": "company", "is_free": true } }
+    ],
+    "insurance": [ { "who_pays": "company", "is_free": true } ],
+    "travel": [ { "who_provides": "company", "ticket_type": "round_trip", "is_free": false, "amount": 800, "currency": "AED" } ],
+    "visa_permit": [ { "who_pays": "company", "is_free": true, "refundable": false } ],
+    "training": [ { "who_pays": "worker", "is_free": false, "amount": 50, "currency": "AED", "duration_days": 2 } ],
+    "welfare_service": [ { "welfare_who_pays": "worker", "welfare_is_free": false, "welfare_amount": 100, "welfare_currency": "AED" } ]
+  },
+  "interview": null,
+  "cutout_url": "/public/LIC-AF-1/<jobId>/cutout.svg"
+}

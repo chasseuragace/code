@@ -35,6 +35,11 @@
    - Click "Deploy site"
    - Wait for build to complete (usually 2-5 minutes)
 
+6. **Automatic Deployments:**
+   - Once connected to Git, Netlify will automatically deploy on every push to your main branch
+   - Pull requests will create deploy previews
+   - Check "Site settings > Build & deploy > Continuous deployment" to configure branch settings
+
 ### Option 2: Drag and Drop Deployment
 
 1. **Build locally:**

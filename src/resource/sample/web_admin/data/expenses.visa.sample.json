@@ -1,0 +1,8 @@
+{
+  "who_pays": "worker",
+  "is_free": false,
+  "amount": 300,
+  "currency": "AED",
+  "refundable": false,
+  "notes": "Visa/permit fee paid by worker"
+}

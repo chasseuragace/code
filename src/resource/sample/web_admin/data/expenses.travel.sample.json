@@ -1,0 +1,8 @@
+{
+  "who_pays": "company",
+  "is_free": false,
+  "amount": 800,
+  "currency": "AED",
+  "ticket_type": "round_trip",
+  "notes": "Round-trip ticket provided by employer"
+}

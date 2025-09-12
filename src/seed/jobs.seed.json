@@ -1,52 +1,410 @@
 [
-  { "title": "Mason", "rank": 1, "is_active": true, "difficulty": "High", "skills_summary": "Basic masonry, site experience", "description": "Lays bricks/blocks, builds walls, plastering. Heavy lifting outdoors." },
-  { "title": "Carpenter", "rank": 2, "is_active": true, "difficulty": "High", "skills_summary": "Woodworking, tool handling", "description": "Cuts, shapes, assembles wooden structures, furniture, formwork." },
-  { "title": "Steel Fixer", "rank": 3, "is_active": true, "difficulty": "High", "skills_summary": "Rebar placement, basic construction", "description": "Installs steel bars/reinforcement in concrete structures. Physically demanding." },
-  { "title": "Scaffolder", "rank": 4, "is_active": true, "difficulty": "High", "skills_summary": "Safety knowledge, climbing", "description": "Sets up scaffolding for construction sites. Requires balance, strength." },
-  { "title": "Painter", "rank": 5, "is_active": true, "difficulty": "Medium", "skills_summary": "Painting techniques, surface prep", "description": "Paints walls, ceilings, structures. Prepares surfaces and applies coatings." },
-  { "title": "Tile/Marble Fixer", "rank": 6, "is_active": true, "difficulty": "Medium", "skills_summary": "Tile/stone laying, cutting", "description": "Installs tiles/marble in floors and walls. Requires precision and bending." },
-  { "title": "Plasterer", "rank": 7, "is_active": true, "difficulty": "High", "skills_summary": "Plastering skills", "description": "Applies plaster to walls and ceilings, smooths surfaces. Heavy, repetitive work." },
-  { "title": "Shuttering/Formwork Carpenter", "rank": 8, "is_active": true, "difficulty": "High", "skills_summary": "Carpentry, construction", "description": "Builds molds for concrete casting. Heavy, standing, lifting work." },
-  { "title": "Welder", "rank": 9, "is_active": true, "difficulty": "Medium–High", "skills_summary": "Welding certifications, metalwork", "description": "Joins metal parts using welding machines. Requires precision and safety awareness." },
-  { "title": "Pipe Fitter / Plumber", "rank": 10, "is_active": true, "difficulty": "Medium–High", "skills_summary": "Plumbing trade knowledge", "description": "Installs and repairs water/gas pipelines, sanitary fittings. Physical bending and lifting." },
-  { "title": "Electrician", "rank": 11, "is_active": true, "difficulty": "Medium", "skills_summary": "Electrical training, safety knowledge", "description": "Installs, maintains, and repairs electrical systems. Risk of shocks if untrained." },
-  { "title": "AC / HVAC Technician", "rank": 12, "is_active": true, "difficulty": "Medium", "skills_summary": "Refrigeration/AC training", "description": "Installs, maintains, and repairs AC and cooling systems. Involves lifting and precision." },
-  { "title": "Mechanical / Electrical Technician", "rank": 13, "is_active": true, "difficulty": "Medium", "skills_summary": "Technical training", "description": "Maintains machinery, small engines, or electrical equipment. Moderate physical work." },
-  { "title": "Automotive Mechanic", "rank": 14, "is_active": true, "difficulty": "Medium–High", "skills_summary": "Vehicle repair experience", "description": "Repairs cars, trucks, or heavy vehicles. Hands-on, physical, sometimes oily work." },
-  { "title": "Heavy/Trailer Driver", "rank": 15, "is_active": true, "difficulty": "Medium", "skills_summary": "Driving license, experience", "description": "Operates trucks or trailers. Long hours, requires endurance and focus." },
-  { "title": "Light Vehicle Driver", "rank": 16, "is_active": true, "difficulty": "Medium", "skills_summary": "Driving license", "description": "Drives cars, vans, minibuses. Long hours possible, moderate physical activity." },
-  { "title": "Bus/Coaster Driver", "rank": 17, "is_active": true, "difficulty": "Medium", "skills_summary": "Professional driving license", "description": "Drives passenger vehicles on local or intercity routes. Responsible for safety and schedules." },
-  { "title": "Delivery Driver", "rank": 18, "is_active": true, "difficulty": "Medium", "skills_summary": "Driving experience", "description": "Delivers goods/packages. Requires physical handling of parcels." },
-  { "title": "Forklift Operator", "rank": 19, "is_active": true, "difficulty": "Medium", "skills_summary": "Certification, machine handling", "description": "Operates forklifts in warehouses or construction. Moderate lifting, attention to safety." },
-  { "title": "Excavator / Backhoe Operator", "rank": 20, "is_active": true, "difficulty": "High", "skills_summary": "Machine operation experience", "description": "Operates heavy earthmoving equipment. Long hours, outdoor, physically stressful." },
-  { "title": "Crane / Hoist Operator", "rank": 21, "is_active": true, "difficulty": "Medium–High", "skills_summary": "Certified operator", "description": "Operates cranes or hoists on construction sites. Requires precision and safety compliance." },
-  { "title": "Loader / Bulldozer Operator", "rank": 22, "is_active": true, "difficulty": "High", "skills_summary": "Machine operation experience", "description": "Operates loaders/bulldozers. Heavy machinery, long hours, outdoor work." },
-  { "title": "Machine Operator (Factory)", "rank": 23, "is_active": true, "difficulty": "Medium", "skills_summary": "Technical skills", "description": "Runs factory machines, monitors production. Standing and repetitive tasks." },
-  { "title": "Packaging / Loading / Shipping Worker", "rank": 24, "is_active": true, "difficulty": "Medium–High", "skills_summary": "No formal skill, experience helpful", "description": "Packs, labels, and moves goods. Heavy lifting and repetitive tasks." },
-  { "title": "Factory / Manufacturing Worker", "rank": 25, "is_active": true, "difficulty": "Medium–High", "skills_summary": "No formal skill required", "description": "Works on assembly lines or production units. Standing, repetitive, sometimes physically demanding." },
-  { "title": "Warehouse Worker", "rank": 26, "is_active": true, "difficulty": "Medium", "skills_summary": "Inventory handling, lifting", "description": "Loads, unloads, stores goods. Moderate to heavy physical effort." },
-  { "title": "Storekeeper", "rank": 27, "is_active": true, "difficulty": "Low–Medium", "skills_summary": "Inventory management", "description": "Maintains stock records, organizes storage. Mostly administrative with light physical work." },
-  { "title": "Office Assistant / Admin Assistant", "rank": 28, "is_active": true, "difficulty": "Low", "skills_summary": "Basic computer, office experience", "description": "Supports office work: filing, data entry, minor errands. Mostly seated work." },
-  { "title": "Clerk / Data Entry", "rank": 29, "is_active": true, "difficulty": "Low", "skills_summary": "Computer literacy", "description": "Inputs data, maintains records, office support. Minimal physical effort." },
-  { "title": "Receptionist", "rank": 30, "is_active": true, "difficulty": "Low", "skills_summary": "Communication skills", "description": "Handles calls, visitors, schedules appointments. Mostly desk-based work." },
-  { "title": "Security Guard", "rank": 31, "is_active": true, "difficulty": "Medium", "skills_summary": "Security training, physical fitness", "description": "Monitors premises, ensures safety. Can involve patrolling and standing long hours." },
-  { "title": "Salesman / Retail Staff", "rank": 32, "is_active": true, "difficulty": "Low–Medium", "skills_summary": "Customer service skills", "description": "Sells products, assists customers, manages shelves. Moderate physical activity." },
-  { "title": "Housekeeping Attendant", "rank": 33, "is_active": true, "difficulty": "Medium", "skills_summary": "Cleaning skills", "description": "Cleans rooms, changes linens, tidies facilities. Repetitive standing and bending." },
-  { "title": "Cleaner / Cleaning & Laundry Worker", "rank": 34, "is_active": true, "difficulty": "Medium", "skills_summary": "No formal skill", "description": "Sweeps, mops, washes, handles laundry. Physically repetitive." },
-  { "title": "General Labourer (Specified)", "rank": 35, "is_active": true, "difficulty": "High", "skills_summary": "No formal skill", "description": "Performs manual tasks: carrying, digging, loading. Heavy physical effort." },
-  { "title": "General Labourer (Unspecified)", "rank": 36, "is_active": true, "difficulty": "High", "skills_summary": "No formal skill", "description": "Miscellaneous manual labor in construction or factories. Physically demanding." },
-  { "title": "Chef / Cook", "rank": 37, "is_active": true, "difficulty": "Medium", "skills_summary": "Culinary skills", "description": "Prepares meals in hotels, restaurants, or labor camps. Standing, fast-paced work." },
-  { "title": "Cook Helper / Kitchen Helper", "rank": 38, "is_active": true, "difficulty": "Medium", "skills_summary": "Basic kitchen experience", "description": "Assists main cook: chopping, cleaning, carrying items, dishwashing. Standing work." },
-  { "title": "Baker / Pastry / Dessert Maker", "rank": 39, "is_active": true, "difficulty": "Medium", "skills_summary": "Baking skills", "description": "Prepares bread, pastries, desserts. Mixing, shaping, oven handling." },
-  { "title": "Butcher", "rank": 40, "is_active": true, "difficulty": "Medium–High", "skills_summary": "Meat handling, knife skills", "description": "Cuts, prepares, and packs meat. Requires strength and hygiene awareness." },
-  { "title": "Barista / Coffee Maker", "rank": 41, "is_active": true, "difficulty": "Low–Medium", "skills_summary": "Coffee making skills", "description": "Prepares beverages, serves customers. Mostly standing and repetitive motions." },
-  { "title": "Waiter / Steward", "rank": 42, "is_active": true, "difficulty": "Medium", "skills_summary": "Customer service, hospitality skills", "description": "Serves food and drinks, clears tables. Long standing hours, fast-paced." },
-  { "title": "Caregiver / Nursing Aide", "rank": 43, "is_active": true, "difficulty": "Medium", "skills_summary": "Basic healthcare training", "description": "Assists elderly/disabled with daily activities, hygiene, and medication. Physically and emotionally demanding." },
-  { "title": "Beautician / Fitness Staff", "rank": 44, "is_active": true, "difficulty": "Low–Medium", "skills_summary": "Training in beauty or fitness", "description": "Provides beauty or fitness services: massage, makeup, exercise guidance. Light to moderate effort." },
-  { "title": "Agriculture / Farm Worker", "rank": 45, "is_active": true, "difficulty": "High", "skills_summary": "Farming experience", "description": "Planting, watering, harvesting crops. Heavy outdoor labor." },
-  { "title": "Poultry Worker", "rank": 46, "is_active": true, "difficulty": "Medium", "skills_summary": "Animal handling experience", "description": "Feeds, cleans, and maintains poultry. Moderate lifting and cleaning." },
-  { "title": "Gardener / Landscaping", "rank": 47, "is_active": true, "difficulty": "Medium–High", "skills_summary": "Horticulture skills helpful", "description": "Plants, trims, waters, and maintains gardens. Physical outdoor work." },
-  { "title": "Aviation / Cruise Staff", "rank": 48, "is_active": true, "difficulty": "Medium", "skills_summary": "Hospitality/customer service", "description": "Works on ships or planes: cabin service, cleaning, guest assistance. Standing, customer-facing." },
-  { "title": "Construction Helper (General)", "rank": 49, "is_active": true, "difficulty": "High", "skills_summary": "No formal skill", "description": "Assists skilled workers on sites: carrying, mixing, cleaning. Physically demanding." },
-  { "title": "Laundry Worker", "rank": 50, "is_active": true, "difficulty": "Medium", "skills_summary": "No formal skill", "description": "Washes, folds, and irons clothes in hotels or factories. Repetitive, standing work." }
+  {
+    "title": "Mason",
+    "rank": 1,
+    "is_active": true,
+    "difficulty": "High",
+    "skills_summary": "Basic masonry, site experience",
+    "description": "Lays bricks/blocks, builds walls, plastering. Heavy lifting outdoors."
+  },
+  {
+    "title": "Carpenter",
+    "rank": 2,
+    "is_active": true,
+    "difficulty": "High",
+    "skills_summary": "Woodworking, tool handling",
+    "description": "Cuts, shapes, assembles wooden structures, furniture, formwork."
+  },
+  {
+    "title": "Steel Fixer",
+    "rank": 3,
+    "is_active": true,
+    "difficulty": "High",
+    "skills_summary": "Rebar placement, basic construction",
+    "description": "Installs steel bars/reinforcement in concrete structures. Physically demanding."
+  },
+  {
+    "title": "Scaffolder",
+    "rank": 4,
+    "is_active": true,
+    "difficulty": "High",
+    "skills_summary": "Safety knowledge, climbing",
+    "description": "Sets up scaffolding for construction sites. Requires balance, strength."
+  },
+  {
+    "title": "Painter",
+    "rank": 5,
+    "is_active": true,
+    "difficulty": "Medium",
+    "skills_summary": "Painting techniques, surface prep",
+    "description": "Paints walls, ceilings, structures. Prepares surfaces and applies coatings."
+  },
+  {
+    "title": "Tile/Marble Fixer",
+    "rank": 6,
+    "is_active": true,
+    "difficulty": "Medium",
+    "skills_summary": "Tile/stone laying, cutting",
+    "description": "Installs tiles/marble in floors and walls. Requires precision and bending."
+  },
+  {
+    "title": "Plasterer",
+    "rank": 7,
+    "is_active": true,
+    "difficulty": "High",
+    "skills_summary": "Plastering skills",
+    "description": "Applies plaster to walls and ceilings, smooths surfaces. Heavy, repetitive work."
+  },
+  {
+    "title": "Shuttering/Formwork Carpenter",
+    "rank": 8,
+    "is_active": true,
+    "difficulty": "High",
+    "skills_summary": "Carpentry, construction",
+    "description": "Builds molds for concrete casting. Heavy, standing, lifting work."
+  },
+  {
+    "title": "Welder",
+    "rank": 9,
+    "is_active": true,
+    "difficulty": "Medium–High",
+    "skills_summary": "Welding certifications, metalwork",
+    "description": "Joins metal parts using welding machines. Requires precision and safety awareness."
+  },
+  {
+    "title": "Pipe Fitter / Plumber",
+    "rank": 10,
+    "is_active": true,
+    "difficulty": "Medium–High",
+    "skills_summary": "Plumbing trade knowledge",
+    "description": "Installs and repairs water/gas pipelines, sanitary fittings. Physical bending and lifting."
+  },
+  {
+    "title": "Plumber",
+    "rank": 10,
+    "is_active": true,
+    "difficulty": "Medium–High",
+    "skills_summary": "Plumbing trade knowledge",
+    "description": "Installs and repairs water/gas pipelines, sanitary fittings. Physical bending and lifting."
+  },
+  {
+    "title": "Electrician",
+    "rank": 11,
+    "is_active": true,
+    "difficulty": "Medium",
+    "skills_summary": "Electrical training, safety knowledge",
+    "description": "Installs, maintains, and repairs electrical systems. Risk of shocks if untrained."
+  },
+  {
+    "title": "AC / HVAC Technician",
+    "rank": 12,
+    "is_active": true,
+    "difficulty": "Medium",
+    "skills_summary": "Refrigeration/AC training",
+    "description": "Installs, maintains, and repairs AC and cooling systems. Involves lifting and precision."
+  },
+  {
+    "title": "Mechanical / Electrical Technician",
+    "rank": 13,
+    "is_active": true,
+    "difficulty": "Medium",
+    "skills_summary": "Technical training",
+    "description": "Maintains machinery, small engines, or electrical equipment. Moderate physical work."
+  },
+  {
+    "title": "Automotive Mechanic",
+    "rank": 14,
+    "is_active": true,
+    "difficulty": "Medium–High",
+    "skills_summary": "Vehicle repair experience",
+    "description": "Repairs cars, trucks, or heavy vehicles. Hands-on, physical, sometimes oily work."
+  },
+  {
+    "title": "Heavy/Trailer Driver",
+    "rank": 15,
+    "is_active": true,
+    "difficulty": "Medium",
+    "skills_summary": "Driving license, experience",
+    "description": "Operates trucks or trailers. Long hours, requires endurance and focus."
+  },
+  {
+    "title": "Light Vehicle Driver",
+    "rank": 16,
+    "is_active": true,
+    "difficulty": "Medium",
+    "skills_summary": "Driving license",
+    "description": "Drives cars, vans, minibuses. Long hours possible, moderate physical activity."
+  },
+  {
+    "title": "Bus/Coaster Driver",
+    "rank": 17,
+    "is_active": true,
+    "difficulty": "Medium",
+    "skills_summary": "Professional driving license",
+    "description": "Drives passenger vehicles on local or intercity routes. Responsible for safety and schedules."
+  },
+  {
+    "title": "Delivery Driver",
+    "rank": 18,
+    "is_active": true,
+    "difficulty": "Medium",
+    "skills_summary": "Driving experience",
+    "description": "Delivers goods/packages. Requires physical handling of parcels."
+  },
+  {
+    "title": "Forklift Operator",
+    "rank": 19,
+    "is_active": true,
+    "difficulty": "Medium",
+    "skills_summary": "Certification, machine handling",
+    "description": "Operates forklifts in warehouses or construction. Moderate lifting, attention to safety."
+  },
+  {
+    "title": "Excavator / Backhoe Operator",
+    "rank": 20,
+    "is_active": true,
+    "difficulty": "High",
+    "skills_summary": "Machine operation experience",
+    "description": "Operates heavy earthmoving equipment. Long hours, outdoor, physically stressful."
+  },
+  {
+    "title": "Crane / Hoist Operator",
+    "rank": 21,
+    "is_active": true,
+    "difficulty": "Medium–High",
+    "skills_summary": "Certified operator",
+    "description": "Operates cranes or hoists on construction sites. Requires precision and safety compliance."
+  },
+  {
+    "title": "Loader / Bulldozer Operator",
+    "rank": 22,
+    "is_active": true,
+    "difficulty": "High",
+    "skills_summary": "Machine operation experience",
+    "description": "Operates loaders/bulldozers. Heavy machinery, long hours, outdoor work."
+  },
+  {
+    "title": "Machine Operator (Factory)",
+    "rank": 23,
+    "is_active": true,
+    "difficulty": "Medium",
+    "skills_summary": "Technical skills",
+    "description": "Runs factory machines, monitors production. Standing and repetitive tasks."
+  },
+  {
+    "title": "Packaging / Loading / Shipping Worker",
+    "rank": 24,
+    "is_active": true,
+    "difficulty": "Medium–High",
+    "skills_summary": "No formal skill, experience helpful",
+    "description": "Packs, labels, and moves goods. Heavy lifting and repetitive tasks."
+  },
+  {
+    "title": "Factory / Manufacturing Worker",
+    "rank": 25,
+    "is_active": true,
+    "difficulty": "Medium–High",
+    "skills_summary": "No formal skill required",
+    "description": "Works on assembly lines or production units. Standing, repetitive, sometimes physically demanding."
+  },
+  {
+    "title": "Warehouse Worker",
+    "rank": 26,
+    "is_active": true,
+    "difficulty": "Medium",
+    "skills_summary": "Inventory handling, lifting",
+    "description": "Loads, unloads, stores goods. Moderate to heavy physical effort."
+  },
+  {
+    "title": "Storekeeper",
+    "rank": 27,
+    "is_active": true,
+    "difficulty": "Low–Medium",
+    "skills_summary": "Inventory management",
+    "description": "Maintains stock records, organizes storage. Mostly administrative with light physical work."
+  },
+  {
+    "title": "Office Assistant / Admin Assistant",
+    "rank": 28,
+    "is_active": true,
+    "difficulty": "Low",
+    "skills_summary": "Basic computer, office experience",
+    "description": "Supports office work: filing, data entry, minor errands. Mostly seated work."
+  },
+  {
+    "title": "Clerk / Data Entry",
+    "rank": 29,
+    "is_active": true,
+    "difficulty": "Low",
+    "skills_summary": "Computer literacy",
+    "description": "Inputs data, maintains records, office support. Minimal physical effort."
+  },
+  {
+    "title": "Receptionist",
+    "rank": 30,
+    "is_active": true,
+    "difficulty": "Low",
+    "skills_summary": "Communication skills",
+    "description": "Handles calls, visitors, schedules appointments. Mostly desk-based work."
+  },
+  {
+    "title": "Security Guard",
+    "rank": 31,
+    "is_active": true,
+    "difficulty": "Medium",
+    "skills_summary": "Security training, physical fitness",
+    "description": "Monitors premises, ensures safety. Can involve patrolling and standing long hours."
+  },
+  {
+    "title": "Salesman / Retail Staff",
+    "rank": 32,
+    "is_active": true,
+    "difficulty": "Low–Medium",
+    "skills_summary": "Customer service skills",
+    "description": "Sells products, assists customers, manages shelves. Moderate physical activity."
+  },
+  {
+    "title": "Housekeeping Attendant",
+    "rank": 33,
+    "is_active": true,
+    "difficulty": "Medium",
+    "skills_summary": "Cleaning skills",
+    "description": "Cleans rooms, changes linens, tidies facilities. Repetitive standing and bending."
+  },
+  {
+    "title": "Cleaner / Cleaning & Laundry Worker",
+    "rank": 34,
+    "is_active": true,
+    "difficulty": "Medium",
+    "skills_summary": "No formal skill",
+    "description": "Sweeps, mops, washes, handles laundry. Physically repetitive."
+  },
+  {
+    "title": "General Labourer (Specified)",
+    "rank": 35,
+    "is_active": true,
+    "difficulty": "High",
+    "skills_summary": "No formal skill",
+    "description": "Performs manual tasks: carrying, digging, loading. Heavy physical effort."
+  },
+  {
+    "title": "General Labourer (Unspecified)",
+    "rank": 36,
+    "is_active": true,
+    "difficulty": "High",
+    "skills_summary": "No formal skill",
+    "description": "Miscellaneous manual labor in construction or factories. Physically demanding."
+  },
+  {
+    "title": "Chef / Cook",
+    "rank": 37,
+    "is_active": true,
+    "difficulty": "Medium",
+    "skills_summary": "Culinary skills",
+    "description": "Prepares meals in hotels, restaurants, or labor camps. Standing, fast-paced work."
+  },
+  {
+    "title": "Cook Helper / Kitchen Helper",
+    "rank": 38,
+    "is_active": true,
+    "difficulty": "Medium",
+    "skills_summary": "Basic kitchen experience",
+    "description": "Assists main cook: chopping, cleaning, carrying items, dishwashing. Standing work."
+  },
+  {
+    "title": "Baker / Pastry / Dessert Maker",
+    "rank": 39,
+    "is_active": true,
+    "difficulty": "Medium",
+    "skills_summary": "Baking skills",
+    "description": "Prepares bread, pastries, desserts. Mixing, shaping, oven handling."
+  },
+  {
+    "title": "Butcher",
+    "rank": 40,
+    "is_active": true,
+    "difficulty": "Medium–High",
+    "skills_summary": "Meat handling, knife skills",
+    "description": "Cuts, prepares, and packs meat. Requires strength and hygiene awareness."
+  },
+  {
+    "title": "Barista / Coffee Maker",
+    "rank": 41,
+    "is_active": true,
+    "difficulty": "Low–Medium",
+    "skills_summary": "Coffee making skills",
+    "description": "Prepares beverages, serves customers. Mostly standing and repetitive motions."
+  },
+  {
+    "title": "Waiter / Steward",
+    "rank": 42,
+    "is_active": true,
+    "difficulty": "Medium",
+    "skills_summary": "Customer service, hospitality skills",
+    "description": "Serves food and drinks, clears tables. Long standing hours, fast-paced."
+  },
+  {
+    "title": "Caregiver / Nursing Aide",
+    "rank": 43,
+    "is_active": true,
+    "difficulty": "Medium",
+    "skills_summary": "Basic healthcare training",
+    "description": "Assists elderly/disabled with daily activities, hygiene, and medication. Physically and emotionally demanding."
+  },
+  {
+    "title": "Beautician / Fitness Staff",
+    "rank": 44,
+    "is_active": true,
+    "difficulty": "Low–Medium",
+    "skills_summary": "Training in beauty or fitness",
+    "description": "Provides beauty or fitness services: massage, makeup, exercise guidance. Light to moderate effort."
+  },
+  {
+    "title": "Agriculture / Farm Worker",
+    "rank": 45,
+    "is_active": true,
+    "difficulty": "High",
+    "skills_summary": "Farming experience",
+    "description": "Planting, watering, harvesting crops. Heavy outdoor labor."
+  },
+  {
+    "title": "Poultry Worker",
+    "rank": 46,
+    "is_active": true,
+    "difficulty": "Medium",
+    "skills_summary": "Animal handling experience",
+    "description": "Feeds, cleans, and maintains poultry. Moderate lifting and cleaning."
+  },
+  {
+    "title": "Gardener / Landscaping",
+    "rank": 47,
+    "is_active": true,
+    "difficulty": "Medium–High",
+    "skills_summary": "Horticulture skills helpful",
+    "description": "Plants, trims, waters, and maintains gardens. Physical outdoor work."
+  },
+  {
+    "title": "Aviation / Cruise Staff",
+    "rank": 48,
+    "is_active": true,
+    "difficulty": "Medium",
+    "skills_summary": "Hospitality/customer service",
+    "description": "Works on ships or planes: cabin service, cleaning, guest assistance. Standing, customer-facing."
+  },
+  {
+    "title": "Construction Helper (General)",
+    "rank": 49,
+    "is_active": true,
+    "difficulty": "High",
+    "skills_summary": "No formal skill",
+    "description": "Assists skilled workers on sites: carrying, mixing, cleaning. Physically demanding."
+  },
+  {
+    "title": "Laundry Worker",
+    "rank": 50,
+    "is_active": true,
+    "difficulty": "Medium",
+    "skills_summary": "No formal skill",
+    "description": "Washes, folds, and irons clothes in hotels or factories. Repetitive, standing work."
+  }
 ]

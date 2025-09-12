@@ -1,0 +1,37 @@
+{
+  "page": 1,
+  "limit": 10,
+  "total": 2,
+  "data": [
+    {
+      "id": "<jobId-1>",
+      "posting_title": "UAE-Welder-High",
+      "country": "UAE",
+      "city": "Dubai",
+      "primary_titles": ["Welder"],
+      "salary": {
+        "base": { "monthly_min": 1500, "monthly_max": 1500, "currency": "AED" },
+        "converted": [ { "amount": 410, "currency": "USD" }, { "amount": 55000, "currency": "NPR" } ]
+      },
+      "agency": { "name": "A", "license_number": "LIC-AF-1" },
+      "employer": { "company_name": "UAE Co 1", "country": "UAE", "city": "Dubai" },
+      "posting_date_ad": "2025-09-11",
+      "cutout_url": "/public/LIC-AF-1/<jobId-1>/cutout.svg"
+    },
+    {
+      "id": "<jobId-2>",
+      "posting_title": "Qatar-Electrician",
+      "country": "Qatar",
+      "city": "Doha",
+      "primary_titles": ["Electrician"],
+      "salary": {
+        "base": { "monthly_min": 1000, "monthly_max": 1000, "currency": "QAR" },
+        "converted": [ { "amount": 275, "currency": "USD" }, { "amount": 35000, "currency": "NPR" } ]
+      },
+      "agency": { "name": "C", "license_number": "LIC-AF-3" },
+      "employer": { "company_name": "QA Co", "country": "Qatar", "city": "Doha" },
+      "posting_date_ad": "2025-09-10",
+      "cutout_url": null
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "domestic": {
+    "who_pays": "worker",
+    "is_free": false,
+    "amount": 2500,
+    "currency": "NPR",
+    "notes": "Medical in Nepal paid by worker"
+  },
+  "foreign": {
+    "who_pays": "company",
+    "is_free": true,
+    "notes": "Medical abroad covered by employer"
+  }
+}

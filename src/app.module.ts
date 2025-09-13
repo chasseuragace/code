@@ -8,6 +8,7 @@ import { AgencyModule } from './modules/agency/agency.module';
 import { CandidateModule } from './modules/candidate/candidate.module';
 import { OwnerAnalyticsModule } from './modules/owner-analytics/owner-analytics.module';
 import { CountryModule } from './modules/country/country.module';
+import { SeedModule } from './modules/seed/seed.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { CountryModule } from './modules/country/country.module';
     CandidateModule,
     OwnerAnalyticsModule,
     CountryModule,
+    SeedModule,
   ],
 })
 export class AppModule {}

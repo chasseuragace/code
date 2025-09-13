@@ -1,4 +1,5 @@
-import { Controller, Post, HttpCode, Param, Body, Patch, Get, ParseUUIDPipe, ForbiddenException, UploadedFile, UseInterceptors, Delete, Query } from '@nestjs/common';
+import { Controller, Post, HttpCode, Param, Body, Patch, Get, ParseUUIDPipe, ForbiddenException, UploadedFile, UseInterceptors, Delete, Query, UseGuards, Req, BadRequestException } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AgencyService, CreateAgencyDto } from './agency.service';
@@ -13,7 +14,31 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import type { Express } from 'express';
 import { ExpenseService, InterviewService } from '../domain/domain.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { User } from '../user/user.entity';
+import { AgencyUser } from './agency-user.entity';
+import { DevSmsService } from './dev-sms.service';
+import * as bcrypt from 'bcryptjs';
 
+function normalizePhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length === 10 && digits.startsWith('9')) {
+    return `+977${digits}`;
+  }
+  if (phone.startsWith('+')) return phone;
+  return `+${digits}`;
+}
+
+function generatePassword(length = 10): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789@#$%';
+  let out = '';
+  for (let i = 0; i < length; i++) {
+    out += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return out;
+}
+
+@ApiTags('Agencies')
 @Controller('agencies')
 export class AgencyController {
   constructor(
@@ -23,7 +48,128 @@ export class AgencyController {
     private readonly interviewService: InterviewService,
     @InjectRepository(JobApplication) private readonly jobAppRepo: Repository<JobApplication>,
     @InjectRepository(JobPosting) private readonly jobPostingRepo: Repository<JobPosting>,
+    @InjectRepository(AgencyUser) private readonly agencyUserRepo: Repository<AgencyUser>,
+    private readonly sms: DevSmsService,
   ) {}
+
+  // Owner creates their single agency and binds it to their user account
+  @Post('owner/agency')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(201)
+  @ApiOperation({ summary: 'Create one agency for the authenticated owner' })
+  @ApiBody({ schema: { properties: { name: { type: 'string' }, license_number: { type: 'string' } }, required: ['name', 'license_number'] } })
+  @ApiResponse({ status: 201, description: 'Agency created', schema: { properties: { id: { type: 'string', format: 'uuid' }, license_number: { type: 'string' } } } })
+  async createMyAgency(@Req() req: any, @Body() body: CreateAgencyDto) {
+    const user = req.user as any;
+    if (!user?.is_agency_owner) throw new ForbiddenException('Only agency owners can create agencies');
+    if (user?.agency_id) throw new ForbiddenException('Owner already has an agency');
+    const saved = await this.agencyService.createAgency(body);
+    // bind to user
+    const mgr = this.jobPostingRepo.manager;
+    await mgr.getRepository(User).update({ id: user.id }, { agency_id: saved.id } as any);
+    // also bind AgencyUser if exists
+    await mgr.getRepository(AgencyUser).createQueryBuilder()
+      .update()
+      .set({ agency_id: saved.id } as any)
+      .where('user_id = :uid', { uid: user.id })
+      .execute();
+    return { id: saved.id, license_number: saved.license_number };
+  }
+
+  // --- Owner-managed Members ---
+  @Post('owner/members/invite')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(201)
+  @ApiOperation({ summary: 'Invite an agency member and set an admin-managed password' })
+  @ApiBody({ schema: { properties: { full_name: { type: 'string' }, phone: { type: 'string' }, role: { type: 'string', enum: ['staff', 'owner'] } }, required: ['full_name', 'phone'] } })
+  @ApiResponse({ status: 201, description: 'Member invited', schema: { properties: { id: { type: 'string', format: 'uuid' }, phone: { type: 'string' }, role: { type: 'string' }, dev_password: { type: 'string' } } } })
+  async inviteMember(
+    @Req() req: any,
+    @Body() body: { full_name: string; phone: string; role?: 'staff' },
+  ) {
+    const user = req.user as any;
+    if (!user?.is_agency_owner || !user?.agency_id) throw new ForbiddenException('Only owners with an agency can invite');
+    if (!body?.full_name || !body?.phone) throw new BadRequestException('full_name and phone are required');
+    const phone = normalizePhone(body.phone);
+
+    // Upsert User with role=agency_user and link to owner agency
+    const mgr = this.jobPostingRepo.manager;
+    const userRepo = mgr.getRepository(User);
+    let u = await userRepo.findOne({ where: { phone } });
+    if (u) {
+      u.role = 'agency_user';
+      u.is_active = true;
+      u.agency_id = user.agency_id;
+      await userRepo.save(u);
+    } else {
+      u = userRepo.create({ phone, role: 'agency_user', is_active: true, agency_id: user.agency_id });
+      await userRepo.save(u);
+    }
+
+    // Upsert AgencyUser under this agency
+    let au = await this.agencyUserRepo.findOne({ where: [{ user_id: u.id }, { phone }] });
+    const password = generatePassword();
+    const hash = await bcrypt.hash(password, 10);
+    if (au) {
+      au.full_name = body.full_name;
+      au.role = (body.role as any) || 'staff';
+      au.phone = phone;
+      au.user_id = u.id;
+      au.agency_id = user.agency_id;
+      au.password_hash = hash;
+      au.password_set_by_admin_at = new Date();
+      await this.agencyUserRepo.save(au);
+    } else {
+      au = this.agencyUserRepo.create({
+        full_name: body.full_name,
+        phone,
+        user_id: u.id,
+        agency_id: user.agency_id,
+        role: (body.role as any) || 'staff',
+        password_hash: hash,
+        password_set_by_admin_at: new Date(),
+      });
+      await this.agencyUserRepo.save(au);
+    }
+
+    // Send SMS with login URL and password
+    await this.sms.send(phone, `Welcome to ${user.agency_id}. Login at /member/login with password: ${password}`);
+    return { id: au.id, phone: au.phone, role: au.role, dev_password: password };
+  }
+
+  @Post('owner/members/:id/reset-password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Reset a member password (admin-managed)' })
+  @ApiResponse({ status: 200, description: 'Password reset', schema: { properties: { id: { type: 'string', format: 'uuid' }, phone: { type: 'string' }, dev_password: { type: 'string' } } } })
+  async resetMemberPassword(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    const user = req.user as any;
+    if (!user?.is_agency_owner || !user?.agency_id) throw new ForbiddenException('Only owners with an agency can reset');
+    const au = await this.agencyUserRepo.findOne({ where: { id } });
+    if (!au || au.agency_id !== user.agency_id) throw new ForbiddenException('Not your agency member');
+    const password = generatePassword();
+    au.password_hash = await bcrypt.hash(password, 10);
+    au.password_set_by_admin_at = new Date();
+    await this.agencyUserRepo.save(au);
+    await this.sms.send(au.phone, `Your password was reset. New password: ${password}`);
+    return { id: au.id, phone: au.phone, dev_password: password };
+  }
+
+  @Get('owner/members')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'List members of the owner\'s agency' })
+  @ApiResponse({ status: 200, description: 'List of members', schema: { type: 'array', items: { properties: { id: { type: 'string', format: 'uuid' }, full_name: { type: 'string' }, phone: { type: 'string' }, role: { type: 'string' } } } } })
+  async listMembers(@Req() req: any) {
+    const user = req.user as any;
+    if (!user?.is_agency_owner || !user?.agency_id) throw new ForbiddenException('Only owners with an agency can list');
+    const rows = await this.agencyUserRepo.find({ where: { agency_id: user.agency_id } });
+    return rows.map(r => ({ id: r.id, full_name: r.full_name, phone: r.phone, role: r.role }));
+  }
 
   // Create agency (production-friendly controller)
   @Post()

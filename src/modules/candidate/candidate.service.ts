@@ -13,6 +13,7 @@ function normalizePhoneE164(phone: string): string {
   if (digits.length === 10 && digits.startsWith('9')) {
     return `+977${digits}`;
   }
+
   if (phone.startsWith('+')) return phone;
   // Fallback: prefix + if seems already with country code
   return `+${digits}`;
@@ -73,6 +74,10 @@ export class CandidateService {
 
   async findById(id: string): Promise<Candidate | null> {
     return this.repo.findOne({ where: { id } });
+  }
+
+  async findByPhone(phone: string): Promise<Candidate | null> {
+    return this.repo.findOne({ where: { phone: normalizePhoneE164(phone) } });
   }
 
   async updateCandidate(id: string, input: Partial<Candidate>): Promise<Candidate> {
@@ -185,12 +190,45 @@ export class CandidateService {
     }
   }
 
+  // Ensure legacy preferences have job_title_id linked by title (active or inactive)
+  private async ensurePreferenceJobTitleIds(candidateId: string): Promise<void> {
+    const rows = await this.preferences.find({ where: { candidate_id: candidateId } });
+    const toFix = rows.filter((r) => !r.job_title_id);
+    if (!toFix.length) return;
+    // Fetch all titles at once
+    const needed = Array.from(new Set(toFix.map((r) => r.title)));
+    const found = await this.jobTitles.find({ where: { title: In(needed) } });
+    const byTitle = new Map(found.map((jt) => [jt.title, jt.id] as const));
+    let changed = false;
+    for (const r of toFix) {
+      const jtId = byTitle.get(r.title);
+      if (jtId) {
+        r.job_title_id = jtId;
+        changed = true;
+      }
+    }
+    if (changed) {
+      await this.preferences.save(toFix);
+    }
+  }
+
   async listPreferences(candidateId: string): Promise<{ title: string; priority: number }[]> {
+    // Ensure legacy rows have job_title_id
+    await this.ensurePreferenceJobTitleIds(candidateId);
     const rows = await this.preferences.find({
       where: { candidate_id: candidateId },
       order: { priority: 'ASC', updated_at: 'DESC' },
     });
     return rows.map((r) => ({ title: r.title, priority: r.priority }));
+  }
+
+  // Full rows (including id) - useful for frontend reordering by row IDs
+  async listPreferenceRows(candidateId: string): Promise<CandidatePreference[]> {
+    await this.ensurePreferenceJobTitleIds(candidateId);
+    return this.preferences.find({
+      where: { candidate_id: candidateId },
+      order: { priority: 'ASC', updated_at: 'DESC' },
+    });
   }
 
   async addPreference(candidateId: string, title: string): Promise<void> {
@@ -209,11 +247,15 @@ export class CandidateService {
       if (existing) {
         // Move to top by setting priority to 0 then reindex
         existing.priority = 0;
+        // Backfill job_title_id if not present
+        if (!existing.job_title_id) {
+          existing.job_title_id = jt.id;
+        }
         await prefRepo.save(existing);
       } else {
         // Append to end: set priority to current max + 1 (or 1 if none)
         const max = existingAll.length ? Math.max(...existingAll.map((p) => p.priority || 0)) : 0;
-        const row = prefRepo.create({ candidate_id: candidateId, title, priority: max + 1 });
+        const row = prefRepo.create({ candidate_id: candidateId, title, priority: max + 1, job_title_id: jt.id });
         await prefRepo.save(row);
       }
       // Re-fetch and normalize to 1..N
@@ -235,6 +277,90 @@ export class CandidateService {
     });
   }
 
+  // Reorder preferences given a complete ordered list of titles
+  // Enforces: provided titles must be a permutation of existing titles for the candidate
+  async reorderPreferences(candidateId: string, orderedTitles: string[]): Promise<void> {
+    if (!Array.isArray(orderedTitles) || orderedTitles.length === 0) {
+      throw new BadRequestException('orderedTitles must be a non-empty array of strings');
+    }
+    const unique = new Set<string>();
+    for (const t of orderedTitles) {
+      if (typeof t !== 'string' || !t.trim()) {
+        throw new BadRequestException('orderedTitles must contain only non-empty strings');
+      }
+      const key = t.trim();
+      if (unique.has(key)) throw new BadRequestException('orderedTitles must not contain duplicates');
+      unique.add(key);
+    }
+
+    await this.preferences.manager.transaction(async (trx) => {
+      const prefRepo = trx.getRepository(CandidatePreference);
+      const existing = await prefRepo.find({ where: { candidate_id: candidateId }, order: { priority: 'ASC' } });
+      const existingSet = new Set(existing.map((p) => p.title));
+
+      // Validate same set of titles
+      if (existing.length !== orderedTitles.length) {
+        throw new BadRequestException('orderedTitles must include all existing preferences');
+      }
+      for (const t of orderedTitles) {
+        if (!existingSet.has(t)) {
+          throw new BadRequestException(`Title not found in candidate preferences: ${t}`);
+        }
+      }
+
+      // Apply new priorities 1..N according to given order
+      const map = new Map<string, CandidatePreference>(existing.map((p) => [p.title, p] as const));
+      const reordered: CandidatePreference[] = [];
+      orderedTitles.forEach((title, idx) => {
+        const row = map.get(title)!;
+        row.priority = idx + 1;
+        reordered.push(row);
+      });
+      await prefRepo.save(reordered);
+    });
+  }
+
+  // Reorder by row IDs (preferred for stable drag-and-drop in frontend)
+  async reorderPreferencesByIds(candidateId: string, orderedIds: string[]): Promise<void> {
+    if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+      throw new BadRequestException('orderedIds must be a non-empty array of UUID strings');
+    }
+    const unique = new Set<string>();
+    for (const id of orderedIds) {
+      if (typeof id !== 'string' || !id.trim()) {
+        throw new BadRequestException('orderedIds must contain only non-empty UUID strings');
+      }
+      const key = id.trim();
+      if (unique.has(key)) throw new BadRequestException('orderedIds must not contain duplicates');
+      unique.add(key);
+    }
+
+    await this.preferences.manager.transaction(async (trx) => {
+      const prefRepo = trx.getRepository(CandidatePreference);
+      const existing = await prefRepo.find({ where: { candidate_id: candidateId }, order: { priority: 'ASC' } });
+      const existingIds = existing.map((p) => p.id);
+      const existingSet = new Set(existingIds);
+
+      if (existing.length !== orderedIds.length) {
+        throw new BadRequestException('orderedIds must include all existing preferences');
+      }
+      for (const id of orderedIds) {
+        if (!existingSet.has(id)) {
+          throw new BadRequestException(`Preference id not found for candidate: ${id}`);
+        }
+      }
+
+      const map = new Map<string, CandidatePreference>(existing.map((p) => [p.id, p] as const));
+      const reordered: CandidatePreference[] = [];
+      orderedIds.forEach((id, idx) => {
+        const row = map.get(id)!;
+        row.priority = idx + 1;
+        reordered.push(row);
+      });
+      await prefRepo.save(reordered);
+    });
+  }
+
   async getRelevantJobs(
     candidateId: string,
     opts?: {
@@ -243,32 +369,30 @@ export class CandidateService {
       combineWith?: 'AND' | 'OR';
       useCanonicalTitles?: boolean; // default: false
       includeScore?: boolean; // default: false
-      preferredOverride?: string[]; // internal: use specific titles instead of computing
+      preferredOverride?: string[]; // deprecated: titles (kept for backward internal use)
+      preferredOverrideIds?: string[]; // internal: use specific job_title_ids instead of computing
       page?: number;
       limit?: number;
     },
   ): Promise<{ data: JobPosting[]; total: number; page: number; limit: number }> {
     const page = opts?.page ?? 1;
     const limit = opts?.limit ?? 10;
-// find all candidate and print id 
-    const candidates = await this.repo.find();
-    console.log(candidates.map((c) => c.id));
     const cand = await this.repo.findOne({ where: { id: candidateId } });
     if (!cand) throw new NotFoundException('Candidate not found');
-    // Prefer explicit CandidatePreferences; fallback to most recent job profile preferred_titles
+    // Prefer explicit CandidatePreferences; no string fallback; match by job_title_id only
+    await this.ensurePreferenceJobTitleIds(candidateId);
     const prefRows = await this.preferences.find({ where: { candidate_id: candidateId }, order: { priority: 'ASC' } });
-    let preferred = prefRows.map((p) => p.title);
-    if (!preferred.length) {
-      const profile = await this.jobProfiles.findOne({
-        where: { candidate_id: candidateId },
-        order: { updated_at: 'DESC' },
-      });
-      preferred = ((profile?.profile_blob as any)?.preferred_titles as string[] | undefined) ?? [];
+    let preferredIds: string[] = prefRows.map((p) => p.job_title_id!).filter((v): v is string => typeof v === 'string' && v.length > 0);
+    // Allow internal override by IDs first; titles override is deprecated and will be resolved to IDs
+    if (opts?.preferredOverrideIds && opts.preferredOverrideIds.length) {
+      preferredIds = opts.preferredOverrideIds;
+    } else if (opts?.preferredOverride && opts.preferredOverride.length) {
+      // Resolve titles to IDs
+      const found = await this.jobTitles.find({ where: { title: In(opts.preferredOverride) } });
+      const byTitle = new Map(found.map((jt) => [jt.title, jt.id] as const));
+      preferredIds = opts.preferredOverride.map((t) => byTitle.get(t)).filter((id): id is string => typeof id === 'string');
     }
-    if (opts?.preferredOverride && opts.preferredOverride.length) {
-      preferred = opts.preferredOverride;
-    }
-    if (!preferred || preferred.length === 0) {
+    if (!preferredIds || preferredIds.length === 0) {
       throw new BadRequestException('Candidate has no preferred job titles');
     }
 
@@ -283,9 +407,15 @@ export class CandidateService {
 
     const combineWith: 'AND' | 'OR' = (opts?.combineWith as any) === 'OR' ? 'OR' : 'AND';
 
-    // Title predicate (from preferences)
+    // Title match group (ID-based): job_posting_titles -> job_titles by IDs
     const titleGroup = new Brackets((qb1) => {
-      qb1.where('positions.title IN (:...titles)', { titles: preferred });
+      qb1.where(
+        `EXISTS (
+          SELECT 1 FROM job_posting_titles jpt
+          WHERE jpt.job_posting_id = jp.id AND jpt.job_title_id IN (:...preferredIds)
+        )`,
+        { preferredIds },
+      );
     });
 
     // Tag-aware predicate: skills/education overlap and optional canonical title match
@@ -331,16 +461,15 @@ export class CandidateService {
         );
         applied = true;
       }
-      if (opts?.useCanonicalTitles && preferred.length) {
-        // OR canonical title match against preferred titles
+      if (opts?.useCanonicalTitles && preferredIds.length) {
+        // OR canonical title match against preferred IDs
         qbT[applied ? 'orWhere' : 'where'](
           `EXISTS (
             SELECT 1
             FROM job_posting_titles jpt
-            JOIN job_titles jt ON jt.id = jpt.job_title_id
-            WHERE jpt.job_posting_id = jp.id AND jt.title IN (:...titles)
+            WHERE jpt.job_posting_id = jp.id AND jpt.job_title_id IN (:...preferredIds)
           )`,
-          { titles: preferred },
+          { preferredIds },
         );
         applied = true;
       }

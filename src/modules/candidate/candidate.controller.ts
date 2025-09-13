@@ -1,10 +1,11 @@
-import { Controller, Get, Param, Query, ParseUUIDPipe, Post, Body, HttpCode } from '@nestjs/common';
+import { Controller, Get, Param, Query, ParseUUIDPipe, Post, Body, HttpCode, Delete, Put } from '@nestjs/common';
 import { CandidateService } from './candidate.service';
 import { JobPostingService, ExpenseService, InterviewService } from '../domain/domain.service';
-import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags, ApiBody } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags, ApiBody, ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
 import { PaginatedJobsResponseDto } from './dto/candidate-job-card.dto';
 import { CandidateJobDetailsDto } from '../domain/dto/job-details.dto';
 import { CandidateCreateDto } from './dto/candidate-create.dto';
+import { PreferenceDto, AddPreferenceDto, RemovePreferenceDto, ReorderPreferencesDto } from './dto/candidate-preferences.dto';
 
 function toBool(val?: string): boolean | undefined {
   if (val == null) return undefined;
@@ -401,5 +402,75 @@ export class CandidateController {
       };
     });
     return { data, total: res.total, page: res.page, limit: res.limit };
+  }
+
+  // Preferences CRUD
+  // GET /candidates/:id/preferences
+  @Get(':id/preferences')
+  @ApiOperation({ summary: 'List candidate preferences (id, title, priority)' })
+  @ApiParam({ name: 'id', description: 'Candidate ID', required: true })
+  @ApiOkResponse({ description: 'Ordered preferences', type: PreferenceDto, isArray: true })
+  async listPreferences(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
+    const rows = await this.candidates.listPreferenceRows(id);
+    return rows.map((r) => ({ id: r.id, title: r.title, priority: r.priority, job_title_id: r.job_title_id ?? null }));
+  }
+
+  // POST /candidates/:id/preferences { title }
+  @Post(':id/preferences')
+  @HttpCode(201)
+  @ApiOperation({ summary: 'Add a preference (validated against active JobTitle)' })
+  @ApiParam({ name: 'id', description: 'Candidate ID', required: true })
+  @ApiBody({ type: AddPreferenceDto })
+  @ApiCreatedResponse({ description: 'Preference added or moved to top', type: PreferenceDto, isArray: true })
+  async addPreference(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() body: AddPreferenceDto,
+  ) {
+    await this.candidates.addPreference(id, body?.title);
+    const rows = await this.candidates.listPreferenceRows(id);
+    return rows.map((r) => ({ id: r.id, title: r.title, priority: r.priority, job_title_id: r.job_title_id ?? null }));
+  }
+
+  // DELETE /candidates/:id/preferences { title }
+  // Alternatively, you can adapt to DELETE /candidates/:id/preferences?title=...
+  @Delete(':id/preferences')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Remove a preference by title (idempotent)' })
+  @ApiParam({ name: 'id', description: 'Candidate ID', required: true })
+  @ApiBody({ type: RemovePreferenceDto })
+  @ApiOkResponse({ description: 'Updated preferences after removal', type: PreferenceDto, isArray: true })
+  async removePreference(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() body: RemovePreferenceDto,
+  ) {
+    await this.candidates.removePreference(id, body?.title);
+    const rows = await this.candidates.listPreferenceRows(id);
+    return rows.map((r) => ({ id: r.id, title: r.title, priority: r.priority, job_title_id: r.job_title_id ?? null }));
+  }
+
+  // PUT /candidates/:id/preferences/order { orderedIds?: string[]; orderedTitles?: string[] }
+  // Frontend should prefer orderedIds for stability.
+  @Put(':id/preferences/order')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Reorder preferences by IDs (preferred) or titles' })
+  @ApiParam({ name: 'id', description: 'Candidate ID', required: true })
+  @ApiBody({ type: ReorderPreferencesDto })
+  @ApiOkResponse({ status: 200, description: 'Updated ordered preferences', type: PreferenceDto, isArray: true })
+  async reorderPreferences(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() body: ReorderPreferencesDto,
+  ) {
+    if (Array.isArray(body?.orderedIds) && body.orderedIds.length > 0) {
+      await this.candidates.reorderPreferencesByIds(id, body.orderedIds);
+    } else if (Array.isArray(body?.orderedTitles) && body.orderedTitles.length > 0) {
+      await this.candidates.reorderPreferences(id, body.orderedTitles);
+    } else {
+      // No-op if nothing provided; but better to signal bad request
+      throw new Error('Provide orderedIds (preferred) or orderedTitles');
+    }
+    const rows = await this.candidates.listPreferenceRows(id);
+    return rows.map((r) => ({ id: r.id, title: r.title, priority: r.priority, job_title_id: r.job_title_id ?? null }));
   }
 }

@@ -1,6 +1,6 @@
 import { Body, Controller, HttpCode, Post } from '@nestjs/common';
 import { SeedService } from './seed.service';
-import { ApiOperation, ApiOkResponse, ApiTags, ApiProperty, ApiBody } from '@nestjs/swagger';
+import { ApiOperation, ApiOkResponse, ApiTags, ApiProperty, ApiBody, getSchemaPath, ApiExtraModels } from '@nestjs/swagger';
 
 class SeedCountsDto {
   // number of upserted/created rows per category
@@ -32,6 +32,7 @@ class SeedRequestDto {
 }
 
 @ApiTags('Seed')
+@ApiExtraModels(SeedCountsDto)
 @Controller('seed')
 export class SeedController {
   constructor(private readonly seedService: SeedService) {}
@@ -63,13 +64,15 @@ export class SeedController {
   })
   @ApiOkResponse({
     description: 'Seeding completed successfully with per-category counts',
-    type: SeedCountsDto,
-    schema: {
-      example: {
-        countries: { affected: 46 },
-        job_titles: { affected: 51 },
-        agencies: { created: 10 },
-        sample_postings: { created: 1 },
+    content: {
+      'application/json': {
+        schema: { $ref: getSchemaPath(SeedCountsDto) },
+        example: {
+          countries: { affected: 46 },
+          job_titles: { affected: 51 },
+          agencies: { created: 10 },
+          sample_postings: { created: 1 },
+        },
       },
     },
   })

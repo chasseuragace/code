@@ -9,6 +9,7 @@ import { CandidateModule } from './modules/candidate/candidate.module';
 import { OwnerAnalyticsModule } from './modules/owner-analytics/owner-analytics.module';
 import { CountryModule } from './modules/country/country.module';
 import { SeedModule } from './modules/seed/seed.module';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { SeedModule } from './modules/seed/seed.module';
     OwnerAnalyticsModule,
     CountryModule,
     SeedModule,
+    AuthModule,
   ],
 })
 export class AppModule {}

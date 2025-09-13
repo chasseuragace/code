@@ -9,6 +9,11 @@ export class CandidatePreference {
   @Column('uuid')
   candidate_id!: string;
 
+  // Optional FK to job_titles.id for stronger linkage; kept nullable for backward compatibility with existing rows
+  @Index()
+  @Column('uuid', { nullable: true })
+  job_title_id?: string | null;
+
   @Column({ type: 'varchar', length: 255 })
   title!: string;
 

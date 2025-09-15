@@ -27,39 +27,28 @@ describe('Candidate Preferences (validation against JobTitles)', () => {
     await moduleRef?.close();
   });
 
-  it('accepts profile with valid active preferred_titles', async () => {
+  it('accepts adding preferences with valid active job titles', async () => {
     await jobTitles.upsertMany([
       { title: 'Welder', is_active: true, rank: 1 },
       { title: 'Electrician', is_active: true, rank: 2 },
     ]);
 
-    const row = await candidates.addJobProfile(candidateId, {
-      profile_blob: {
-        preferred_titles: ['Welder', 'Electrician'],
-        desired_countries: ['UAE'],
-      },
-      label: 'Valid Prefs',
-    });
+    await candidates.addPreference(candidateId, 'Welder');
+    await candidates.addPreference(candidateId, 'Electrician');
 
-    expect(row.id).toBeTruthy();
-    expect(row.profile_blob.preferred_titles).toEqual(['Welder', 'Electrician']);
+    const rows = await candidates.listPreferenceRows(candidateId);
+    const titles = rows.map((r: any) => r.title);
+    expect(titles).toEqual(expect.arrayContaining(['Electrician', 'Welder']));
+    expect(titles.length).toBe(2);
+    expect(rows.every((r: any) => !!r.job_title_id)).toBeTruthy();
   });
 
-  it('rejects profile with non-existent title', async () => {
-    await expect(
-      candidates.addJobProfile(candidateId, {
-        profile_blob: { preferred_titles: ['NoSuchTitle999'] },
-      })
-    ).rejects.toThrow(/Invalid or inactive job titles/);
+  it('rejects adding preference with non-existent title', async () => {
+    await expect(candidates.addPreference(candidateId, 'NoSuchTitle999')).rejects.toThrow(/Invalid or inactive job title/);
   });
 
-  it('rejects profile with inactive title', async () => {
+  it('rejects adding preference with inactive title', async () => {
     await jobTitles.upsertMany([{ title: 'Plumber', is_active: false, rank: 3 }]);
-
-    await expect(
-      candidates.addJobProfile(candidateId, {
-        profile_blob: { preferred_titles: ['Plumber'] },
-      })
-    ).rejects.toThrow(/Invalid or inactive job titles/);
+    await expect(candidates.addPreference(candidateId, 'Plumber')).rejects.toThrow(/Invalid or inactive job title/);
   });
 });

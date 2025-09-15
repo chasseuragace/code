@@ -43,6 +43,12 @@ describe('E2E: candidate relevant jobs + public job details', () => {
       .send({ name: 'B Agency', license_number: 'LIC-HTTP-B' })
       .expect(201);
 
+    // Resolve canonical title ids for Welder and Electrician
+    const jtRes = await request(app.getHttpServer()).get('/job-titles').expect(200);
+    const allTitles = Array.isArray(jtRes.body?.data) ? jtRes.body.data : [];
+    const welder = allTitles.find((r: any) => (r.title || '').toLowerCase() === 'welder');
+    const electrician = allTitles.find((r: any) => (r.title || '').toLowerCase() === 'electrician');
+
     const bodyA = {
       posting_title: 'UAE-Welder-High',
       country: 'UAE',
@@ -53,10 +59,11 @@ describe('E2E: candidate relevant jobs + public job details', () => {
       positions: [
         { title: 'Welder', vacancies: { male: 5, female: 0 }, salary: { monthly_amount: 1500, currency: 'AED', converted: [{ amount: 410, currency: 'USD' }, { amount: 55000, currency: 'NPR' }] } },
       ],
+      canonical_title_ids: [welder?.id].filter(Boolean),
       skills: ['industrial-wiring', 'electrical-systems'],
       education_requirements: ['technical-diploma'],
       experience_requirements: { min_years: 2 },
-    };
+    } as any;
     const resA = await request(app.getHttpServer())
       .post('/agencies/LIC-HTTP-A/job-postings')
       .send(bodyA)
@@ -73,7 +80,8 @@ describe('E2E: candidate relevant jobs + public job details', () => {
       positions: [
         { title: 'Electrician', vacancies: { male: 2, female: 1 }, salary: { monthly_amount: 1000, currency: 'QAR', converted: [{ amount: 275, currency: 'USD' }, { amount: 35000, currency: 'NPR' }] } },
       ],
-    };
+      canonical_title_ids: [electrician?.id].filter(Boolean),
+    } as any;
     const resB = await request(app.getHttpServer())
       .post('/agencies/LIC-HTTP-B/job-postings')
       .send(bodyB)
@@ -90,10 +98,14 @@ describe('E2E: candidate relevant jobs + public job details', () => {
       .expect(201);
     const candidateId = create.body.id;
 
-    // add job profile with preferred titles
+    // add preferences via API
     await request(app.getHttpServer())
-      .post(`/candidates/${candidateId}/job-profiles`)
-      .send({ profile_blob: { preferred_titles: ['Welder', 'Electrician'] } })
+      .post(`/candidates/${candidateId}/preferences`)
+      .send({ title: 'Welder' })
+      .expect(201);
+    await request(app.getHttpServer())
+      .post(`/candidates/${candidateId}/preferences`)
+      .send({ title: 'Electrician' })
       .expect(201);
 
     // fetch relevant jobs filtered by country=UAE

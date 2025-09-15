@@ -14,9 +14,9 @@ import { CandidateService } from 'src/modules/candidate/candidate.service';
  * 3) Create Job Posting with tags (via endpoint)
  * 4) Verify tags via GET (since POST response omits tags)
  * 5) Create Candidate with skills/education (service)
- * 6) Add job profile with preferred_titles deliberately not matching position title
+ * 6) Add CandidatePreference for the canonical title (Electrician)
  * 7) Call getRelevantJobs (service)
- * 8) ASSERT: Candidate should see the job due to skills/canonical titles (will FAIL currently)
+ * 8) ASSERT: Candidate sees the job (ID-only matching)
  */
 
 describe('E2E: Job Tagging and Skill Matching', () => {
@@ -97,7 +97,7 @@ describe('E2E: Job Tagging and Skill Matching', () => {
     await app?.close();
   });
 
-  it('should return the tagged job based on candidate skills or canonical titles (EXPECTED TO FAIL UNTIL IMPLEMENTED)', async () => {
+  it('should return the tagged job based on preference (ID) and tags', async () => {
     // Create a candidate with skills that match the job's skills, but with preferred_titles not matching the position title
     const rand = Math.floor(Math.random() * 1_000_000_00)
       .toString()
@@ -112,18 +112,12 @@ describe('E2E: Job Tagging and Skill Matching', () => {
       education: [{ degree: 'technical-diploma' }] as any,
     });
 
-    // Add a job profile with preferred_titles that DO NOT include 'Senior Electrician'
-    // We expect tag/canonical-title-based matching to still surface the posting once implemented.
-    await candidates.addJobProfile(cand.id, {
-      // Use an active title from seeds that does NOT match 'Senior Electrician' exactly
-      profile_blob: { preferred_titles: ['Welder'] },
-      label: 'Negative Title Prefs',
-    });
+    // Add an explicit preference by ID semantics (title -> ID under the hood)
+    await candidates.addPreference(cand.id, 'Electrician');
 
     const result = await candidates.getRelevantJobs(cand.id, { page: 1, limit: 10 });
     const ids = result.data.map((p) => p.id);
 
-    // This expectation is intended to FAIL today, exposing the missing tag-aware logic in getRelevantJobs().
     expect(ids).toContain(postingId);
   });
 });

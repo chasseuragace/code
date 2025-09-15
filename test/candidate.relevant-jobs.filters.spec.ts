@@ -49,7 +49,11 @@ describe('Candidate relevant jobs - advanced filters', () => {
       { title: 'Cook', rank: 4, is_active: true },
     ]);
 
-    // Seed postings for filters
+    // Seed postings for filters (tag with canonical_title_ids)
+    const welder = await titles.findByTitle('Welder');
+    const driver = await titles.findByTitle('Driver');
+    const electrician = await titles.findByTitle('Electrician');
+    const cook = await titles.findByTitle('Cook');
     // UAE postings
     await jobs.createJobPosting({
       posting_title: 'UAE-Welder-High',
@@ -61,7 +65,8 @@ describe('Candidate relevant jobs - advanced filters', () => {
       positions: [
         { title: 'Welder', vacancies: { male: 5, female: 0 }, salary: { monthly_amount: 1500, currency: 'AED', converted: [ { amount: 410, currency: 'USD' }, { amount: 55000, currency: 'NPR' } ] } },
       ],
-    });
+      canonical_title_ids: [welder?.id].filter(Boolean),
+    } as any);
 
     await jobs.createJobPosting({
       posting_title: 'UAE-Driver-Low',
@@ -73,7 +78,8 @@ describe('Candidate relevant jobs - advanced filters', () => {
       positions: [
         { title: 'Driver', vacancies: { male: 3, female: 0 }, salary: { monthly_amount: 800, currency: 'AED', converted: [ { amount: 218, currency: 'USD' }, { amount: 20000, currency: 'NPR' } ] } },
       ],
-    });
+      canonical_title_ids: [driver?.id].filter(Boolean),
+    } as any);
 
     // Qatar posting
     await jobs.createJobPosting({
@@ -86,7 +92,8 @@ describe('Candidate relevant jobs - advanced filters', () => {
       positions: [
         { title: 'Electrician', vacancies: { male: 2, female: 1 }, salary: { monthly_amount: 1000, currency: 'QAR', converted: [ { amount: 275, currency: 'USD' }, { amount: 35000, currency: 'NPR' } ] } },
       ],
-    });
+      canonical_title_ids: [electrician?.id].filter(Boolean),
+    } as any);
 
     // Oman posting, unrelated title
     await jobs.createJobPosting({
@@ -99,7 +106,8 @@ describe('Candidate relevant jobs - advanced filters', () => {
       positions: [
         { title: 'Cook', vacancies: { male: 2, female: 2 }, salary: { monthly_amount: 300, currency: 'OMR' } },
       ],
-    });
+      canonical_title_ids: [cook?.id].filter(Boolean),
+    } as any);
   });
 
   afterAll(async () => {
@@ -108,7 +116,8 @@ describe('Candidate relevant jobs - advanced filters', () => {
 
   it('AND: titles + country + base salary min', async () => {
     const cand = await candidates.createCandidate({ full_name: 'AND User', phone: '+9779800000000' });
-    await candidates.addJobProfile(cand.id, { profile_blob: { preferred_titles: ['Welder', 'Electrician'] } });
+    await candidates.addPreference(cand.id, 'Welder');
+    await candidates.addPreference(cand.id, 'Electrician');
 
     // Expect only UAE-Welder-High when AND with UAE and salary >= 1200 AED
     const res = await candidates.getRelevantJobs(cand.id, {
@@ -125,7 +134,7 @@ describe('Candidate relevant jobs - advanced filters', () => {
 
   it('OR: titles OR country', async () => {
     const cand = await candidates.createCandidate({ full_name: 'OR User', phone: '+9779800000001' });
-    await candidates.addJobProfile(cand.id, { profile_blob: { preferred_titles: ['Electrician'] } });
+    await candidates.addPreference(cand.id, 'Electrician');
 
     // Expect either title match (Qatar-Electrician) OR country match (any UAE)
     const res = await candidates.getRelevantJobs(cand.id, {
@@ -139,7 +148,8 @@ describe('Candidate relevant jobs - advanced filters', () => {
 
   it('multi-country array', async () => {
     const cand = await candidates.createCandidate({ full_name: 'MultiCountry', phone: '+9779800000002' });
-    await candidates.addJobProfile(cand.id, { profile_blob: { preferred_titles: ['Electrician', 'Welder'] } });
+    await candidates.addPreference(cand.id, 'Electrician');
+    await candidates.addPreference(cand.id, 'Welder');
 
     const res = await candidates.getRelevantJobs(cand.id, {
       country: ['UAE', 'Qatar'],
@@ -152,7 +162,8 @@ describe('Candidate relevant jobs - advanced filters', () => {
 
   it('salary range (base)', async () => {
     const cand = await candidates.createCandidate({ full_name: 'SalaryRange', phone: '+9779800000003' });
-    await candidates.addJobProfile(cand.id, { profile_blob: { preferred_titles: ['Driver', 'Welder'] } });
+    await candidates.addPreference(cand.id, 'Driver');
+    await candidates.addPreference(cand.id, 'Welder');
 
     const res = await candidates.getRelevantJobs(cand.id, {
       salary: { min: 900, max: 1400, currency: 'AED', source: 'base' },
@@ -167,7 +178,8 @@ describe('Candidate relevant jobs - advanced filters', () => {
 
   it('converted salary min (USD)', async () => {
     const cand = await candidates.createCandidate({ full_name: 'ConvSalary', phone: '+9779800000004' });
-    await candidates.addJobProfile(cand.id, { profile_blob: { preferred_titles: ['Welder', 'Driver'] } });
+    await candidates.addPreference(cand.id, 'Welder');
+    await candidates.addPreference(cand.id, 'Driver');
 
     const res = await candidates.getRelevantJobs(cand.id, {
       salary: { min: 300, currency: 'USD', source: 'converted' },
@@ -181,7 +193,8 @@ describe('Candidate relevant jobs - advanced filters', () => {
 
   it('converted salary min (NPR)', async () => {
     const cand = await candidates.createCandidate({ full_name: 'ConvSalaryNPR', phone: '+9779800000005' });
-    await candidates.addJobProfile(cand.id, { profile_blob: { preferred_titles: ['Welder', 'Driver'] } });
+    await candidates.addPreference(cand.id, 'Welder');
+    await candidates.addPreference(cand.id, 'Driver');
 
     const res = await candidates.getRelevantJobs(cand.id, {
       salary: { min: 50000, currency: 'NPR', source: 'converted' },
@@ -195,7 +208,7 @@ describe('Candidate relevant jobs - advanced filters', () => {
 
   it('converted salary range (NPR 30k–50k)', async () => {
     const cand = await candidates.createCandidate({ full_name: 'ConvSalaryNPRRange', phone: '+9779800000006' });
-    await candidates.addJobProfile(cand.id, { profile_blob: { preferred_titles: ['Electrician'] } });
+    await candidates.addPreference(cand.id, 'Electrician');
 
     const res = await candidates.getRelevantJobs(cand.id, {
       salary: { min: 30000, max: 50000, currency: 'NPR', source: 'converted' },

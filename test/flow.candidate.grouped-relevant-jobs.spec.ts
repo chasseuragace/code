@@ -102,11 +102,9 @@ describe('flow_candidate_grouped_relevant_jobs', () => {
       .expect(201);
     candidateId = candRes.body.id;
 
-    // Add job profile preferencing two titles
-    await request(http)
-      .post(`/candidates/${candidateId}/job-profiles`)
-      .send({ profile_blob: { preferred_titles: ['Electrician', 'Plumber'] }, label: 'Two Prefs' })
-      .expect(201);
+    // Add preferences (two titles)
+    await request(http).post(`/candidates/${candidateId}/preferences`).send({ title: 'Electrician' }).expect(201);
+    await request(http).post(`/candidates/${candidateId}/preferences`).send({ title: 'Plumber' }).expect(201);
 
     // Fetch grouped relevant jobs with canonical title matching and scoring
     const grouped = await request(http)

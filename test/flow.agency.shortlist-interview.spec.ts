@@ -97,8 +97,8 @@ describe('flow_agency_shortlist_interview', () => {
     });
     candidateId = cand.id;
 
-    // Add profile with Electrician preference
-    await candidates.addJobProfile(candidateId, { profile_blob: { preferred_titles: ['Electrician'] }, label: 'Prefs' });
+    // Add Electrician preference (ID-based matching)
+    await candidates.addPreference(candidateId, 'Electrician');
 
     // Ensure relevant jobs returns the posting
     const rel = await candidates.getRelevantJobs(candidateId, { useCanonicalTitles: true, includeScore: true, page: 1, limit: 10 });

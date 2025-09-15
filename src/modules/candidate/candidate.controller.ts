@@ -6,6 +6,8 @@ import { PaginatedJobsResponseDto } from './dto/candidate-job-card.dto';
 import { CandidateJobDetailsDto } from '../domain/dto/job-details.dto';
 import { CandidateCreateDto } from './dto/candidate-create.dto';
 import { PreferenceDto, AddPreferenceDto, RemovePreferenceDto, ReorderPreferencesDto } from './dto/candidate-preferences.dto';
+import { AddJobProfileDto } from './dto/job-profile.dto';
+import { GroupedJobsResponseDto, CandidateCreatedResponseDto, AddJobProfileResponseDto } from './dto/candidate-responses.dto';
 
 function toBool(val?: string): boolean | undefined {
   if (val == null) return undefined;
@@ -27,7 +29,7 @@ export class CandidateController {
   @HttpCode(201)
   @ApiOperation({ summary: 'Create a candidate' })
   @ApiBody({ type: CandidateCreateDto })
-  @ApiResponse({ status: 201, description: 'Candidate created', schema: { properties: { id: { type: 'string', format: 'uuid' } } } })
+  @ApiCreatedResponse({ description: 'Candidate created', type: CandidateCreatedResponseDto })
   async createCandidate(@Body() body: Partial<any>) {
     const saved = await this.candidates.createCandidate(body);
     return { id: saved.id };
@@ -39,7 +41,7 @@ export class CandidateController {
   @ApiOperation({ summary: 'Get job details with candidate-specific fitness score' })
   @ApiParam({ name: 'id', description: 'Candidate ID', required: true })
   @ApiParam({ name: 'jobId', description: 'Job Posting ID', required: true })
-  @ApiResponse({ status: 200, description: 'Job details with fitness_score' })
+  @ApiOkResponse({ description: 'Job details with fitness_score', type: CandidateJobDetailsDto })
   async getJobDetailsWithFitness(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Param('jobId', new ParseUUIDPipe({ version: '4' })) jobId: string,
@@ -169,16 +171,16 @@ export class CandidateController {
     } as CandidateJobDetailsDto;
   }
 
-  // Add job profile (preferred_titles, etc.)
+  // Add job profile (skills, education, trainings, experience; NOT preferred_titles)
   @Post(':id/job-profiles')
-  @ApiOperation({ summary: 'Add a job profile to candidate (e.g., preferred_titles)' })
+  @ApiOperation({ summary: 'Add a job profile to candidate (skills, education, trainings, experience)' })
   @ApiParam({ name: 'id', description: 'Candidate ID', required: true })
-  @ApiBody({ schema: { properties: { profile_blob: { type: 'object', example: { preferred_titles: ['Welder', 'Electrician'] } }, label: { type: 'string', nullable: true } } } })
-  @ApiResponse({ status: 201, description: 'Job profile created', schema: { properties: { id: { type: 'string', format: 'uuid' } } } })
+  @ApiBody({ type: AddJobProfileDto, description: 'Profile blob holds skills, education, trainings, experience. Note: preferred_titles are NOT allowed here; use /preferences.' })
+  @ApiCreatedResponse({ description: 'Job profile created', type: AddJobProfileResponseDto })
   @HttpCode(201)
   async addJobProfile(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @Body() body: { profile_blob: any; label?: string },
+    @Body() body: AddJobProfileDto,
   ) {
     const saved = await this.candidates.addJobProfile(id, body);
     return { id: saved.id };
@@ -200,7 +202,7 @@ export class CandidateController {
   @ApiQuery({ name: 'salary_source', required: false, description: 'base|converted', enum: ['base', 'converted'] })
   @ApiQuery({ name: 'page', required: false })
   @ApiQuery({ name: 'limit', required: false })
-  @ApiResponse({ status: 200, description: 'Paginated relevant jobs with fitness_score', type: PaginatedJobsResponseDto })
+  @ApiOkResponse({ status: 200, description: 'Paginated relevant jobs with fitness_score', type: PaginatedJobsResponseDto })
   async getRelevantJobs(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Query('country') country?: string | string[],
@@ -286,7 +288,7 @@ export class CandidateController {
   @ApiQuery({ name: 'salary_max', required: false })
   @ApiQuery({ name: 'salary_currency', required: false })
   @ApiQuery({ name: 'salary_source', required: false, enum: ['base', 'converted'] })
-  @ApiResponse({ status: 200, description: 'Grouped relevant jobs with fitness_score' })
+  @ApiOkResponse({ status: 200, description: 'Grouped relevant jobs with fitness_score', type: GroupedJobsResponseDto })
   async getRelevantJobsGrouped(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Query('country') country?: string | string[],
@@ -316,7 +318,45 @@ export class CandidateController {
         source: salarySource === 'converted' ? 'converted' : 'base',
       };
     }
-    return this.candidates.getRelevantJobsGrouped(id, opts);
+    const res = await this.candidates.getRelevantJobsGrouped(id, opts);
+    // Map domain JobPosting to CandidateJobCardDto shape, similar to getRelevantJobsByTitle
+    const groups = (res.groups || []).map((g: any) => {
+      const jobs = (g.jobs || []).map((jp: any) => {
+        const contract = Array.isArray(jp.contracts) ? jp.contracts[0] : undefined;
+        const positions = contract?.positions || [];
+        const titles = Array.from(new Set(positions.map((p: any) => p.title).filter(Boolean))) as string[];
+        let monthly_min: number | null = null;
+        let monthly_max: number | null = null;
+        let currency: string | null = null;
+        if (positions.length) {
+          currency = positions[0].salary_currency || null;
+          const amounts = positions
+            .filter((p: any) => p.salary_currency === currency)
+            .map((p: any) => Number(p.monthly_salary_amount))
+            .filter((n: any) => !isNaN(n));
+          if (amounts.length) {
+            monthly_min = Math.min(...amounts);
+            monthly_max = Math.max(...amounts);
+          }
+        }
+        const converted = positions[0]?.salaryConversions?.map((c: any) => ({ amount: Number(c.converted_amount), currency: c.converted_currency })) || [];
+        return {
+          id: jp.id,
+          posting_title: jp.posting_title,
+          country: jp.country,
+          city: jp.city ?? null,
+          primary_titles: titles,
+          salary: { monthly_min, monthly_max, currency, converted },
+          agency: contract?.agency ? { name: contract.agency.name, license_number: contract.agency.license_number } : undefined,
+          employer: contract?.employer ? { company_name: contract.employer.company_name, country: contract.employer.country, city: contract.employer.city } : undefined,
+          posting_date_ad: jp.posting_date_ad ?? null,
+          cutout_url: jp.cutout_url ?? null,
+          fitness_score: (jp as any).fitness_score,
+        };
+      });
+      return { title: g.title, jobs };
+    });
+    return { groups } as GroupedJobsResponseDto;
   }
 
   // Relevant jobs for a single preferred title (paginated)

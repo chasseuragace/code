@@ -70,30 +70,19 @@ describe('Candidate Preferences (entity, ordering, integration)', () => {
     await expect(candidates.addPreference(candidateId, 'Dormant')).rejects.toThrow(/Invalid or inactive job title/);
   });
 
-  it('CP-4 getRelevantJobs prefers explicit preferences; falls back to job profile when none', async () => {
-    // With existing preferences, ensure it does not throw (no assertion on data size due to global DB). Just smoke run query
+  it('CP-4 getRelevantJobs requires preferences; no fallback to job profile when none', async () => {
+    // With existing preferences, ensure it does not throw (smoke test)
+    await candidates.addPreference(candidateId, 'Electrician');
     await expect(
       candidates.getRelevantJobs(candidateId, { page: 1, limit: 1 })
     ).resolves.toHaveProperty('page', 1);
 
-    // Remove all preferences
+    // Remove all preferences -> now should reject (no fallback)
     const current = await candidates.listPreferences(candidateId);
     for (const p of current) await candidates.removePreference(candidateId, p.title);
 
-    // Seed job titles for profile and add a profile with preferred_titles
-    await jobTitles.upsertMany([
-      { title: 'Rigger', is_active: true, rank: 10 },
-      { title: 'Painter', is_active: true, rank: 11 },
-    ]);
-
-    await candidates.addJobProfile(candidateId, {
-      profile_blob: { preferred_titles: ['Rigger', 'Painter'] },
-      label: 'Profile Prefs',
-    });
-
-    // Now fallback should work and not throw
     await expect(
       candidates.getRelevantJobs(candidateId, { page: 1, limit: 1 })
-    ).resolves.toHaveProperty('limit', 1);
+    ).rejects.toThrow('Candidate has no preferred job titles');
   });
 });

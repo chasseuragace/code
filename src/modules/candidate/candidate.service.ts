@@ -122,6 +122,10 @@ export class CandidateService {
     if (data.profile_blob === null || typeof data.profile_blob !== 'object' || Array.isArray(data.profile_blob)) {
       throw new BadRequestException('profile_blob must be an object');
     }
+    // Forbid preferred_titles in profile_blob (use /preferences endpoints instead)
+    if (data.profile_blob && Object.prototype.hasOwnProperty.call(data.profile_blob, 'preferred_titles')) {
+      throw new BadRequestException('preferred_titles are not allowed in profile_blob; use /candidates/:id/preferences');
+    }
     // Optional validation: preferred_titles must exist and be active
     const titles = data.profile_blob?.preferred_titles;
     if (titles != null) {
@@ -159,6 +163,9 @@ export class CandidateService {
     if (data.profile_blob !== undefined) {
       if (data.profile_blob === null || typeof data.profile_blob !== 'object' || Array.isArray(data.profile_blob)) {
         throw new BadRequestException('profile_blob must be an object');
+      }
+      if (Object.prototype.hasOwnProperty.call(data.profile_blob, 'preferred_titles')) {
+        throw new BadRequestException('preferred_titles are not allowed in profile_blob; use /candidates/:id/preferences');
       }
       existing.profile_blob = data.profile_blob;
     }

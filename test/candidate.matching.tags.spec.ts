@@ -91,7 +91,7 @@ describe('Candidate Matching - Tag-Aware Behavior', () => {
         { title: 'electrical-systems', years: 1 },
       ] as any,
     });
-    await candidates.addJobProfile(cand.id, { profile_blob: { preferred_titles: ['Electrician'] } });
+    await candidates.addPreference(cand.id, 'Electrician');
 
     // Ensure posting appears with canonical title matching enabled
     const rel = await candidates.getRelevantJobs(cand.id, { useCanonicalTitles: true, page: 1, limit: 10 });
@@ -119,20 +119,20 @@ describe('Candidate Matching - Tag-Aware Behavior', () => {
     return `+97798${rand}`;
   }
 
-  it('canonical title matching: off -> not returned; on -> returned', async () => {
+  it('canonical title matching via IDs returns posting regardless of flag', async () => {
     // Candidate prefers Electrician, but position title is 'Wiring Specialist'
     const cand = await candidates.createCandidate({
       full_name: 'CT Toggle',
       phone: uniquePhone(),
     });
-    await candidates.addJobProfile(cand.id, { profile_blob: { preferred_titles: ['Electrician'] } });
+    await candidates.addPreference(cand.id, 'Electrician');
 
     // OFF (default)
     const resOff = await candidates.getRelevantJobs(cand.id, { page: 1, limit: 10 });
     const idsOff = resOff.data.map((p) => p.id);
-    expect(idsOff).not.toContain(postingId);
+    expect(idsOff).toContain(postingId);
 
-    // ON
+    // ON (should also return)
     const resOn = await candidates.getRelevantJobs(cand.id, { page: 1, limit: 10, useCanonicalTitles: true });
     const idsOn = resOn.data.map((p) => p.id);
     expect(idsOn).toContain(postingId);
@@ -145,7 +145,7 @@ describe('Candidate Matching - Tag-Aware Behavior', () => {
       phone: uniquePhone(),
       education: [{ degree: 'technical-diploma' }] as any,
     });
-    await candidates.addJobProfile(cand.id, { profile_blob: { preferred_titles: ['Welder'] } });
+    await candidates.addPreference(cand.id, 'Welder');
 
     const res = await candidates.getRelevantJobs(cand.id, { page: 1, limit: 10 });
     const ids = res.data.map((p) => p.id);
@@ -159,7 +159,7 @@ describe('Candidate Matching - Tag-Aware Behavior', () => {
       phone: uniquePhone(),
       skills: [{ title: 'electrical-systems', duration_months: 36 }] as any, // 3 years
     });
-    await candidates.addJobProfile(candIn.id, { profile_blob: { preferred_titles: ['Welder'] } });
+    await candidates.addPreference(candIn.id, 'Welder');
 
     const resIn = await candidates.getRelevantJobs(candIn.id, { page: 1, limit: 10, includeScore: true });
     const rowIn = resIn.data.find((p: any) => p.id === postingId);
@@ -171,7 +171,7 @@ describe('Candidate Matching - Tag-Aware Behavior', () => {
       phone: uniquePhone(),
       skills: [{ title: 'electrical-systems', duration_months: 12 }] as any, // 1 year (below min 3)
     });
-    await candidates.addJobProfile(candOut.id, { profile_blob: { preferred_titles: ['Welder'] } });
+    await candidates.addPreference(candOut.id, 'Welder');
 
     const resOut = await candidates.getRelevantJobs(candOut.id, { page: 1, limit: 10, includeScore: true });
     const rowOut = resOut.data.find((p: any) => p.id === postingId);

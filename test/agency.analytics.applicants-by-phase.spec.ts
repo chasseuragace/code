@@ -98,9 +98,9 @@ describe('agency_analytics_applicants_by_phase', () => {
         .expect(201)
     ).body.id;
 
-    // Add basic profiles
-    await request(http).post(`/candidates/${cand1}/job-profiles`).send({ profile_blob: { preferred_titles: ['Electrician'] } }).expect(201);
-    await request(http).post(`/candidates/${cand2}/job-profiles`).send({ profile_blob: { preferred_titles: ['Plumber'] } }).expect(201);
+    // Add preferences (ID-based matching)
+    await request(http).post(`/candidates/${cand1}/preferences`).send({ title: 'Electrician' }).expect(201);
+    await request(http).post(`/candidates/${cand2}/preferences`).send({ title: 'Plumber' }).expect(201);
 
     // Apply: cand1 -> postingA; cand2 -> postingB
     await request(http).post('/applications').send({ candidate_id: cand1, job_posting_id: postingA }).expect(201);

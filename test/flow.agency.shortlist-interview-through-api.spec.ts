@@ -87,10 +87,10 @@ describe('flow_agency_shortlist_interview_through_api', () => {
       .expect(201);
     candidateId = candRes.body.id;
 
-    // Add job profile via API (Electrician preference)
+    // Add preference via API (Electrician)
     await request(http)
-      .post(`/candidates/${candidateId}/job-profiles`)
-      .send({ profile_blob: { preferred_titles: ['Electrician'] }, label: 'Prefs' })
+      .post(`/candidates/${candidateId}/preferences`)
+      .send({ title: 'Electrician' })
       .expect(201);
 
     // Fetch relevant jobs via API (toggle canonical titles)

@@ -1,0 +1,24 @@
+name: Deploy to Dev
+
+on:
+  push:
+    tags:
+      - "deploy"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.DEV_IP }}
+          username: ${{ secrets.DEV_USER }}
+          password: ${{ secrets.DEV_PASS }}
+          script: |
+            cd ${{ secrets.DEV_PATH }}
+            git pull origin main

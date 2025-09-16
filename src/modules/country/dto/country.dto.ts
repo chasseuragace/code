@@ -2,8 +2,8 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, IsNumberString, IsOptional } from 'class-validator';
 
 export class CountryResponseDto {
-  @ApiProperty({ description: 'Unique identifier of the country', example: 1 })
-  id: number;
+  @ApiProperty({ description: 'Unique identifier of the country', example: 'a3b5c8e2-1234-4f7a-9b0d-abcdef123456' })
+  id: string;
 
   @ApiProperty({ description: 'ISO 3166-1 alpha-2 country code', example: 'US' })
   @IsString()

@@ -15,6 +15,14 @@ class SeedCountsDto {
 
   @ApiProperty({ required: false, nullable: true, description: 'Number of sample postings created', example: { created: 1 } })
   sample_postings?: { created: number } | null;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    description: 'Dev: Number of postings created and tagged across seeded agencies',
+    example: { created: 10, tagged: 10 },
+  })
+  dev_agency_postings_with_tags?: { created: number; tagged: number } | null;
 }
 
 class SeedRequestDto {
@@ -29,6 +37,13 @@ class SeedRequestDto {
 
   @ApiProperty({ description: 'Seed sample job postings (secondary). Default: false', required: false, default: false })
   sample_postings?: boolean;
+
+  @ApiProperty({
+    description: 'Dev: create at least one posting per seeded agency and tag them for frontend testing. Default: false',
+    required: false,
+    default: false,
+  })
+  dev_agency_postings_with_tags?: boolean;
 }
 
 @ApiTags('Seed')
@@ -60,6 +75,16 @@ export class SeedController {
         summary: 'Only sample job postings (assumes prereqs are seeded)',
         value: { countries: false, job_titles: false, agencies: false, sample_postings: true },
       },
+      devSetup: {
+        summary: 'Dev: create postings per agency and tag them',
+        value: {
+          countries: true,
+          job_titles: true,
+          agencies: true,
+          sample_postings: false,
+          dev_agency_postings_with_tags: true,
+        },
+      },
     },
   })
   @ApiOkResponse({
@@ -72,6 +97,7 @@ export class SeedController {
           job_titles: { affected: 51 },
           agencies: { created: 10 },
           sample_postings: { created: 1 },
+          dev_agency_postings_with_tags: { created: 10, tagged: 10 },
         },
       },
     },

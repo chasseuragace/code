@@ -19,24 +19,32 @@ export class CountryService {
     private readonly repo: Repository<Country>,
   ) {}
 
-  async listAll(): Promise<CountryResponseDto[]> {
-    return this.repo.find({
+  async listAll(): Promise<{ data: CountryResponseDto[]; total: number }> {
+    const [rows, total] = await this.repo.findAndCount({
       order: { country_name: 'ASC' },
     });
+    return { data: rows, total };
   }
 
-  async findByNameOrCode(search: string): Promise<CountryResponseDto[]> {
+  async findByNameOrCode(search: string): Promise<CountryResponseDto | null> {
     if (!search) {
-      return this.listAll();
+      const { data } = await this.listAll();
+      return data[0] ?? null;
     }
-    
-    const searchTerm = `%${search.toLowerCase()}%`;
-    return this.repo
+    const q = search.trim().toLowerCase();
+    // Try exact match by code (2 or 3 letters)
+    const code = q.toUpperCase();
+    if (code.length === 2 || code.length === 3) {
+      const byCode = await this.repo.findOne({ where: { country_code: code } });
+      if (byCode) return byCode;
+    }
+    // Fallback: name ilike
+    const found = await this.repo
       .createQueryBuilder('country')
-      .where('LOWER(country.country_name) LIKE :search', { search: searchTerm })
-      .orWhere('LOWER(country.country_code) = :code', { code: search.toLowerCase() })
+      .where('LOWER(country.country_name) LIKE :search', { search: `%${q}%` })
       .orderBy('country.country_name', 'ASC')
-      .getMany();
+      .getOne();
+    return found ?? null;
   }
 
   async upsertMany(rows: CountrySeedDto[]): Promise<{ affected: number }> {

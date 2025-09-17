@@ -77,6 +77,47 @@ export class AgencyController {
     return { id: saved.id, license_number: saved.license_number };
   }
 
+  // Get agency owned by the authenticated user
+  @Get('owner/agency')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Get agency owned by the authenticated user' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Agency details',
+    schema: {
+      properties: {
+        id: { type: 'string', format: 'uuid' },
+        name: { type: 'string' },
+        license_number: { type: 'string' },
+        address: { type: 'string', nullable: true },
+        phones: { type: 'array', items: { type: 'string' }, nullable: true },
+        emails: { type: 'array', items: { type: 'string' }, nullable: true },
+        website: { type: 'string', nullable: true }
+      }
+    } 
+  })
+  @ApiResponse({ status: 403, description: 'Forbidden if user is not an agency owner' })
+  @ApiResponse({ status: 404, description: 'Not found if agency does not exist' })
+  async getMyAgency(@Req() req: any) {
+    const user = req.user as any;
+    if (!user?.is_agency_owner || !user?.agency_id) {
+      throw new ForbiddenException('User is not an agency owner or has no agency');
+    }
+    
+    const agency = await this.agencyService.findAgencyById(user.agency_id);
+    return {
+      id: agency.id,
+      name: agency.name,
+      license_number: agency.license_number,
+      address: agency.address,
+      phones: agency.phones,
+      emails: agency.emails,
+      website: agency.website
+    };
+  }
+
   // --- Owner-managed Members ---
   @Post('owner/members/invite')
   @UseGuards(JwtAuthGuard)

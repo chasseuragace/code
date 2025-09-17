@@ -30,9 +30,11 @@ export class CountryController {
   })
   async list(@Query() query: CountryQueryParamsDto): Promise<CountryResponseDto[]> {
     if (query.search) {
-      return this.countryService.findByNameOrCode(query.search);
+      const one = await this.countryService.findByNameOrCode(query.search);
+      return one ? [one] : [];
     }
-    return this.countryService.listAll();
+    const res = await this.countryService.listAll();
+    return res.data;
   }
 
   // SeedV1: upsert countries from JSON file
@@ -67,7 +69,7 @@ export class CountryController {
     const res = await this.countryService.upsertMany(rows);
     return { 
       source: 'src/seed/countries.seed.json', 
-      affected: res.affected 
+      upserted: res.affected 
     };
   }
 }

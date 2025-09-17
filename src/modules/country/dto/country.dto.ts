@@ -47,8 +47,8 @@ export class SeedCountriesResponseDto {
   @ApiProperty({ description: 'Source file path of the seed data' })
   source: string;
 
-  @ApiProperty({ description: 'Number of records affected' })
-  affected: number;
+  @ApiProperty({ description: 'Number of records upserted' })
+  upserted: number;
 }
 
 export class CountryQueryParamsDto {

@@ -1,13 +1,19 @@
-import { Controller, Get, Param, Query, ParseUUIDPipe, Post, Body, HttpCode, Delete, Put, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Param, Query, ParseUUIDPipe, Post, Body, HttpCode, Delete, Put, NotFoundException, Req, UseGuards } from '@nestjs/common';
 import { CandidateService } from './candidate.service';
 import { JobPostingService, ExpenseService, InterviewService } from '../domain/domain.service';
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags, ApiBody, ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
 import { PaginatedJobsResponseDto } from './dto/candidate-job-card.dto';
+import { CandidateProfileDto } from './dto/candidate-profile.dto';
+import { CandidateUpdateDto } from './dto/candidate-update.dto';
 import { CandidateJobDetailsDto } from '../domain/dto/job-details.dto';
 import { CandidateCreateDto } from './dto/candidate-create.dto';
 import { PreferenceDto, AddPreferenceDto, RemovePreferenceDto, ReorderPreferencesDto } from './dto/candidate-preferences.dto';
 import { UpdateJobProfileDto, CandidateJobProfileDto } from './dto/job-profile.dto';
 import { GroupedJobsResponseDto, CandidateCreatedResponseDto, AddJobProfileResponseDto } from './dto/candidate-responses.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AuthService } from '../auth/auth.service';
+import { Request } from 'express';
+import { BadRequestException } from '@nestjs/common';
 
 function toBool(val?: string): boolean | undefined {
   if (val == null) return undefined;
@@ -22,7 +28,39 @@ export class CandidateController {
     private readonly jobs: JobPostingService,
     private readonly expenses: ExpenseService,
     private readonly interviews: InterviewService,
+    private readonly auth: AuthService,
   ) {}
+
+  // Get candidate profile
+  // GET /candidates/:id
+  @Get(':id')
+  @ApiOperation({ summary: 'Get candidate profile by ID' })
+  @ApiParam({ name: 'id', description: 'Candidate ID', required: true })
+  @ApiOkResponse({ status: 200, description: 'Candidate profile', type: CandidateProfileDto })
+  async getCandidateProfile(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ): Promise<CandidateProfileDto> {
+    const cand = await this.candidates.findById(id);
+    if (!cand) throw new NotFoundException('Candidate not found');
+    // Direct mapping: entity fields align with DTO properties
+    return cand as unknown as CandidateProfileDto;
+  }
+
+  // Update candidate profile
+  // PUT /candidates/:id
+  @Put(':id')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Update candidate profile by ID' })
+  @ApiParam({ name: 'id', description: 'Candidate ID', required: true })
+  @ApiBody({ type: CandidateUpdateDto })
+  @ApiOkResponse({ status: 200, description: 'Updated candidate profile', type: CandidateProfileDto })
+  async updateCandidateProfile(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() body: CandidateUpdateDto,
+  ): Promise<CandidateProfileDto> {
+    const updated = await this.candidates.updateCandidate(id, body as any);
+    return updated as unknown as CandidateProfileDto;
+  }
 
   // Create candidate (minimal public endpoint)
   @Post()
@@ -551,6 +589,56 @@ export class CandidateController {
       };
     });
     return { data, total: res.total, page: res.page, limit: res.limit };
+  }
+
+  // List interviews for a candidate
+  @Get(':id/interviews')
+  @ApiOperation({ summary: 'List interviews for a candidate' })
+  @ApiParam({ name: 'id', description: 'Candidate ID', required: true })
+  @ApiQuery({ 
+    name: 'only_upcoming', 
+    required: false, 
+    description: 'If true, returns only upcoming interviews (default: true). If false, returns all interviews.',
+    type: Boolean,
+    example: true
+  })
+  @ApiQuery({ 
+    name: 'order', 
+    required: false, 
+    description: 'Order of interviews. "upcoming" orders by date ascending (closest first), "recent" orders by date descending (most recent first).',
+    enum: ['upcoming', 'recent'],
+    example: 'upcoming'
+  })
+  @ApiQuery({ 
+    name: 'page', 
+    required: false, 
+    description: 'Page number for pagination (default: 1)',
+    type: Number,
+    example: 1
+  })
+  @ApiQuery({ 
+    name: 'limit', 
+    required: false, 
+    description: 'Number of items per page (default: 10, max: 100)',
+    type: Number,
+    example: 10
+  })
+  @ApiOkResponse({ description: 'Paginated list of interviews', type: Object })
+  async listInterviews(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Query('only_upcoming') onlyUpcoming: string = 'true',
+    @Query('order') order: 'upcoming' | 'recent' = 'upcoming',
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    const res = await this.interviews.listByCandidate({ 
+      candidateId: id, 
+      only_upcoming: onlyUpcoming === 'true', 
+      order,
+      page: parseInt(page, 10),
+      limit: parseInt(limit, 10),
+    });
+    return res;
   }
 
   // Preferences CRUD

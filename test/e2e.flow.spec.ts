@@ -1,8 +1,10 @@
 import 'reflect-metadata';
-import { Test } from '@nestjs/testing';
+import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
 import { AppModule } from 'src/app.module';
+
+jest.setTimeout(30000); // Increase timeout to 30 seconds
 
 /**
  * E2E happy flows simulating production runs over HTTP

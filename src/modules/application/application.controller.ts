@@ -1,6 +1,9 @@
 import { Controller, Post, Body, HttpCode, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
+import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { ApplicationService } from './application.service';
+import { ApplicationAnalyticsDto } from './dto/application-analytics.dto';
 
+@ApiTags('applications')
 @Controller('applications')
 export class ApplicationController {
   constructor(private readonly apps: ApplicationService) {}
@@ -89,5 +92,17 @@ export class ApplicationController {
     }
     const saved = await this.apps.withdraw(app.candidate_id, app.job_posting_id, { note: body?.note, updatedBy: body?.updatedBy });
     return { id: saved.id, status: saved.status };
+  }
+
+  // Candidate analytics: totals and per-status counts
+  // GET /applications/analytics/:id
+  @Get('analytics/:id')
+  @ApiOperation({ summary: 'Get candidate application analytics' })
+  @ApiParam({ name: 'id', description: 'Candidate ID (UUID v4)', required: true })
+  @ApiOkResponse({ description: 'Analytics summary for the candidate', type: ApplicationAnalyticsDto })
+  async analytics(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
+    return this.apps.getAnalytics(id);
   }
 }

@@ -576,4 +576,81 @@ export class InterviewService {
     if (res.affected === 0) throw new NotFoundException(`Interview with ID ${id} not found`);
     return this.findInterviewById(id);
   }
+
+  // List interviews by candidate IDs with upcoming-first ordering and pagination
+  async listByCandidates(params: {
+    candidateIds: string[];
+    page?: number;
+    limit?: number;
+    only_upcoming?: boolean;
+    order?: 'upcoming' | 'recent';
+  }): Promise<{ items: Array<InterviewDetail & { job_posting: any; expenses: any[]; _app_id: string; _app_status: string; _agency: any; _employer: any }>; total: number; page: number; limit: number }> {
+    const page = Math.max(1, params.page ?? 1);
+    const limit = Math.min(100, Math.max(1, params.limit ?? 20));
+    const onlyUpcoming = params.only_upcoming !== false; // default true
+    const orderMode = params.order ?? 'upcoming';
+
+    const qb = this.interviewRepository.createQueryBuilder('int')
+      .innerJoin('job_applications', 'app', 'app.id = int.job_application_id AND app.candidate_id IN (:...cids)', { cids: params.candidateIds })
+      .leftJoinAndSelect('int.job_posting', 'jp')
+      .leftJoinAndSelect('int.expenses', 'iexp')
+      // join a single contract to fetch employer and agency context; may duplicate rows if multiple contracts
+      .leftJoin('job_contracts', 'jc', 'jc.job_posting_id = jp.id')
+      .leftJoin('employers', 'em', 'em.id = jc.employer_id')
+      .leftJoin('posting_agencies', 'ag', 'ag.id = jc.posting_agency_id')
+      .addSelect(['app.id AS _app_id', 'app.status AS _app_status'])
+      .addSelect(['ag.id AS _ag_id', 'ag.name AS _ag_name', 'ag.license_number AS _ag_license', 'ag.phones AS _ag_phones', 'ag.emails AS _ag_emails', 'ag.website AS _ag_website'])
+      .addSelect(['em.id AS _em_id', 'em.company_name AS _em_company', 'em.country AS _em_country', 'em.city AS _em_city']);
+
+    if (onlyUpcoming) {
+      qb.andWhere('int.interview_date_ad IS NULL OR int.interview_date_ad >= CURRENT_DATE');
+    }
+
+    // Ordering key (date only for now). Use NULLS LAST for upcoming, DESC for recent
+    const orderExpr = "int.interview_date_ad";
+    if (orderMode === 'upcoming') {
+      qb.orderBy(orderExpr, 'ASC', 'NULLS LAST');
+    } else {
+      qb.orderBy(orderExpr, 'DESC', 'NULLS LAST');
+    }
+
+    const total = await qb.getCount();
+    const rows = await qb
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getRawAndEntities();
+
+    // Map entity + raw selections
+    const items = rows.entities.map((ent, idx) => {
+      const raw = rows.raw[idx] as any;
+      const agency = {
+        id: raw._ag_id,
+        name: raw._ag_name,
+        license_number: raw._ag_license,
+        phones: raw._ag_phones ?? null,
+        emails: raw._ag_emails ?? null,
+        website: raw._ag_website ?? null,
+      };
+      const employer = {
+        id: raw._em_id,
+        company_name: raw._em_company,
+        country: raw._em_country,
+        city: raw._em_city ?? null,
+      };
+      return Object.assign(ent, { _app_id: raw._app_id, _app_status: raw._app_status, _agency: agency, _employer: employer });
+    });
+
+    return { items, total, page, limit };
+  }
+
+  // List interviews by a single candidate ID
+  async listByCandidate(params: {
+    candidateId: string;
+    page?: number;
+    limit?: number;
+    only_upcoming?: boolean;
+    order?: 'upcoming' | 'recent';
+  }): Promise<{ items: Array<InterviewDetail & { job_posting: any; expenses: any[]; _app_id: string; _app_status: string; _agency: any; _employer: any }>; total: number; page: number; limit: number }> {
+    return this.listByCandidates({ ...params, candidateIds: [params.candidateId] });
+  }
 }

@@ -1,12 +1,15 @@
-import { Body, Controller, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, Post, Req, Param } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterCandidateDto } from './dto/register.dto';
 import { VerifyOtpDto } from './dto/verify.dto';
+import { Logger } from '@nestjs/common';
+import { Request } from 'express';
 
 @ApiTags('auth')
 @Controller()
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
   constructor(private readonly auth: AuthService) {}
 
   @Post('register')
@@ -33,6 +36,7 @@ export class AuthController {
   @ApiBody({ schema: { properties: { phone: { type: 'string' } }, required: ['phone'] } })
   @ApiResponse({ status: 200, description: 'OTP issued', schema: { properties: { dev_otp: { type: 'string' } } } })
   async loginStart(@Body() body: { phone: string }) {
+    this.logger.log(`Received login/start request for phone: ${body.phone}`);
     return this.auth.loginStart(body);
   }
 
@@ -42,6 +46,7 @@ export class AuthController {
   @ApiBody({ type: VerifyOtpDto })
   @ApiResponse({ status: 200, description: 'Token issued', schema: { properties: { token: { type: 'string' }, user_id: { type: 'string', format: 'uuid' }, candidate_id: { type: 'string', format: 'uuid' }, candidate: { type: 'object' } } } })
   async loginVerify(@Body() body: VerifyOtpDto) {
+    this.logger.log(`Received login/verify request for phone: ${body.phone}`);
     return this.auth.loginVerify(body);
   }
 
@@ -89,5 +94,23 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Token issued', schema: { properties: { token: { type: 'string' }, user_id: { type: 'string', format: 'uuid' }, agency_id: { type: 'string', format: 'uuid' } } } })
   async memberLogin(@Body() body: { phone: string; password: string }) {
     return this.auth.memberLogin(body);
+  }
+
+  @Post('phone-change-requests')
+  async requestPhoneChange(
+    @Body() body: { candidateId: string; newPhone: string },
+  ) {
+    if (!body.candidateId) throw new Error('Invalid candidate');
+    const result = await this.auth.initiatePhoneChange(body.candidateId, body.newPhone);
+    return { message: 'OTP sent to new phone number', dev_otp: result.dev_otp };
+  }
+
+  @Post('phone-change-verifications')
+  async verifyPhoneChange(
+    @Body() body: { candidateId: string; otp: string; newPhone: string },
+  ) {
+    if (!body.candidateId) throw new Error('Invalid candidate');
+    await this.auth.verifyPhoneChange(body.candidateId, body.newPhone, body.otp);
+    return { message: 'Phone number changed successfully' };
   }
 }

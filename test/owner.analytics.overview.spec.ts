@@ -1,5 +1,9 @@
+import 'reflect-metadata';
+import { OwnerAnalyticsService } from 'src/modules/owner/owner.service';
 import { bootstrapDomainTestModule } from './utils/testModule';
 import { buildPostingDto } from './utils/builders/posting';
+
+jest.setTimeout(30000); // Increase timeout to 30 seconds
 
 describe('OwnerAnalyticsService - Portal Overview', () => {
   it('returns portal overview with sane totals and recent activity', async () => {

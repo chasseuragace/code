@@ -54,6 +54,21 @@ Optionally rebuild the server image when dependencies change:
 docker compose build server
 ```
 
+### Run specific tests (exec into running server container)
+
+If your `server` container is already up (via `docker compose up -d server db`), you can run a subset of tests using `docker compose exec`:
+
+```bash
+docker compose exec server npm test -- \
+  test/e2e.auth.register-verify.spec.ts \
+  test/e2e.candidate.profile-crud.spec.ts
+```
+
+Notes:
+- The `--` separates the `npm test` command from Jest's file args.
+- You can pass globs or multiple file paths.
+- Use `docker compose run --rm server npm test -- <files>` if the server container is not running; `exec` requires it to be running.
+
 ## Gotchas
 
 - **Null vs undefined from ORM**

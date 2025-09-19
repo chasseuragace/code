@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
 import { AppModule } from 'src/app.module';
+import { CandidateService } from 'src/modules/candidate/candidate.service';
 
 /**
  * E2E: Candidate relevant jobs over HTTP and public job details
@@ -11,11 +12,13 @@ describe('E2E: candidate relevant jobs + public job details', () => {
   let app: INestApplication;
   let jobIdA: string;
   let jobIdB: string;
+  let candidates: CandidateService;
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
     await app.init();
+    candidates = app.get(CandidateService);
   });
 
   afterAll(async () => {
@@ -137,19 +140,30 @@ describe('E2E: candidate relevant jobs + public job details', () => {
   it('fetches candidate-context job details with fitness_score', async () => {
     // Create a candidate with overlapping skills/education/experience
     const uniq = Math.floor(Math.random() * 9000) + 1000;
-    const create = await request(app.getHttpServer())
-      .post('/candidates')
-      .send({
-        full_name: 'Fit User',
-        phone: `+9779807${uniq}`,
-        skills: [{ title: 'industrial-wiring', duration_months: 36 }, { title: 'electrical-systems', duration_months: 12 }],
-        education: [{ degree: 'technical-diploma' }],
-      })
+    const cand = await candidates.createCandidate({
+      full_name: 'Fit User',
+      phone: `+9779807${uniq}`,
+    });
+
+    // Create job profile directly using service (auto-creates on update)
+    await candidates.updateJobProfile(cand.id, {
+      profile_blob: {
+        summary: 'Fit User Profile',
+        years: 3,
+        skills: ['industrial-wiring', 'electrical-systems'],
+        education: ['technical-diploma']
+      },
+      label: 'Default'
+    });
+
+    // Add preference for Welder
+    await request(app.getHttpServer())
+      .post(`/candidates/${cand.id}/preferences`)
+      .send({ title: 'Welder' })
       .expect(201);
-    const candidateId = create.body.id;
 
     const res = await request(app.getHttpServer())
-      .get(`/candidates/${candidateId}/jobs/${jobIdA}`)
+      .get(`/candidates/${cand.id}/jobs/${jobIdA}`)
       .expect(200);
 
     expect(res.body).toHaveProperty('id', jobIdA);

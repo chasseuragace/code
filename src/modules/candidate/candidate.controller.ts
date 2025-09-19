@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, ParseUUIDPipe, Post, Body, HttpCode, Delete, Put } from '@nestjs/common';
+import { Controller, Get, Param, Query, ParseUUIDPipe, Post, Body, HttpCode, Delete, Put, NotFoundException } from '@nestjs/common';
 import { CandidateService } from './candidate.service';
 import { JobPostingService, ExpenseService, InterviewService } from '../domain/domain.service';
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags, ApiBody, ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
@@ -6,7 +6,7 @@ import { PaginatedJobsResponseDto } from './dto/candidate-job-card.dto';
 import { CandidateJobDetailsDto } from '../domain/dto/job-details.dto';
 import { CandidateCreateDto } from './dto/candidate-create.dto';
 import { PreferenceDto, AddPreferenceDto, RemovePreferenceDto, ReorderPreferencesDto } from './dto/candidate-preferences.dto';
-import { AddJobProfileDto } from './dto/job-profile.dto';
+import { UpdateJobProfileDto, CandidateJobProfileDto } from './dto/job-profile.dto';
 import { GroupedJobsResponseDto, CandidateCreatedResponseDto, AddJobProfileResponseDto } from './dto/candidate-responses.dto';
 
 function toBool(val?: string): boolean | undefined {
@@ -46,59 +46,72 @@ export class CandidateController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Param('jobId', new ParseUUIDPipe({ version: '4' })) jobId: string,
   ): Promise<CandidateJobDetailsDto> {
-    // fetch candidate and job
+    // Fetch candidate and most recent job profile (candidate-context)
     const cand: any = await this.candidates.findById(id);
-    const jp: any = await this.jobs.findJobPostingById(jobId);
+    if (!cand) throw new NotFoundException('Candidate not found');
+    const jobProfiles = await this.candidates.listJobProfiles(id);
+    const mostRecentJobProfile = jobProfiles[0]; // ordered by updated_at DESC
+    const profileBlob = (mostRecentJobProfile?.profile_blob as any) || {};
 
-    // Candidate skills & education normalization (same as service)
-    const candSkills = Array.isArray(cand?.skills)
-      ? cand.skills
+    // Load the actual job posting by ID
+    const job = await this.jobs.findJobPostingById(jobId);
+
+    // Extract candidate-side attributes
+    const skills = Array.isArray(profileBlob.skills)
+      ? profileBlob.skills
           .map((s: any) => (typeof s === 'string' ? s : s?.title))
           .filter((v: any) => typeof v === 'string' && v.trim().length > 0)
       : [];
-    const candSkillsLower = candSkills.map((s: string) => s.toLowerCase());
-    const candEdu = Array.isArray(cand?.education)
-      ? cand.education
+    const skillsLower = skills.map((s: string) => s.toLowerCase());
+
+    const education = Array.isArray(profileBlob.education)
+      ? profileBlob.education
           .map((e: any) => (typeof e === 'string' ? e : (e?.degree ?? e?.title ?? e?.name)))
           .filter((v: any) => typeof v === 'string' && v.trim().length > 0)
       : [];
-    const candEduLower = candEdu.map((e: string) => e.toLowerCase());
+    const educationLower = education.map((e: string) => e.toLowerCase());
 
-    // Derive candidate years from skills
-    const candYears = Array.isArray(cand?.skills)
-      ? cand.skills.reduce((acc: number, s: any) => {
+    // Candidate years derived from skills
+    const years = Array.isArray(profileBlob.skills)
+      ? profileBlob.skills.reduce((acc: number, s: any) => {
           if (typeof s?.duration_months === 'number') return acc + s.duration_months / 12;
           if (typeof s?.years === 'number') return acc + s.years;
           return acc;
         }, 0)
       : 0;
 
-    // Compute fitness components against this job
+    // Compute fitness against the real job's requirements
     let parts = 0;
     let sumPct = 0;
-    // skills overlap
-    const js: string[] = Array.isArray(jp.skills) ? jp.skills : [];
+
+    // Job skills overlap
+    const js: string[] = Array.isArray(job.skills) ? job.skills : [];
     if (js.length) {
       const jsLower = js.map((x) => String(x).toLowerCase());
-      const inter = candSkillsLower.filter((s: string) => jsLower.includes(s));
+      const inter = skillsLower.filter((s: string) => jsLower.includes(s));
       const pct = js.length ? inter.length / js.length : 0;
-      parts++; sumPct += pct;
+      parts++;
+      sumPct += pct;
     }
-    // education overlap
-    const je: string[] = Array.isArray(jp.education_requirements) ? jp.education_requirements : [];
+
+    // Job education overlap
+    const je: string[] = Array.isArray(job.education_requirements) ? job.education_requirements : [];
     if (je.length) {
       const jeLower = je.map((x) => String(x).toLowerCase());
-      const inter = candEduLower.filter((e: string) => jeLower.includes(e));
+      const inter = educationLower.filter((e: string) => jeLower.includes(e));
       const pct = je.length ? inter.length / je.length : 0;
-      parts++; sumPct += pct;
+      parts++;
+      sumPct += pct;
     }
-    // experience boundary
-    const xr = jp.experience_requirements as { min_years?: number; max_years?: number } | undefined;
+
+    // Job experience boundary
+    const xr = job.experience_requirements as { min_years?: number; max_years?: number } | undefined;
     if (xr && (typeof xr.min_years === 'number' || typeof xr.max_years === 'number')) {
-      const minOk = typeof xr.min_years === 'number' ? candYears >= xr.min_years : true;
-      const maxOk = typeof xr.max_years === 'number' ? candYears <= xr.max_years : true;
+      const minOk = typeof xr.min_years === 'number' ? years >= xr.min_years : true;
+      const maxOk = typeof xr.max_years === 'number' ? years <= xr.max_years : true;
       const pct = minOk && maxOk ? 1 : 0;
-      parts++; sumPct += pct;
+      parts++;
+      sumPct += pct;
     }
     const fitness_score = parts > 0 ? Math.round((sumPct / parts) * 100) : undefined;
 
@@ -106,36 +119,45 @@ export class CandidateController {
     const ex = await this.expenses.getJobPostingExpenses(jobId);
     const interview = await this.interviews.findInterviewByJobPosting(jobId);
 
+    // Build response from the real job entity
+    const contract = Array.isArray(job.contracts) ? job.contracts[0] : undefined;
+    const positions = contract?.positions || [];
     return {
-      id: jp.id,
-      posting_title: jp.posting_title,
-      country: jp.country,
-      city: jp.city,
-      announcement_type: jp.announcement_type,
-      posting_date_ad: jp.posting_date_ad,
-      notes: jp.notes ?? null,
-      agency: jp.contracts?.[0]?.agency ? {
-        name: jp.contracts[0].agency.name,
-        license_number: jp.contracts[0].agency.license_number,
-      } : null,
-      employer: jp.contracts?.[0]?.employer ? {
-        company_name: jp.contracts[0].employer.company_name,
-        country: jp.contracts[0].employer.country,
-        city: jp.contracts[0].employer.city,
-      } : null,
-      contract: jp.contracts?.[0] ? {
-        period_years: jp.contracts[0].period_years,
-        renewable: jp.contracts[0].renewable,
-        hours_per_day: jp.contracts[0].hours_per_day,
-        days_per_week: jp.contracts[0].days_per_week,
-        overtime_policy: jp.contracts[0].overtime_policy,
-        weekly_off_days: jp.contracts[0].weekly_off_days,
-        food: jp.contracts[0].food,
-        accommodation: jp.contracts[0].accommodation,
-        transport: jp.contracts[0].transport,
-        annual_leave_days: jp.contracts[0].annual_leave_days,
-      } : null,
-      positions: (jp.contracts?.[0]?.positions || []).map((p: any) => ({
+      id: job.id,
+      posting_title: job.posting_title,
+      country: job.country,
+      city: job.city ?? null,
+      announcement_type: job.announcement_type,
+      posting_date_ad: job.posting_date_ad,
+      notes: job.notes ?? null,
+      agency: contract?.agency
+        ? {
+            name: contract.agency.name,
+            license_number: contract.agency.license_number,
+          }
+        : null,
+      employer: contract?.employer
+        ? {
+            company_name: contract.employer.company_name,
+            country: contract.employer.country,
+            city: contract.employer.city,
+          }
+        : null,
+      contract: contract
+        ? {
+            period_years: contract.period_years,
+            renewable: contract.renewable,
+            hours_per_day: contract.hours_per_day,
+            days_per_week: contract.days_per_week,
+            overtime_policy: contract.overtime_policy,
+            weekly_off_days: contract.weekly_off_days,
+            food: contract.food,
+            accommodation: contract.accommodation,
+            transport: contract.transport,
+            annual_leave_days: contract.annual_leave_days,
+          }
+        : null,
+      positions: positions.map((p: any) => ({
         title: p.title,
         vacancies: { male: p.male_vacancies, female: p.female_vacancies, total: p.total_vacancies },
         salary: {
@@ -153,10 +175,10 @@ export class CandidateController {
           transport: p.transport_override ?? null,
         },
       })),
-      skills: jp.skills ?? [],
-      education_requirements: jp.education_requirements ?? [],
-      experience_requirements: jp.experience_requirements ?? null,
-      canonical_titles: (jp.canonical_titles || []).map((t: any) => t.title),
+      skills: job.skills ?? [],
+      education_requirements: job.education_requirements ?? [],
+      experience_requirements: (job.experience_requirements as any) ?? null,
+      canonical_titles: (job.canonical_titles || []).map((t: any) => t.title),
       expenses: {
         medical: ex.medical ? [ex.medical] : [],
         insurance: ex.insurance ? [ex.insurance] : [],
@@ -166,24 +188,46 @@ export class CandidateController {
         welfare_service: ex.welfare ? [ex.welfare] : [],
       },
       interview: interview ?? null,
-      cutout_url: jp.cutout_url ?? null,
+      cutout_url: job.cutout_url ?? null,
       fitness_score,
     } as CandidateJobDetailsDto;
   }
 
-  // Add job profile (skills, education, trainings, experience; NOT preferred_titles)
-  @Post(':id/job-profiles')
-  @ApiOperation({ summary: 'Add a job profile to candidate (skills, education, trainings, experience)' })
+  // Removed: Add job profile endpoint. Use updateJobProfile which auto-creates when none exists.
+
+  // Update job profile (auto-creates if not exists)
+  @Put(':id/job-profiles')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Update the candidate job profile (auto-creates if not exists)' })
   @ApiParam({ name: 'id', description: 'Candidate ID', required: true })
-  @ApiBody({ type: AddJobProfileDto, description: 'Profile blob holds skills, education, trainings, experience. Note: preferred_titles are NOT allowed here; use /preferences.' })
-  @ApiCreatedResponse({ description: 'Job profile created', type: AddJobProfileResponseDto })
-  @HttpCode(201)
-  async addJobProfile(
+  @ApiBody({ 
+    type: UpdateJobProfileDto, 
+    description: 'Partial update to job profile. Will create profile if none exists.' 
+  })
+  @ApiOkResponse({ 
+    description: 'Job profile updated or created', 
+    type: AddJobProfileResponseDto 
+  })
+  async updateJobProfile(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @Body() body: AddJobProfileDto,
+    @Body() body: UpdateJobProfileDto,
   ) {
-    const saved = await this.candidates.addJobProfile(id, body);
+    const saved = await this.candidates.updateJobProfile(id, body);
     return { id: saved.id };
+  }
+
+  // List job profiles for a candidate ordered by updated_at DESC
+  // GET /candidates/:id/job-profiles
+  @Get(':id/job-profiles')
+  @ApiOperation({ summary: 'List candidate job profiles (ordered by updated_at desc)' })
+  @ApiParam({ name: 'id', description: 'Candidate ID', required: true })
+  @ApiOkResponse({ status: 200, description: 'Candidate job profiles', type: CandidateJobProfileDto, isArray: true })
+  async listJobProfiles(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ): Promise<CandidateJobProfileDto[]> {
+    const rows = await this.candidates.listJobProfiles(id);
+    // Directly return; entity shape matches DTO fields used for documentation
+    return rows as unknown as CandidateJobProfileDto[];
   }
 
   // Public-facing: list relevant jobs for a candidate with optional matching flags
@@ -196,12 +240,12 @@ export class CandidateController {
   @ApiQuery({ name: 'combineWith', required: false, description: 'AND|OR combination with preferences', enum: ['AND', 'OR'] })
   @ApiQuery({ name: 'useCanonicalTitles', required: false, description: 'true|false' })
   @ApiQuery({ name: 'includeScore', required: false, description: 'true|false (defaults to true)' })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
   @ApiQuery({ name: 'salary_min', required: false, description: 'Minimum salary amount' })
   @ApiQuery({ name: 'salary_max', required: false, description: 'Maximum salary amount' })
   @ApiQuery({ name: 'salary_currency', required: false, description: 'Salary currency code' })
   @ApiQuery({ name: 'salary_source', required: false, description: 'base|converted', enum: ['base', 'converted'] })
-  @ApiQuery({ name: 'page', required: false })
-  @ApiQuery({ name: 'limit', required: false })
   @ApiOkResponse({ status: 200, description: 'Paginated relevant jobs with fitness_score', type: PaginatedJobsResponseDto })
   async getRelevantJobs(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -216,6 +260,25 @@ export class CandidateController {
     @Query('salary_currency') salaryCurrency?: string,
     @Query('salary_source') salarySource?: 'base' | 'converted',
   ): Promise<PaginatedJobsResponseDto> {
+    const jobProfile = await this.candidates.listJobProfiles(id);
+    const mostRecentJobProfile = jobProfile[0]; // ordered by updated_at DESC
+    const profileBlob = mostRecentJobProfile?.profile_blob as any || {};
+
+    // Extract skills and education from job profile blob
+    const skills = Array.isArray(profileBlob.skills)
+      ? profileBlob.skills
+          .map((s: any) => (typeof s === 'string' ? s : s?.title))
+          .filter((v: any) => typeof v === 'string' && v.trim().length > 0)
+      : [];
+    const skillsLower = skills.map((s: string) => s.toLowerCase());
+
+    const education = Array.isArray(profileBlob.education)
+      ? profileBlob.education
+          .map((e: any) => (typeof e === 'string' ? e : (e?.degree ?? e?.title ?? e?.name)))
+          .filter((v: any) => typeof v === 'string' && v.trim().length > 0)
+      : [];
+    const educationLower = education.map((e: string) => e.toLowerCase());
+
     const opts: any = {
       country,
       combineWith: combineWith === 'OR' ? 'OR' : 'AND',
@@ -223,8 +286,9 @@ export class CandidateController {
       includeScore: toBool(includeScore) ?? true,
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
+      skills,
+      education,
     };
-
     if (salaryMin || salaryMax || salaryCurrency || salarySource) {
       opts.salary = {
         min: salaryMin ? parseFloat(salaryMin) : undefined,
@@ -235,7 +299,7 @@ export class CandidateController {
     }
 
     const res = await this.candidates.getRelevantJobs(id, opts);
-    // Map JobPosting entity to card DTO
+    // Map JobPosting entity to CandidateJobCardDto shape, similar to getRelevantJobsByTitle
     const data = (res.data || []).map((jp: any) => {
       const contract = Array.isArray(jp.contracts) ? jp.contracts[0] : undefined;
       const positions = contract?.positions || [];
@@ -270,7 +334,9 @@ export class CandidateController {
         fitness_score: (jp as any).fitness_score,
       };
     });
-    return { data, total: res.total, page: res.page, limit: res.limit };
+    // Order by fitness_score desc when available
+    const ordered = data.slice().sort((a: any, b: any) => ((b.fitness_score ?? 0) - (a.fitness_score ?? 0)));
+    return { data: ordered, total: res.total, page: res.page, limit: res.limit };
   }
 
   // Grouped relevant jobs by preferred titles
@@ -302,6 +368,25 @@ export class CandidateController {
     @Query('salary_currency') salaryCurrency?: string,
     @Query('salary_source') salarySource?: 'base' | 'converted',
   ) {
+    const jobProfile = await this.candidates.listJobProfiles(id);
+    const mostRecentJobProfile = jobProfile[0]; // ordered by updated_at DESC
+    const profileBlob = mostRecentJobProfile?.profile_blob as any || {};
+
+    // Extract skills and education from job profile blob
+    const skills = Array.isArray(profileBlob.skills)
+      ? profileBlob.skills
+          .map((s: any) => (typeof s === 'string' ? s : s?.title))
+          .filter((v: any) => typeof v === 'string' && v.trim().length > 0)
+      : [];
+    const skillsLower = skills.map((s: string) => s.toLowerCase());
+
+    const education = Array.isArray(profileBlob.education)
+      ? profileBlob.education
+          .map((e: any) => (typeof e === 'string' ? e : (e?.degree ?? e?.title ?? e?.name)))
+          .filter((v: any) => typeof v === 'string' && v.trim().length > 0)
+      : [];
+    const educationLower = education.map((e: string) => e.toLowerCase());
+
     const opts: any = {
       country,
       combineWith: combineWith === 'OR' ? 'OR' : 'AND',
@@ -309,6 +394,8 @@ export class CandidateController {
       includeScore: toBool(includeScore) ?? true, // default true for grouped to ensure scoring
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
+      skills,
+      education,
     };
     if (salaryMin || salaryMax || salaryCurrency || salarySource) {
       opts.salary = {
@@ -318,6 +405,7 @@ export class CandidateController {
         source: salarySource === 'converted' ? 'converted' : 'base',
       };
     }
+
     const res = await this.candidates.getRelevantJobsGrouped(id, opts);
     // Map domain JobPosting to CandidateJobCardDto shape, similar to getRelevantJobsByTitle
     const groups = (res.groups || []).map((g: any) => {
@@ -390,6 +478,25 @@ export class CandidateController {
     @Query('salary_currency') salaryCurrency?: string,
     @Query('salary_source') salarySource?: 'base' | 'converted',
   ): Promise<PaginatedJobsResponseDto> {
+    const jobProfile = await this.candidates.listJobProfiles(id);
+    const mostRecentJobProfile = jobProfile[0]; // ordered by updated_at DESC
+    const profileBlob = mostRecentJobProfile?.profile_blob as any || {};
+
+    // Extract skills and education from job profile blob
+    const skills = Array.isArray(profileBlob.skills)
+      ? profileBlob.skills
+          .map((s: any) => (typeof s === 'string' ? s : s?.title))
+          .filter((v: any) => typeof v === 'string' && v.trim().length > 0)
+      : [];
+    const skillsLower = skills.map((s: string) => s.toLowerCase());
+
+    const education = Array.isArray(profileBlob.education)
+      ? profileBlob.education
+          .map((e: any) => (typeof e === 'string' ? e : (e?.degree ?? e?.title ?? e?.name)))
+          .filter((v: any) => typeof v === 'string' && v.trim().length > 0)
+      : [];
+    const educationLower = education.map((e: string) => e.toLowerCase());
+
     const opts: any = {
       country,
       combineWith: combineWith === 'OR' ? 'OR' : 'AND',
@@ -398,6 +505,8 @@ export class CandidateController {
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
       preferredOverride: title ? [title] : undefined,
+      skills,
+      education,
     };
     if (salaryMin || salaryMax || salaryCurrency || salarySource) {
       opts.salary = {

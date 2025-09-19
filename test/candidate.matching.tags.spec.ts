@@ -86,11 +86,19 @@ describe('Candidate Matching - Tag-Aware Behavior', () => {
     const cand = await candidates.createCandidate({
       full_name: 'Apply User',
       phone: uniquePhone(),
-      skills: [
-        { title: 'industrial-wiring', years: 2 },
-        { title: 'electrical-systems', years: 1 },
-      ] as any,
     });
+    
+    // Create job profile with skills
+    await candidates.updateJobProfile(cand.id, {
+      profile_blob: {
+        skills: [
+          { title: 'industrial-wiring', years: 2 },
+          { title: 'electrical-systems', years: 1 },
+        ]
+      },
+      label: 'Default'
+    });
+    
     await candidates.addPreference(cand.id, 'Electrician');
 
     // Ensure posting appears with canonical title matching enabled
@@ -143,8 +151,16 @@ describe('Candidate Matching - Tag-Aware Behavior', () => {
     const cand = await candidates.createCandidate({
       full_name: 'Edu Overlap',
       phone: uniquePhone(),
-      education: [{ degree: 'technical-diploma' }] as any,
     });
+    
+    // Create job profile with education
+    await candidates.updateJobProfile(cand.id, {
+      profile_blob: {
+        education: [{ degree: 'technical-diploma' }]
+      },
+      label: 'Default'
+    });
+    
     await candidates.addPreference(cand.id, 'Welder');
 
     const res = await candidates.getRelevantJobs(cand.id, { page: 1, limit: 10 });
@@ -157,8 +173,16 @@ describe('Candidate Matching - Tag-Aware Behavior', () => {
     const candIn = await candidates.createCandidate({
       full_name: 'Exp In',
       phone: uniquePhone(),
-      skills: [{ title: 'electrical-systems', duration_months: 36 }] as any, // 3 years
     });
+    
+    // Create job profile with skills (3 years experience)
+    await candidates.updateJobProfile(candIn.id, {
+      profile_blob: {
+        skills: [{ title: 'electrical-systems', duration_months: 36 }]
+      },
+      label: 'Default'
+    });
+    
     await candidates.addPreference(candIn.id, 'Welder');
 
     const resIn = await candidates.getRelevantJobs(candIn.id, { page: 1, limit: 10, includeScore: true });
@@ -169,8 +193,16 @@ describe('Candidate Matching - Tag-Aware Behavior', () => {
     const candOut = await candidates.createCandidate({
       full_name: 'Exp Out',
       phone: uniquePhone(),
-      skills: [{ title: 'electrical-systems', duration_months: 12 }] as any, // 1 year (below min 3)
     });
+    
+    // Create job profile with skills (1 year experience, below min 3)
+    await candidates.updateJobProfile(candOut.id, {
+      profile_blob: {
+        skills: [{ title: 'electrical-systems', duration_months: 12 }]
+      },
+      label: 'Default'
+    });
+    
     await candidates.addPreference(candOut.id, 'Welder');
 
     const resOut = await candidates.getRelevantJobs(candOut.id, { page: 1, limit: 10, includeScore: true });

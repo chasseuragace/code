@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DomainController } from './domain.controller';
 import { PublicJobsController } from './public-jobs.controller';
+import { InterviewsController } from './interviews.controller';
 import { Country } from '../country/country.entity';
 import { JobTitle } from '../job-title/job-title.entity';
 import {
@@ -44,7 +45,7 @@ import { ExpenseService, InterviewService, JobPostingService } from './domain.se
     ]),
   ],
   providers: [JobPostingService, ExpenseService, InterviewService],
-  controllers: [DomainController, PublicJobsController],
+  controllers: [DomainController, PublicJobsController, InterviewsController],
   exports: [TypeOrmModule, JobPostingService, ExpenseService, InterviewService],
 })
 export class DomainModule {}

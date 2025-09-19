@@ -232,4 +232,44 @@ export class AuthService {
     const token = await this.jwt.signAsync({ sub: user.id, aid: user.agency_id, role: 'agency_user' });
     return { token, user_id: user.id, agency_id: user.agency_id };
   }
+
+  async initiatePhoneChange(candidateId: string, newPhone: string) {
+    const candidate = await this.candidates.findById(candidateId);
+    if (!candidate) throw new BadRequestException('Candidate not found');
+
+    const user = await this.users.findOne({ where: { candidate_id: candidateId } });
+    if (!user) throw new BadRequestException('User not found');
+
+    const isBlocked = await this.blocked.findOne({ where: { phone: newPhone } });
+    if (isBlocked) throw new BadRequestException('New phone is blocked');
+
+    const otp = this.generateOtp();
+    this.otps.set(newPhone, { otp, expiresAt: Date.now() + 5 * 60_000, userId: user.id, candidateId });
+    return { dev_otp: otp };
+  }
+
+  async verifyPhoneChange(candidateId: string, newPhone: string, otp: string) {
+    const rec = this.otps.get(newPhone);
+    if (!rec) throw new BadRequestException('No OTP requested for this phone');
+    if (Date.now() > rec.expiresAt) {
+      this.otps.delete(newPhone);
+      throw new BadRequestException('OTP expired');
+    }
+    if (rec.otp !== otp) throw new BadRequestException('Invalid OTP');
+
+    const candidate = await this.candidates.findById(candidateId);
+    if (!candidate) throw new BadRequestException('Candidate not found');
+
+    const user = await this.users.findOne({ where: { candidate_id: candidateId } });
+    if (!user) throw new BadRequestException('User not found');
+
+    user.phone = newPhone;
+    await this.users.save(user);
+    // Update the candidate's phone
+    candidate.phone = newPhone;
+    await this.candidates.updateCandidate(candidateId, candidate);
+
+    this.otps.delete(newPhone);
+    return { message: 'Phone changed successfully' };
+  }
 }

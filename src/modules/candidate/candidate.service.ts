@@ -91,7 +91,6 @@ export class CandidateService {
     const existing = await this.repo.findOne({ where: { id } });
     if (!existing) throw new NotFoundException('Candidate not found');
 
-    if (input.phone) existing.phone = normalizePhoneE164(input.phone);
     if (input.full_name != null) existing.full_name = input.full_name;
     if (input.is_active != null) existing.is_active = input.is_active as boolean;
 

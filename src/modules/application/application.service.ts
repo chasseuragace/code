@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, FindOptionsWhere } from 'typeorm';
+import { Repository, FindOptionsWhere, In } from 'typeorm';
 import { JobApplication, JobApplicationHistoryEntry, JobApplicationStatus } from './job-application.entity';
 import { Candidate } from '../candidate/candidate.entity';
 import { JobPosting } from '../domain/domain.entity';
@@ -252,5 +252,46 @@ export class ApplicationService {
     };
     app.history_blob = [...(app.history_blob ?? []), entry];
     return this.appRepo.save(app);
+  }
+
+  // Analytics for a candidate's applications
+  async getAnalytics(candidateId: string): Promise<{
+    total: number;
+    active: number;
+    by_status: Record<JobApplicationStatus, number>;
+  }> {
+    const allStatuses: JobApplicationStatus[] = [
+      'applied',
+      'shortlisted',
+      'interview_scheduled',
+      'interview_rescheduled',
+      'interview_passed',
+      'interview_failed',
+      'withdrawn',
+    ];
+
+    const total = await this.appRepo.count({ where: { candidate_id: candidateId } });
+
+    // Active = non-terminal statuses (exclude passed/failed/withdrawn)
+    const activeStatuses: JobApplicationStatus[] = [
+      'applied',
+      'shortlisted',
+      'interview_scheduled',
+      'interview_rescheduled',
+    ];
+    const active = await this.appRepo.count({ where: { candidate_id: candidateId, status: In(activeStatuses) } });
+
+    const entries = await Promise.all(
+      allStatuses.map(async (s) => {
+        const count = await this.appRepo.count({ where: { candidate_id: candidateId, status: s } });
+        return [s, count] as const;
+      }),
+    );
+    const by_status = entries.reduce((acc, [s, n]) => {
+      acc[s] = n;
+      return acc;
+    }, {} as Record<JobApplicationStatus, number>);
+
+    return { total, active, by_status };
   }
 }

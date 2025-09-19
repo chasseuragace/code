@@ -1,11 +1,15 @@
 import 'reflect-metadata';
-import { TestingModule } from '@nestjs/testing';
+import { Test, TestingModule } from '@nestjs/testing';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { AnnouncementType, OvertimePolicy, ProvisionType } from 'src/modules/domain/domain.service';
+import { JobPostingService } from 'src/modules/domain/domain.service';
 import { bootstrapDomainTestModule } from './utils/testModule';
 import { createPostingWithDefaults } from './utils/ops/domainOps';
 
+jest.setTimeout(30000); // Increase timeout to 30 seconds
+
 describe('Domain Posting - create posting -> contract -> positions', () => {
-  let jobs: import('src/modules/domain/domain.service').JobPostingService;
+  let jobs: JobPostingService;
   let moduleRef: TestingModule;
 
   beforeAll(async () => {

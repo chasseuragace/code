@@ -8,14 +8,35 @@ import { JobPosting } from 'src/modules/domain/domain.entity';
 import { CandidatePreference } from './candidate-preference.entity';
 
 function normalizePhoneE164(phone: string): string {
+  if (!phone || typeof phone !== 'string') {
+    throw new BadRequestException('Phone number is required');
+  }
+
   const digits = phone.replace(/\D/g, '');
+
+  // Reject if no digits at all
+  if (digits.length === 0) {
+    throw new BadRequestException('Invalid phone number format');
+  }
+
   // Assume Nepal default (+977) if 10 digits starting with 9 and no country code
   if (digits.length === 10 && digits.startsWith('9')) {
     return `+977${digits}`;
   }
 
-  if (phone.startsWith('+')) return phone;
+  if (phone.startsWith('+')) {
+    // Validate that it has at least a country code and some digits
+    if (digits.length < 7) { // minimum: +country code (1-3 digits) + local number (4+ digits)
+      throw new BadRequestException('Invalid phone number format');
+    }
+    return phone;
+  }
+
   // Fallback: prefix + if seems already with country code
+  if (digits.length < 7) {
+    throw new BadRequestException('Invalid phone number format');
+  }
+
   return `+${digits}`;
 }
 
@@ -27,16 +48,6 @@ function validateCoordinates(addr?: { coordinates?: { lat: number; lng: number }
   const lngOk = typeof lng === 'number' && lng >= -180 && lng <= 180;
   if (!latOk || !lngOk) {
     throw new BadRequestException('Invalid coordinates: lat must be [-90,90], lng must be [-180,180]');
-  }
-}
-
-function validateArrayOfObjects(arr?: any[]) {
-  if (arr == null) return;
-  if (!Array.isArray(arr)) throw new BadRequestException('Expected array');
-  for (const item of arr) {
-    if (item == null || typeof item !== 'object' || Array.isArray(item)) {
-      throw new BadRequestException('Array entries must be objects');
-    }
   }
 }
 
@@ -55,18 +66,14 @@ export class CandidateService {
     private readonly jobPostings: Repository<JobPosting>,
   ) {}
 
-  async createCandidate(input: Partial<Candidate>): Promise<Candidate> {
+  async createCandidate(input: Partial<any>): Promise<Candidate> {
     const cand = new Candidate();
     cand.full_name = input.full_name!;
     cand.phone = normalizePhoneE164(input.phone!);
     cand.is_active = input.is_active ?? true;
     // validations
     validateCoordinates(input.address as any);
-    validateArrayOfObjects(input.skills as any);
-    validateArrayOfObjects(input.education as any);
     // assign
-    cand.skills = input.skills as any;
-    cand.education = input.education as any;
     cand.address = input.address as any;
     cand.passport_number = input.passport_number;
     return this.repo.save(cand);
@@ -93,16 +100,6 @@ export class CandidateService {
       existing.address = input.address as any;
     }
 
-    if (input.skills !== undefined) {
-      validateArrayOfObjects(input.skills as any);
-      existing.skills = input.skills as any;
-    }
-
-    if (input.education !== undefined) {
-      validateArrayOfObjects(input.education as any);
-      existing.education = input.education as any;
-    }
-
     if (input.passport_number !== undefined) {
       existing.passport_number = input.passport_number;
     }
@@ -110,66 +107,64 @@ export class CandidateService {
     return this.repo.save(existing);
   }
 
-  // Job Profiles
-  async addJobProfile(
-    candidateId: string,
-    data: { profile_blob: any; label?: string },
-  ): Promise<CandidateJobProfile> {
-    // ensure candidate exists
-    const c = await this.repo.findOne({ where: { id: candidateId } });
-    if (!c) throw new NotFoundException('Candidate not found');
-    if (data == null || typeof data !== 'object') throw new BadRequestException('Invalid job profile payload');
-    if (data.profile_blob === null || typeof data.profile_blob !== 'object' || Array.isArray(data.profile_blob)) {
-      throw new BadRequestException('profile_blob must be an object');
-    }
-    // Forbid preferred_titles in profile_blob (use /preferences endpoints instead)
-    if (data.profile_blob && Object.prototype.hasOwnProperty.call(data.profile_blob, 'preferred_titles')) {
-      throw new BadRequestException('preferred_titles are not allowed in profile_blob; use /candidates/:id/preferences');
-    }
-    // Optional validation: preferred_titles must exist and be active
-    const titles = data.profile_blob?.preferred_titles;
-    if (titles != null) {
-      if (!Array.isArray(titles)) {
-        throw new BadRequestException('preferred_titles must be an array of strings');
-      }
-      const names = titles.filter((t) => typeof t === 'string');
-      if (names.length !== titles.length) {
-        throw new BadRequestException('preferred_titles must contain only strings');
-      }
-      if (names.length > 0) {
-        const found = await this.jobTitles.find({ where: { title: In(names), is_active: true } });
-        const foundSet = new Set(found.map((r) => r.title));
-        const missing = names.filter((n) => !foundSet.has(n));
-        if (missing.length) {
-          throw new BadRequestException(`Invalid or inactive job titles: ${missing.join(', ')}`);
-        }
-      }
-    }
-
-    const row = this.jobProfiles.create({
-      candidate_id: candidateId,
-      profile_blob: data.profile_blob,
-      label: data.label,
-    });
-    return this.jobProfiles.save(row);
-  }
+  // Job Profiles - simplified with auto-creation support
+  // Removed addJobProfile: use updateJobProfile which auto-creates if not exists
 
   async updateJobProfile(
-    id: string,
+    candidateId: string,  // Added candidateId parameter
     data: { profile_blob?: any; label?: string },
   ): Promise<CandidateJobProfile> {
-    const existing = await this.jobProfiles.findOne({ where: { id } });
-    if (!existing) throw new NotFoundException('Job profile not found');
+    // Auto-create if no profile exists
+    const existing = await this.jobProfiles.findOne({ 
+      where: { candidate_id: candidateId },
+      order: { updated_at: 'DESC' } // Get most recent
+    });
+    
+    if (!existing) {
+      // Validate candidate exists
+      const c = await this.repo.findOne({ where: { id: candidateId } });
+      if (!c) throw new NotFoundException('Candidate not found');
+      // For creation, profile_blob is required
+      if (data.profile_blob === undefined) {
+        throw new BadRequestException('profile_blob is required when creating a new job profile');
+      }
+      // Validate profile_blob
+      if (data.profile_blob === null || typeof data.profile_blob !== 'object' || Array.isArray(data.profile_blob)) {
+        throw new BadRequestException('profile_blob must be a non-array object');
+      }
+      // Forbid preferred_titles in profile_blob
+      if (data.profile_blob?.preferred_titles !== undefined) {
+        throw new BadRequestException(
+          'preferred_titles are managed separately; use /candidates/:id/preferences endpoint'
+        );
+      }
+      // Create new profile
+      const created = this.jobProfiles.create({
+        candidate_id: candidateId,
+        profile_blob: data.profile_blob,
+        label: data.label,
+      });
+      return this.jobProfiles.save(created);
+    }
+
+    // Validate updates
     if (data.profile_blob !== undefined) {
       if (data.profile_blob === null || typeof data.profile_blob !== 'object' || Array.isArray(data.profile_blob)) {
-        throw new BadRequestException('profile_blob must be an object');
+        throw new BadRequestException('profile_blob must be a non-array object');
       }
-      if (Object.prototype.hasOwnProperty.call(data.profile_blob, 'preferred_titles')) {
-        throw new BadRequestException('preferred_titles are not allowed in profile_blob; use /candidates/:id/preferences');
+      if (data.profile_blob.preferred_titles !== undefined) {
+        throw new BadRequestException(
+          'preferred_titles are managed separately; use /candidates/:id/preferences endpoint'
+        );
       }
-      existing.profile_blob = data.profile_blob;
+      // Merge with existing profile_blob to preserve nodes not included in update
+      existing.profile_blob = { ...existing.profile_blob, ...data.profile_blob };
     }
-    if (data.label !== undefined) existing.label = data.label;
+    
+    if (data.label !== undefined) {
+      existing.label = data.label;
+    }
+    
     return this.jobProfiles.save(existing);
   }
 
@@ -384,8 +379,30 @@ export class CandidateService {
   ): Promise<{ data: JobPosting[]; total: number; page: number; limit: number }> {
     const page = opts?.page ?? 1;
     const limit = opts?.limit ?? 10;
+    // Fetch candidate and most recent job profile
     const cand = await this.repo.findOne({ where: { id: candidateId } });
     if (!cand) throw new NotFoundException('Candidate not found');
+    
+    // Get the most recent job profile
+    const jobProfile = await this.jobProfiles.findOne({
+      where: { candidate_id: candidateId },
+      order: { updated_at: 'DESC' },
+    });
+    
+    // Extract skills and education from job profile blob
+    const profileBlob = jobProfile?.profile_blob as any || {};
+    const candSkills = Array.isArray(profileBlob.skills)
+      ? profileBlob.skills
+          .map((s: any) => (typeof s === 'string' ? s : s?.title))
+          .filter((v: any) => typeof v === 'string' && v.trim().length > 0)
+      : [];
+    
+    const candEdu = Array.isArray(profileBlob.education)
+      ? profileBlob.education
+          .map((e: any) => (typeof e === 'string' ? e : (e?.degree ?? e?.title ?? e?.name)))
+          .filter((v: any) => typeof v === 'string' && v.trim().length > 0)
+      : [];
+
     // Prefer explicit CandidatePreferences; no string fallback; match by job_title_id only
     await this.ensurePreferenceJobTitleIds(candidateId);
     const prefRows = await this.preferences.find({ where: { candidate_id: candidateId }, order: { priority: 'ASC' } });
@@ -409,6 +426,8 @@ export class CandidateService {
       .leftJoinAndSelect('contracts.positions', 'positions')
       .leftJoinAndSelect('contracts.employer', 'employer')
       .leftJoinAndSelect('contracts.agency', 'agency')
+      // Explicitly select JSONB requirement fields used for scoring
+      .addSelect(['jp.skills', 'jp.education_requirements', 'jp.experience_requirements'])
       .where('jp.is_active = :active', { active: true })
       .orderBy('jp.posting_date_ad', 'DESC');
 
@@ -426,20 +445,21 @@ export class CandidateService {
     });
 
     // Tag-aware predicate: skills/education overlap and optional canonical title match
+    // Compute simple fitness score per posting: average of present requirement matches in [%]
+    // Components: skills overlap, education overlap, experience numeric compatibility
+    // Experience years heuristic: sum of candidate skill durations (duration_months/12) or 'years' property
+    const candYears = Array.isArray(profileBlob.skills)
+      ? profileBlob.skills.reduce((acc: number, s: any) => {
+          if (typeof s?.duration_months === 'number') return acc + s.duration_months / 12;
+          if (typeof s?.years === 'number') return acc + s.years;
+          return acc;
+        }, 0)
+      : 0;
+
     // Extract candidate skills as array of strings
-    const candSkills = Array.isArray((cand as any).skills)
-      ? (cand as any).skills
-          .map((s: any) => (typeof s === 'string' ? s : s?.title))
-          .filter((v: any) => typeof v === 'string' && v.trim().length > 0)
-      : [];
     const candSkillsLower = candSkills.map((s: string) => s.toLowerCase());
 
     // Extract candidate education strings from objects (degree/title/name)
-    const candEdu = Array.isArray((cand as any).education)
-      ? (cand as any).education
-          .map((e: any) => (typeof e === 'string' ? e : (e?.degree ?? e?.title ?? e?.name)))
-          .filter((v: any) => typeof v === 'string' && v.trim().length > 0)
-      : [];
     const candEduLower = candEdu.map((e: string) => e.toLowerCase());
 
     const tagsGroup = new Brackets((qbT) => {
@@ -586,15 +606,6 @@ export class CandidateService {
     if (opts?.includeScore) {
       // Compute simple fitness score per posting: average of present requirement matches in [%]
       // Components: skills overlap, education overlap, experience numeric compatibility
-      // Experience years heuristic: sum of candidate skill durations (duration_months/12) or 'years' property
-      const candYears = Array.isArray((cand as any).skills)
-        ? (cand as any).skills.reduce((acc: number, s: any) => {
-            if (typeof s?.duration_months === 'number') return acc + s.duration_months / 12;
-            if (typeof s?.years === 'number') return acc + s.years;
-            return acc;
-          }, 0)
-        : 0;
-
       for (const p of data as any[]) {
         let parts = 0;
         let sumPct = 0;

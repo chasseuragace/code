@@ -32,10 +32,4 @@ export class Candidate {
 
   @Column({ type: 'boolean', default: true })
   is_active: boolean;
-
-  @Column({ type: 'jsonb', nullable: true })
-  skills?: any[];
-
-  @Column({ type: 'jsonb', nullable: true })
-  education?: any[];
 }

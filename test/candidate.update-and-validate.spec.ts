@@ -22,23 +22,11 @@ describe('Candidate - update and validations', () => {
       phone: '9811111111',
       passport_number: 'P1234567',
       address: {
-        name: 'Kathmandu',
-        coordinates: { lat: 27.7172, lng: 85.324 },
-        province: '3',
-        district: 'Kathmandu',
         municipality: 'KMC',
         ward: '1',
       },
-      skills: [
-        { title: 'Masonry', duration_months: 12, documents: ['doc:1'] },
-      ],
-      education: [
-        { title: 'SLC', institute: 'ABC School', document: 'doc:ed1' },
-      ],
     });
     expect(c.address?.municipality).toBe('KMC');
-    expect(Array.isArray(c.skills)).toBe(true);
-    expect(Array.isArray(c.education)).toBe(true);
     expect(c.passport_number).toBe('P1234567');
   });
 
@@ -48,7 +36,6 @@ describe('Candidate - update and validations', () => {
 
     const c2 = await candidates.updateCandidate(c1.id, {
       passport_number: 'N9999999',
-      skills: [{ title: 'Driving', duration_months: 24 }],
     });
 
     expect(c2.passport_number).toBe('N9999999');
@@ -66,12 +53,11 @@ describe('Candidate - update and validations', () => {
     ).rejects.toBeDefined();
   });
 
-  it('TC13.1 rejects invalid skills/education JSONB shape', async () => {
+  it('TC13.1 validates phone number format', async () => {
     await expect(
       candidates.createCandidate({
-        full_name: 'Foxtrot Bad JSON',
-        phone: '9844444444',
-        skills: ["not-an-object" as any],
+        full_name: 'Foxtrot Bad Phone',
+        phone: 'invalid-phone',
       }),
     ).rejects.toBeDefined();
   });

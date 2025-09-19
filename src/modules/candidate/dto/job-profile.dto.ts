@@ -145,3 +145,25 @@ export class UpdateJobProfileDto {
   @IsString()
   label?: string;
 }
+
+export class CandidateJobProfileDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  candidate_id!: string;
+
+  @ApiProperty({ type: JobProfileBlobDto })
+  profile_blob!: JobProfileBlobDto;
+
+  @ApiPropertyOptional({ description: 'Optional label for this profile' })
+  @IsOptional()
+  @IsString()
+  label?: string | null;
+
+  @ApiProperty({ type: String, description: 'Creation timestamp (ISO string)' })
+  created_at!: Date | string;
+
+  @ApiProperty({ type: String, description: 'Last update timestamp (ISO string)' })
+  updated_at!: Date | string;
+}

@@ -15,6 +15,7 @@ import { AuthService } from '../auth/auth.service';
 import { Request } from 'express';
 import { BadRequestException } from '@nestjs/common';
 import { PaginatedInterviewsDto, InterviewEnrichedDto, EmployerLiteDto, AgencyLiteDto, PostingLiteDto, InterviewExpenseDto, InterviewScheduleDto } from '../domain/dto/interview-list.dto';
+import { MobileJobPostingDto } from './dto/mobile-job.dto';
 
 function toBool(val?: string): boolean | undefined {
   if (val == null) return undefined;
@@ -46,6 +47,82 @@ export class CandidateController {
     if (!cand) throw new NotFoundException('Candidate not found');
     // Direct mapping: entity fields align with DTO properties
     return cand as unknown as CandidateProfileDto;
+  }
+
+  // Mobile-friendly job details including match percentage (candidate-context)
+  // GET /candidates/:id/jobs/:jobId/mobile
+  @Get(':id/jobs/:jobId/mobile')
+  @ApiOperation({ summary: 'Get mobile-optimized job details by ID (includes match percentage)' })
+  @ApiParam({ name: 'id', description: 'Candidate ID', required: true })
+  @ApiParam({ name: 'jobId', description: 'Job Posting ID', required: true })
+  @ApiOkResponse({ description: 'Mobile job projection', type: MobileJobPostingDto })
+  async getJobMobile(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('jobId', new ParseUUIDPipe({ version: '4' })) jobId: string,
+  ): Promise<MobileJobPostingDto> {
+    // Base mobile projection with salary conversions preference NPR > USD > first
+    const mobile = await this.jobs.jobbyidmobile(jobId);
+
+    // Compute match percentage similar to getJobDetailsWithFitness
+    const jp = await this.jobs.findJobPostingById(jobId);
+    const jobProfiles = await this.candidates.listJobProfiles(id);
+    const mostRecentJobProfile = jobProfiles[0]; // ordered by updated_at DESC
+    const profileBlob = (mostRecentJobProfile?.profile_blob as any) || {};
+
+    const skills = Array.isArray(profileBlob.skills)
+      ? profileBlob.skills
+          .map((s: any) => (typeof s === 'string' ? s : s?.title))
+          .filter((v: any) => typeof v === 'string' && v.trim().length > 0)
+      : [];
+    const skillsLower = skills.map((s: string) => s.toLowerCase());
+
+    const education = Array.isArray(profileBlob.education)
+      ? profileBlob.education
+          .map((e: any) => (typeof e === 'string' ? e : (e?.degree ?? e?.title ?? e?.name)))
+          .filter((v: any) => typeof v === 'string' && v.trim().length > 0)
+      : [];
+    const educationLower = education.map((e: string) => e.toLowerCase());
+
+    let parts = 0;
+    let sumPct = 0;
+    const js: string[] = Array.isArray(jp.skills) ? jp.skills : [];
+    if (js.length) {
+      const jsLower = js.map((x) => String(x).toLowerCase());
+      const inter = skillsLower.filter((s: string) => jsLower.includes(s));
+      const pct = js.length ? inter.length / js.length : 0;
+      parts++;
+      sumPct += pct;
+    }
+    const je: string[] = Array.isArray(jp.education_requirements) ? jp.education_requirements : [];
+    if (je.length) {
+      const jeLower = je.map((x) => String(x).toLowerCase());
+      const inter = educationLower.filter((e: string) => jeLower.includes(e));
+      const pct = je.length ? inter.length / je.length : 0;
+      parts++;
+      sumPct += pct;
+    }
+    const xr = jp.experience_requirements as { min_years?: number; max_years?: number } | undefined;
+    if (xr && (typeof xr.min_years === 'number' || typeof xr.max_years === 'number')) {
+      // Derive years from candidate skills info
+      const years = Array.isArray(profileBlob.skills)
+        ? profileBlob.skills.reduce((acc: number, s: any) => {
+            if (typeof s?.duration_months === 'number') return acc + s.duration_months / 12;
+            if (typeof s?.years === 'number') return acc + s.years;
+            return acc;
+          }, 0)
+        : 0;
+      const minOk = typeof xr.min_years === 'number' ? years >= xr.min_years : true;
+      const maxOk = typeof xr.max_years === 'number' ? years <= xr.max_years : true;
+      const pct = minOk && maxOk ? 1 : 0;
+      parts++;
+      sumPct += pct;
+    }
+    const fitness_score = parts > 0 ? Math.round((sumPct / parts) * 100) : undefined;
+    if (fitness_score != null) {
+      mobile.matchPercentage = String(fitness_score);
+    }
+
+    return mobile as MobileJobPostingDto;
   }
 
   // Update candidate profile

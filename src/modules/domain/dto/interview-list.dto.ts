@@ -4,54 +4,54 @@ export class InterviewExpenseDto {
   @ApiProperty() expense_type!: string;
   @ApiProperty() who_pays!: string;
   @ApiProperty() is_free!: boolean;
-  @ApiPropertyOptional() amount?: number;
-  @ApiPropertyOptional() currency?: string;
+  @ApiPropertyOptional({ type: Number }) amount?: number;
+  @ApiPropertyOptional({ type: String }) currency?: string;
   @ApiProperty() refundable!: boolean;
-  @ApiPropertyOptional() notes?: string;
+  @ApiPropertyOptional({ type: String }) notes?: string;
 }
 
 export class InterviewScheduleDto {
-  @ApiPropertyOptional({ description: 'AD date (ISO string yyyy-mm-dd)' }) date_ad?: string | null;
-  @ApiPropertyOptional({ description: 'BS date (yyyy-mm-dd in BS)' }) date_bs?: string | null;
-  @ApiPropertyOptional({ description: 'Time (HH:MM[:SS])' }) time?: string | null;
+  @ApiPropertyOptional({ type: String, format: 'date', nullable: true, description: 'AD date (ISO string yyyy-mm-dd)' }) date_ad?: string | null;
+  @ApiPropertyOptional({ type: String, nullable: true, description: 'BS date (yyyy-mm-dd in BS)' }) date_bs?: string | null;
+  @ApiPropertyOptional({ type: String, nullable: true, description: 'Time (HH:MM[:SS])' }) time?: string | null;
 }
 
 export class AgencyLiteDto {
-  @ApiProperty() id!: string;
-  @ApiProperty() name!: string;
-  @ApiProperty() license_number!: string;
-  @ApiPropertyOptional({ type: [String] }) phones?: string[] | null;
-  @ApiPropertyOptional({ type: [String] }) emails?: string[] | null;
-  @ApiPropertyOptional() website?: string | null;
+  @ApiProperty({ type: String }) id!: string;
+  @ApiProperty({ type: String }) name!: string;
+  @ApiProperty({ type: String }) license_number!: string;
+  @ApiPropertyOptional({ type: [String], nullable: true }) phones?: string[] | null;
+  @ApiPropertyOptional({ type: [String], nullable: true }) emails?: string[] | null;
+  @ApiPropertyOptional({ type: String, nullable: true }) website?: string | null;
 }
 
 export class EmployerLiteDto {
-  @ApiProperty() id!: string;
-  @ApiProperty() company_name!: string;
-  @ApiProperty() country!: string;
-  @ApiPropertyOptional() city?: string | null;
+  @ApiProperty({ type: String }) id!: string;
+  @ApiProperty({ type: String }) company_name!: string;
+  @ApiProperty({ type: String }) country!: string;
+  @ApiPropertyOptional({ type: String, nullable: true, example: 'Dubai' }) city?: string | null;
 }
 
 export class PostingLiteDto {
-  @ApiProperty() id!: string;
-  @ApiProperty() posting_title!: string;
-  @ApiProperty() country!: string;
-  @ApiPropertyOptional() city?: string | null;
+  @ApiProperty({ type: String }) id!: string;
+  @ApiProperty({ type: String }) posting_title!: string;
+  @ApiProperty({ type: String }) country!: string;
+  @ApiPropertyOptional({ type: String, nullable: true, example: 'Kathmandu' }) city?: string | null;
 }
 
 export class ApplicationLiteDto {
-  @ApiProperty() id!: string;
-  @ApiProperty() status!: string;
+  @ApiProperty({ type: String }) id!: string;
+  @ApiProperty({ type: String }) status!: string;
 }
 
 export class InterviewEnrichedDto {
-  @ApiProperty() id!: string;
+  @ApiProperty({ type: String }) id!: string;
   @ApiProperty({ type: InterviewScheduleDto }) schedule!: InterviewScheduleDto;
-  @ApiPropertyOptional() location?: string | null;
-  @ApiPropertyOptional() contact_person?: string | null;
-  @ApiPropertyOptional({ type: [String] }) required_documents?: string[] | null;
-  @ApiPropertyOptional() notes?: string | null;
-  @ApiPropertyOptional({ type: ApplicationLiteDto }) application?: ApplicationLiteDto | null;
+  @ApiPropertyOptional({ type: String, nullable: true }) location?: string | null;
+  @ApiPropertyOptional({ type: String, nullable: true }) contact_person?: string | null;
+  @ApiPropertyOptional({ type: [String], nullable: true }) required_documents?: string[] | null;
+  @ApiPropertyOptional({ type: String, nullable: true }) notes?: string | null;
+  @ApiPropertyOptional({ type: ApplicationLiteDto, nullable: true }) application?: ApplicationLiteDto | null;
   @ApiProperty({ type: PostingLiteDto }) posting!: PostingLiteDto;
   @ApiProperty({ type: AgencyLiteDto }) agency!: AgencyLiteDto;
   @ApiProperty({ type: EmployerLiteDto }) employer!: EmployerLiteDto;
@@ -60,15 +60,15 @@ export class InterviewEnrichedDto {
 
 export class ListInterviewsQueryDto {
   @ApiProperty({ type: [String], description: 'Candidate UUID(s)' }) candidate_ids!: string[];
-  @ApiPropertyOptional({ description: 'Page number (1-based)' }) page?: number;
-  @ApiPropertyOptional({ description: 'Items per page (max 100)' }) limit?: number;
-  @ApiPropertyOptional({ description: 'Only include interviews on/after today' }) only_upcoming?: boolean;
+  @ApiPropertyOptional({ type: Number, description: 'Page number (1-based)' }) page?: number;
+  @ApiPropertyOptional({ type: Number, description: 'Items per page (max 100)' }) limit?: number;
+  @ApiPropertyOptional({ type: Boolean, description: 'Only include interviews on/after today' }) only_upcoming?: boolean;
   @ApiPropertyOptional({ enum: ['upcoming', 'recent'] }) order?: 'upcoming' | 'recent';
 }
 
 export class PaginatedInterviewsDto {
-  @ApiProperty() page!: number;
-  @ApiProperty() limit!: number;
-  @ApiProperty() total!: number;
+  @ApiProperty({ type: Number }) page!: number;
+  @ApiProperty({ type: Number }) limit!: number;
+  @ApiProperty({ type: Number }) total!: number;
   @ApiProperty({ type: [InterviewEnrichedDto] }) items!: InterviewEnrichedDto[];
 }

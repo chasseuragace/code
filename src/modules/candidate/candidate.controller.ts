@@ -1,7 +1,7 @@
 import { Controller, Get, Param, Query, ParseUUIDPipe, Post, Body, HttpCode, Delete, Put, NotFoundException, Req, UseGuards } from '@nestjs/common';
 import { CandidateService } from './candidate.service';
 import { JobPostingService, ExpenseService, InterviewService } from '../domain/domain.service';
-import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags, ApiBody, ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags, ApiBody, ApiOkResponse, ApiCreatedResponse, ApiExtraModels } from '@nestjs/swagger';
 import { PaginatedJobsResponseDto } from './dto/candidate-job-card.dto';
 import { CandidateProfileDto } from './dto/candidate-profile.dto';
 import { CandidateUpdateDto } from './dto/candidate-update.dto';
@@ -14,6 +14,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AuthService } from '../auth/auth.service';
 import { Request } from 'express';
 import { BadRequestException } from '@nestjs/common';
+import { PaginatedInterviewsDto, InterviewEnrichedDto, EmployerLiteDto, AgencyLiteDto, PostingLiteDto, InterviewExpenseDto, InterviewScheduleDto } from '../domain/dto/interview-list.dto';
 
 function toBool(val?: string): boolean | undefined {
   if (val == null) return undefined;
@@ -21,6 +22,7 @@ function toBool(val?: string): boolean | undefined {
 }
 
 @ApiTags('candidates')
+@ApiExtraModels(PaginatedInterviewsDto, InterviewEnrichedDto, EmployerLiteDto, AgencyLiteDto, PostingLiteDto, InterviewExpenseDto, InterviewScheduleDto)
 @Controller('candidates')
 export class CandidateController {
   constructor(
@@ -623,14 +625,14 @@ export class CandidateController {
     type: Number,
     example: 10
   })
-  @ApiOkResponse({ description: 'Paginated list of interviews', type: Object })
+  @ApiOkResponse({ description: 'Paginated list of interviews', type: PaginatedInterviewsDto })
   async listInterviews(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Query('only_upcoming') onlyUpcoming: string = 'true',
     @Query('order') order: 'upcoming' | 'recent' = 'upcoming',
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '10',
-  ) {
+  ): Promise<PaginatedInterviewsDto> {
     const res = await this.interviews.listByCandidate({ 
       candidateId: id, 
       only_upcoming: onlyUpcoming === 'true', 
@@ -638,7 +640,40 @@ export class CandidateController {
       page: parseInt(page, 10),
       limit: parseInt(limit, 10),
     });
-    return res;
+
+    // Map to InterviewEnrichedDto shape to match Swagger contract
+    const items: InterviewEnrichedDto[] = res.items.map((it: any) => ({
+      id: it.id,
+      schedule: {
+        date_ad: it.interview_date_ad ? new Date(it.interview_date_ad).toISOString().slice(0, 10) : null,
+        date_bs: it.interview_date_bs ?? null,
+        time: it.interview_time ?? null,
+      },
+      location: it.location ?? null,
+      contact_person: it.contact_person ?? null,
+      required_documents: it.required_documents ?? null,
+      notes: it.notes ?? null,
+      application: it.job_application_id ? { id: it._app_id, status: it._app_status } : null,
+      posting: {
+        id: it.job_posting?.id,
+        posting_title: it.job_posting?.posting_title,
+        country: it.job_posting?.country,
+        city: it.job_posting?.city ?? null,
+      },
+      agency: it._agency,
+      employer: it._employer,
+      expenses: (it.expenses || []).map((e: any) => ({
+        expense_type: e.expense_type,
+        who_pays: e.who_pays,
+        is_free: !!e.is_free,
+        amount: e.amount != null ? Number(e.amount) : undefined,
+        currency: e.currency ?? undefined,
+        refundable: !!e.refundable,
+        notes: e.notes ?? undefined,
+      })),
+    }));
+
+    return { page: res.page, limit: res.limit, total: res.total, items };
   }
 
   // Preferences CRUD

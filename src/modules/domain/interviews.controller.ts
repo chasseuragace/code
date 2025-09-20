@@ -1,9 +1,10 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiQuery, ApiTags, ApiOkResponse, ApiExtraModels } from '@nestjs/swagger';
 import { InterviewService } from './domain.service';
-import { ListInterviewsQueryDto, PaginatedInterviewsDto, InterviewEnrichedDto } from './dto/interview-list.dto';
+import { ListInterviewsQueryDto, PaginatedInterviewsDto, InterviewEnrichedDto, EmployerLiteDto, AgencyLiteDto, PostingLiteDto, InterviewExpenseDto, InterviewScheduleDto } from './dto/interview-list.dto';
 
 @ApiTags('interviews')
+@ApiExtraModels(PaginatedInterviewsDto, InterviewEnrichedDto, EmployerLiteDto, AgencyLiteDto, PostingLiteDto, InterviewExpenseDto, InterviewScheduleDto)
 @Controller('interviews')
 export class InterviewsController {
   constructor(private readonly interviews: InterviewService) {}
@@ -15,6 +16,7 @@ export class InterviewsController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'only_upcoming', required: false, type: Boolean })
   @ApiQuery({ name: 'order', required: false, enum: ['upcoming', 'recent'] })
+  @ApiOkResponse({ description: 'Paginated interviews', type: PaginatedInterviewsDto })
   async list(@Query() q: any): Promise<PaginatedInterviewsDto> {
     const candidateIds: string[] = Array.isArray(q.candidate_ids)
       ? q.candidate_ids

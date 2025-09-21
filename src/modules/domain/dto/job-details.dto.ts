@@ -59,12 +59,12 @@ export class ContractDto {
 }
 
 export class ExpensesDto {
-  @ApiProperty({ isArray: true, required: false }) medical?: any[];
-  @ApiProperty({ isArray: true, required: false }) insurance?: any[];
-  @ApiProperty({ isArray: true, required: false }) travel?: any[];
-  @ApiProperty({ name: 'visa_permit', isArray: true, required: false }) visa_permit?: any[];
-  @ApiProperty({ isArray: true, required: false }) training?: any[];
-  @ApiProperty({ name: 'welfare_service', isArray: true, required: false }) welfare_service?: any[];
+  @ApiProperty({ type: [Object], required: false }) medical?: any[];
+  @ApiProperty({ type: [Object], required: false }) insurance?: any[];
+  @ApiProperty({ type: [Object], required: false }) travel?: any[];
+  @ApiProperty({ name: 'visa_permit', type: [Object], required: false }) visa_permit?: any[];
+  @ApiProperty({ type: [Object], required: false }) training?: any[];
+  @ApiProperty({ name: 'welfare_service', type: [Object], required: false }) welfare_service?: any[];
 }
 
 export class JobDetailsDto {

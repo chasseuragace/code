@@ -80,6 +80,7 @@ export class CandidateService {
   }
 
   async findById(id: string): Promise<Candidate | null> {
+    if (!id) return null; // Handle null/undefined/empty string
     return this.repo.findOne({ where: { id } });
   }
 

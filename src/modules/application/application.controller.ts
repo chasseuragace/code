@@ -22,11 +22,7 @@ export class ApplicationController {
   })
   @ApiCreatedResponse({ 
     description: 'Application submitted successfully',
-    type: ApplyJobResponseDto,
-    example: {
-      id: '075ce7d9-fcdb-4f7e-b794-4190f49d729f',
-      status: 'applied'
-    }
+    type: ApplyJobResponseDto
   })
   @ApiBadRequestResponse({ 
     description: 'Invalid request - candidate not found, job posting not found, job posting inactive, or candidate already applied',

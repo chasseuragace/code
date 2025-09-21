@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, ILike, In } from 'typeorm';
+import { MobileJobPostingDto, MobileJobPositionDto, MobileContractTermsDto } from '../candidate/dto/mobile-job.dto';
 import {
   JobPosting,
   PostingAgency,
@@ -260,110 +261,111 @@ export class JobPostingService {
   }
 
   // Mobile-optimized projection of a job posting by ID
-  async jobbyidmobile(id: string): Promise<any> {
-    const jp = await this.findJobPostingById(id);
-
-    const contract = Array.isArray(jp.contracts) ? jp.contracts[0] : undefined;
+  async jobbyidmobile(id: string): Promise<MobileJobPostingDto> {
+    const job = await this.findJobPostingById(id);
+    const contract = Array.isArray(job.contracts) ? job.contracts[0] : undefined;
     const positions = contract?.positions || [];
 
-    // Build positions projection
-    const pos = positions.map((p: any) => {
+    // Helper: format salary
+    const formatMoney = (amount?: number, currency?: string): string | undefined => {
+      if (amount == null || !currency) return undefined;
+      return `${currency} ${amount}`;
+    };
+
+    // Map positions
+    const positionDtos: MobileJobPositionDto[] = positions.map((p: any) => {
       const baseAmount = Number(p.monthly_salary_amount);
       const currency = p.salary_currency as string | undefined;
-      const converted = (p.salaryConversions || []) as any[];
-      // Prefer NPR, else USD, else first available
-      const preferredConv = converted.find(c => String(c.converted_currency).toUpperCase() === 'NPR')
-        || converted.find(c => String(c.converted_currency).toUpperCase() === 'USD')
-        || converted[0];
-      const convertedAmount = preferredConv ? Number(preferredConv.converted_amount) : undefined;
-      const convertedCurrency = preferredConv?.converted_currency as string | undefined;
 
-      const moneyStr = (amt?: number, curr?: string) => {
-        if (amt == null || curr == null) return undefined;
-        if (curr.toUpperCase() === 'USD') return `$${amt}`;
-        return `${curr} ${amt}`;
-      };
-
-      // Requirements: best-effort – reuse posting-level skills as generic requirements
-      const requirements = Array.isArray((jp as any).skills)
-        ? ((jp as any).skills as string[]).filter(Boolean)
-        : undefined;
+      const preferredConv =
+        p.salaryConversions?.find((c: any) => String(c.converted_currency).toUpperCase() === 'NPR') ||
+        p.salaryConversions?.find((c: any) => String(c.converted_currency).toUpperCase() === 'USD') ||
+        p.salaryConversions?.[0];
 
       return {
         id: p.id,
         title: p.title,
-        baseSalary: moneyStr(baseAmount, currency),
-        convertedSalary: moneyStr(convertedAmount, convertedCurrency),
-        currency: currency,
-        requirements,
+        baseSalary: formatMoney(baseAmount, currency),
+        convertedSalary: formatMoney(
+          preferredConv?.converted_amount ? Number(preferredConv.converted_amount) : undefined,
+          preferredConv?.converted_currency,
+        ),
+        currency,
+        requirements: p.position_notes ? [p.position_notes] : undefined,
       };
     });
 
-    // Salary summary at posting level
-    let salaryMin: number | undefined;
-    let salaryMax: number | undefined;
-    let salaryCurrency: string | undefined;
+    // Contract terms mapping (safe defaults for missing fields)
+    const contractTerms: MobileContractTermsDto | null = contract
+      ? {
+          type: 'Full-time', // Default value since contract_type doesn't exist in JobContract
+          duration: contract.period_years ? `${contract.period_years} years` : 'Not specified',
+          salary: undefined, // not in backend yet
+          isRenewable: contract.renewable ?? undefined,
+          noticePeriod: undefined, // notice_period_days doesn't exist in JobContract
+          workingHours: undefined, // working_hours_weekly doesn't exist in JobContract
+          probationPeriod: undefined, // probation_period_months doesn't exist in JobContract
+          benefits: undefined, // not in backend yet
+        }
+      : null;
+
+    // Job-level salary summary (from positions)
+    let salarySummary: string | undefined;
     if (positions.length) {
-      salaryCurrency = positions[0].salary_currency || undefined;
+      const salaryCurrency = positions[0].salary_currency;
       const amounts = positions
         .filter((p: any) => p.salary_currency === salaryCurrency)
         .map((p: any) => Number(p.monthly_salary_amount))
-        .filter((n: any) => !isNaN(n));
+        .filter((n: number) => !isNaN(n));
       if (amounts.length) {
-        salaryMin = Math.min(...amounts);
-        salaryMax = Math.max(...amounts);
+        const min = Math.min(...amounts);
+        const max = Math.max(...amounts);
+        salarySummary = `${salaryCurrency} ${min} - ${salaryCurrency} ${max}`;
       }
     }
 
-    const benefits: string[] = [];
-    if (contract?.food) benefits.push('food');
-    if (contract?.accommodation) benefits.push('accommodation');
-    if (contract?.transport) benefits.push('transport');
-
-    const salarySummary = salaryMin != null && salaryMax != null && salaryCurrency
-      ? `${salaryCurrency} ${salaryMin} - ${salaryCurrency} ${salaryMax}${benefits.length ? ' + benefits' : ''}`
-      : undefined;
-
     // Experience summary
-    const xr = (jp as any).experience_requirements as { min_years?: number; max_years?: number } | undefined;
+    const xr = (job as any).experience_requirements as { min_years?: number; max_years?: number } | undefined;
     const experience = xr && (xr.min_years != null || xr.max_years != null)
       ? `${xr.min_years ?? 0}${xr.max_years != null ? '-' + xr.max_years : '+'} years`
       : undefined;
 
-    const location = jp.city && jp.country ? `${jp.city}, ${jp.country}` : jp.country || jp.city || undefined;
-    const employerName = contract?.employer?.company_name;
-    const agencyName = contract?.agency?.name;
-
-    // Simple initials logo (fallback)
-    const companyLogo = employerName ? employerName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() : undefined;
-
     // preferenceText: prefer canonical titles, then top skills, else undefined
-    const canonicalTitles = Array.isArray(jp.canonical_titles) ? (jp.canonical_titles as any[]).map(t => t.title).filter(Boolean) : [];
-    const skills = Array.isArray((jp as any).skills) ? ((jp as any).skills as string[]).filter(Boolean) : [];
-    const preferenceText = canonicalTitles.length ? canonicalTitles.join(', ') : (skills.slice(0, 2).join(', ') || undefined);
+    const canonicalTitles = Array.isArray(job.canonical_titles) 
+      ? (job.canonical_titles as any[]).map(t => t.title).filter(Boolean) 
+      : [];
+    const skills = Array.isArray((job as any).skills) 
+      ? ((job as any).skills as string[]).filter(Boolean) 
+      : [];
+    const preferenceText = canonicalTitles.length 
+      ? canonicalTitles.join(', ') 
+      : (skills.slice(0, 2).join(', ') || undefined);
 
     return {
-      id: jp.id,
-      postingTitle: jp.posting_title,
-      country: jp.country,
-      city: jp.city ?? undefined,
-      agency: agencyName,
-      employer: employerName,
-      positions: pos,
-      description: jp.notes ?? undefined,
-      contractTerms: contract ? { duration: contract.period_years != null ? `${contract.period_years} years` : undefined, type: 'Full-time' } : undefined,
-      isActive: (jp as any).is_active ?? true,
-      postedDate: jp.posting_date_ad ?? undefined,
+      id: job.id,
+      postingTitle: job.posting_title,
+      country: job.country,
+      city: job.city || null,
+      agency: contract?.agency?.name,
+      employer: contract?.employer?.company_name,
+      positions: positionDtos,
+      description: job.notes || undefined,
+      contractTerms,
+      isActive: job.is_active ?? true,
+      postedDate: job.posting_date_ad ? new Date(job.posting_date_ad).toISOString() : undefined,
       preferencePriority: undefined,
       preferenceText,
-      location,
+      location: job.city && job.country ? `${job.city}, ${job.country}` : job.city || job.country,
       experience,
       salary: salarySummary,
-      type: 'Full Time',
+      type: 'Full-time', // Default value since contract_type doesn't exist in JobContract
       isRemote: false,
       isFeatured: false,
-      companyLogo,
-      matchPercentage: undefined,
+      companyLogo: contract?.employer?.logo_url,
+      matchPercentage: '0', // Will be overridden by controller
+      convertedSalary: undefined, // not mapped yet
+      applications: 0, // default until implemented
+      policy: undefined, // not mapped yet
     };
   }
 

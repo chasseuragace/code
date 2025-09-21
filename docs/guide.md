@@ -195,39 +195,104 @@ __Run__: `npm test -- --runInBand` (we configured Jest for sequential runs, long
 
 ---
 
+## 13) Automated Deployment & CI/CD
+
+### GitHub Actions Deployment
+
+The project uses GitHub Actions for automated deployment to staging/development environments:
+
+**Trigger**: Push a `deploy` tag to trigger automatic deployment
+```bash
+git tag deploy
+git push origin deploy
+```
+
+**Process**: 
+- Code checkout from main branch
+- Docker container rebuild and restart
+- Health checks and validation
+- Automatic rollback on failure
+
+**Configuration**: 
+- Location: `.github/workflows/docker-image.yml`
+- Requires GitHub secrets: `DEV_IP`, `DEV_USER`, `DEV_PASS`, `DEV_PATH`
+- Full documentation: `docs/github-actions-deployment.md`
+
+### OpenAPI Automated Generation
+
+The system automatically generates API clients and documentation:
+
+**Generation Process**:
+- OpenAPI spec exported from running server
+- Dart client package generated automatically
+- API documentation in Markdown format
+- Contract validation through E2E tests
+
+**Access Generated Files**:
+- Location: `dev_tools/package_form_open_api/openapi/`
+- Documentation: `dev_tools/package_form_open_api/readme.md`
+- Usage: Import as local package in Flutter/Dart projects
+
+### Automated Testing Integration
+
+**E2E Test Coverage**:
+- Ramesh's complete journey test validates API contracts
+- Comprehensive user flow validation
+- Automatic contract validation against deployed services
+- Regression protection for API changes
+
+**Test Execution**:
+```bash
+# Run all tests
+npm test -- --runInBand
+
+# Run specific test files
+npm test -- e2e.ramesh-journey.spec.ts
+```
+
 ## 14) Quick Start Checklist
 
-1. Run DB and app (docker-compose or your process manager).
-2. Seed: `POST /countries/seedv1`, `POST /job-titles/seedv1`.
-3. Create Agency → Create Tagged Job Posting.
-4. Create Candidate → Add Job Profile with preferred titles.
-5. Fetch Relevant Jobs (toggle canonical titles; optionally include scoring).
-6. Apply → Shortlist → Schedule Interview → Complete or Withdraw.
-7. Check Candidate Application Listing after each action.
-8. Run Analytics: `/agencies/:license/analytics/applicants-by-phase`.
-9. Run full test suite: `npm test -- --runInBand`.
+1. **Local Development**:
+   - Run DB and app (docker-compose or your process manager)
+   - Seed: `POST /countries/seedv1`, `POST /job-titles/seedv1`
 
----
+2. **API Testing**:
+   - Create Agency → Create Tagged Job Posting
+   - Create Candidate → Add Job Profile with preferred titles
+   - Fetch Relevant Jobs → Apply → Shortlist → Schedule Interview
+
+3. **Automated Deployment**:
+   - Commit and push changes to main branch
+   - Tag for deployment: `git tag deploy && git push origin deploy`
+   - Monitor deployment in GitHub Actions
+
+4. **OpenAPI Client Generation**:
+   - Ensure server is running and accessible
+   - Run generation: `cd dev_tools/package_form_open_api && ./build.sh`
+   - Test generated client against deployed server
+
+5. **Validation**:
+   - Run E2E tests: `npm test -- --runInBand`
+   - Check API contracts through Ramesh's journey test
+   - Verify deployment health: `docker-compose ps`
 
 ## 15) File Pointers (Where to Look)
 
-- Matching logic: `src/modules/candidate/candidate.service.ts` (`getRelevantJobs`, `getRelevantJobsGrouped`).
-- Candidate API: `src/modules/candidate/candidate.controller.ts`.
-- Application workflow: `src/modules/application/application.service.ts`.
-- Application API: `src/modules/application/application.controller.ts`.
-- Agency API (creation, tag mgmt, analytics): `src/modules/agency/agency.controller.ts`.
-- Tags on JobPosting: `src/modules/domain/domain.entity.ts`.
-- Migration for tags: `reference/migrations/20250906_add_job_posting_tags.ts`.
-
----
+- **Core Application**: `src/modules/` (candidate, domain, application, agency)
+- **Deployment**: `.github/workflows/docker-image.yml`
+- **OpenAPI Generation**: `dev_tools/package_form_open_api/`
+- **E2E Tests**: `test/e2e.*.spec.ts` (especially `e2e.ramesh-journey.spec.ts`)
+- **Documentation**: `docs/` (deployment guide, API contracts)
+- **Data Contracts**: `data_crontacts/` (frontend contracts, analytics)
 
 ## 16) Deferred & Next Ideas
 
-- Paginated scoreboard per preference group (separate endpoint per preference with dedicated page/limit).
-- Scoring weight controls (query params; per-agency weights).
-- Candidate-side saved searches & notifications.
-- More analytics: distribution funnels, conversion rates, time-to-hire.
+- **Performance Testing**: Load testing, response time validation
+- **Multi-Environment Support**: Staging, production, blue-green deployment
+- **Advanced CI/CD**: Zero-downtime deployments, automatic rollback
+- **Enhanced Monitoring**: Integration with Prometheus, Grafana
+- **API Versioning**: Versioned API endpoints and contracts
 
 ---
 
-> This guide is intentionally comprehensive and conversational. If anything is unclear, search the referenced files or run the targeted tests named above to see concrete usage and behavior.
+> This guide is intentionally comprehensive and conversational. If anything is unclear, search the referenced files or run the targeted tests named above to see concrete usage and behavior. For deployment-specific issues, see `docs/github-actions-deployment.md`. For OpenAPI integration, see `dev_tools/package_form_open_api/readme.md`.

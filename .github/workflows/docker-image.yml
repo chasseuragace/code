@@ -8,7 +8,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: deploy  # ← Use the 'deploy' environment to access secrets
+    environment: deploy
 
     steps:
       - name: Checkout code
@@ -20,14 +20,15 @@ jobs:
           host: ${{ secrets.DEV_IP }}
           username: ${{ secrets.DEV_USER }}
           password: ${{ secrets.DEV_PASS }}   # or use 'key' if you prefer key auth
-          port: 22          
+          port: 22
           script: |
             cd ${{ secrets.DEV_PATH }}
             echo "🚀 Starting deployment process..."
             
             # Pull latest changes
             echo "📥 Pulling latest code changes..."
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
             
             # Check if docker-compose.yml exists
             if [ ! -f "docker-compose.yml" ]; then
@@ -35,9 +36,10 @@ jobs:
               exit 1
             fi
             
-            # Restart Docker containers (no rebuild needed for dev mode)
+            # Restart Docker containers
             echo "🔄 Restarting Docker containers..."
-            docker-compose restart
+            docker-compose down
+            docker-compose up -d --remove-orphans
             
             # Wait a moment for containers to be ready
             echo "⏳ Waiting for containers to restart..."
@@ -48,15 +50,14 @@ jobs:
             docker-compose ps
             
             # Check if critical services are running
-            if ! docker-compose ps | grep -q "Up"; then
+            if ! docker-compose ps | grep -Eq "Up|healthy"; then
               echo "❌ Critical services are not running properly!"
-              docker-compose logs --tail=20
+              docker-compose logs --tail=50
               exit 1
             fi
             
             echo "✅ Deployment completed successfully!"
             echo "📊 Deployment Summary:"
             echo "   - Code updated from git"
-            echo "   - Containers restarted"
+            echo "   - Containers rebuilt and restarted"
             echo "   - Services verified running"
-

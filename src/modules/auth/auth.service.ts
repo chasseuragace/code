@@ -129,9 +129,21 @@ export class AuthService {
     const user = await this.users.findOne({ where: { phone } });
     if (!user) throw new NotFoundException('No registration found for this phone');
 
+    // Fix data integrity: if user.candidate_id is null, find and link the candidate
+    let candidateId = user.candidate_id;
+    if (!candidateId) {
+      const candidate = await this.candidates.findByPhone(phone);
+      if (candidate) {
+        user.candidate_id = candidate.id;
+        await this.users.save(user);
+        candidateId = candidate.id;
+      } else {
+        throw new NotFoundException('No candidate profile found for this phone');
+      }
+    }
+
     // Issue OTP
     const otp = this.generateOtp();
-    const candidateId = user.candidate_id!;
     this.otps.set(phone, { otp, expiresAt: Date.now() + 5 * 60_000, userId: user.id, candidateId });
     return { dev_otp: otp };
   }

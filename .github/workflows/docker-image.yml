@@ -1,50 +1,62 @@
-version: '3.3'
+name: Deploy to Dev
 
-services:
-  db:
-    image: postgres:15-alpine
-    container_name: nest_pg
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: app_db
-    ports:
-      - "5432:5432"
-    volumes:
-      - pg_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+on:
+  push:
+    tags:
+      - "deploy"
 
-  server:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: nest_server
-    command: npm run start:dev
-    environment:
-      NODE_ENV: development
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_USERNAME: postgres
-      DB_PASSWORD: postgres
-      DB_DATABASE: app_db
-      AUTH_JWT_SECRET: dev-jwt-secret
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./src:/app/src
-      - ./test:/app/test
-      - ./tsconfig.json:/app/tsconfig.json
-      - ./tsconfig.build.json:/app/tsconfig.build.json
-      - ./jest.config.js:/app/jest.config.js
-      - ./package.json:/app/package.json
-      - ./reference:/app/reference
-    depends_on:
-      db:
-        condition: service_healthy
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: deploy  # ← Use the 'deploy' environment to access secrets
 
-volumes:
-  pg_data:
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.DEV_IP }}
+          username: ${{ secrets.DEV_USER }}
+          password: ${{ secrets.DEV_PASS }}   # or use 'key' if you prefer key auth
+          port: 22          
+          script: |
+            cd ${{ secrets.DEV_PATH }}
+            echo "🚀 Starting deployment process..."
+            
+            # Pull latest changes
+            echo "📥 Pulling latest code changes..."
+            git pull origin main
+            
+            # Check if docker-compose.yml exists
+            if [ ! -f "docker-compose.yml" ]; then
+              echo "❌ Error: docker-compose.yml not found in ${{ secrets.DEV_PATH }}"
+              exit 1
+            fi
+            
+            # Restart Docker containers (no rebuild needed for dev mode)
+            echo "🔄 Restarting Docker containers..."
+            docker-compose restart
+            
+            # Wait a moment for containers to be ready
+            echo "⏳ Waiting for containers to restart..."
+            sleep 10
+            
+            # Quick health check - verify containers are running
+            echo "🔍 Checking container status..."
+            docker-compose ps
+            
+            # Check if critical services are running
+            if ! docker-compose ps | grep -q "Up"; then
+              echo "❌ Critical services are not running properly!"
+              docker-compose logs --tail=20
+              exit 1
+            fi
+            
+            echo "✅ Deployment completed successfully!"
+            echo "📊 Deployment Summary:"
+            echo "   - Code updated from git"
+            echo "   - Containers restarted"
+            echo "   - Services verified running"
+

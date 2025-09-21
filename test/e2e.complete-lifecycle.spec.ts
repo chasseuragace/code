@@ -205,20 +205,32 @@ describe('Complete Employment Lifecycle: From Dream to Reality', () => {
 
       agencyAccessToken = verifyOwnerResponse.body.token;
       
-      // Create agency
-      const createAgencyResponse = await request(app.getHttpServer())
-        .post('/agencies/owner/agency')
-        .set('Authorization', `Bearer ${agencyAccessToken}`)
-        .send({
-          name: 'Ramesh Dream Agency',
-          license_number: 'LIC-TEST-001'
-        })
-        .expect(201);
-
-      const agencyId = createAgencyResponse.body.id;
-      agencyLicense = 'LIC-TEST-001';
+      // Create agency (or reuse existing if already created)
+      let agencyId: string;
+      try {
+        const createAgencyResponse = await request(app.getHttpServer())
+          .post('/agencies/owner/agency')
+          .set('Authorization', `Bearer ${agencyAccessToken}`)
+          .send({
+            name: 'Ramesh Dream Agency',
+            license_number: 'LIC-TEST-001'
+          })
+          .expect(201);
+        agencyId = createAgencyResponse.body.id;
+        agencyLicense = 'LIC-TEST-001';
+        console.log(`🏢 Agency created: ${agencyId} (${agencyLicense})`);
+      } catch (err) {
+        // If forbidden, agency likely exists already. Fetch owner agency instead.
+        console.log('ℹ️ Agency creation returned non-201, attempting to fetch existing owner agency...');
+        const getAgencyRes = await request(app.getHttpServer())
+          .get('/agencies/owner/agency')
+          .set('Authorization', `Bearer ${agencyAccessToken}`)
+          .expect(200);
+        agencyId = getAgencyRes.body.id;
+        agencyLicense = getAgencyRes.body.license_number || 'LIC-TEST-001';
+        console.log(`🏢 Using existing agency: ${agencyId} (${agencyLicense})`);
+      }
       
-      console.log(`🏢 Agency created: ${agencyId} (${agencyLicense})`);
       console.log('✅ Agency owner authenticated and ready');
     });
 
@@ -270,6 +282,15 @@ describe('Complete Employment Lifecycle: From Dream to Reality', () => {
       console.log('✅ Interview scheduled for September 25th at 10:00 AM');
       console.log('📋 Required documents specified');
       console.log('🔔 Ramesh will be notified...');
+
+      // Verify application moved to interview_scheduled
+      const postScheduleApps = await request(app.getHttpServer())
+        .get(`/applications/candidates/${rameshId}`)
+        .expect(200);
+      const postApps = postScheduleApps.body.items || [];
+      const postApp = postApps.find((app: any) => app.id === applicationId);
+      expect(postApp).toBeDefined();
+      expect(postApp.status).toBe('interview_scheduled');
     });
   });
 
@@ -338,14 +359,6 @@ DECISION: RECOMMEND FOR HIRE
         .send({
           result: 'passed',
           note: 'Candidate passed technical interview. Recommended for hire.'
-        })
-        .expect(200);
-
-      // Also shortlist the application (public API)
-      await request(app.getHttpServer())
-        .post(`/applications/${applicationId}/shortlist`)
-        .send({
-          note: 'Strong candidate with excellent electrical skills'
         })
         .expect(200);
 

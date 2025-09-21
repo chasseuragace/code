@@ -422,6 +422,7 @@ export class CandidateService {
       .createQueryBuilder('jp')
       .leftJoinAndSelect('jp.contracts', 'contracts')
       .leftJoinAndSelect('contracts.positions', 'positions')
+      .leftJoinAndSelect('positions.salaryConversions', 'salaryConversions')
       .leftJoinAndSelect('contracts.employer', 'employer')
       .leftJoinAndSelect('contracts.agency', 'agency')
       // Explicitly select JSONB requirement fields used for scoring

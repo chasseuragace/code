@@ -415,9 +415,8 @@ export class CandidateService {
       const byTitle = new Map(found.map((jt) => [jt.title, jt.id] as const));
       preferredIds = opts.preferredOverride.map((t) => byTitle.get(t)).filter((id): id is string => typeof id === 'string');
     }
-    if (!preferredIds || preferredIds.length === 0) {
-      throw new BadRequestException('Candidate has no preferred job titles');
-    }
+    // If no preferences set, show all jobs (better UX for new users)
+    const hasPreferences = preferredIds && preferredIds.length > 0;
 
     const qb = this.jobPostings
       .createQueryBuilder('jp')
@@ -433,14 +432,20 @@ export class CandidateService {
     const combineWith: 'AND' | 'OR' = (opts?.combineWith as any) === 'OR' ? 'OR' : 'AND';
 
     // Title match group (ID-based): job_posting_titles -> job_titles by IDs
+    // Only apply if candidate has preferences set
     const titleGroup = new Brackets((qb1) => {
-      qb1.where(
-        `EXISTS (
-          SELECT 1 FROM job_posting_titles jpt
-          WHERE jpt.job_posting_id = jp.id AND jpt.job_title_id IN (:...preferredIds)
-        )`,
-        { preferredIds },
-      );
+      if (hasPreferences) {
+        qb1.where(
+          `EXISTS (
+            SELECT 1 FROM job_posting_titles jpt
+            WHERE jpt.job_posting_id = jp.id AND jpt.job_title_id IN (:...preferredIds)
+          )`,
+          { preferredIds },
+        );
+      } else {
+        // No preferences - make this group always true so it doesn't filter anything
+        qb1.where('1=1');
+      }
     });
 
     // Tag-aware predicate: skills/education overlap and optional canonical title match
@@ -500,8 +505,14 @@ export class CandidateService {
         applied = true;
       }
       if (!applied) {
-        // If no tag predicates available, ensure group is a tautology to not exclude everything when ORed
-        qbT.where('1=0'); // no tags -> group false so it doesn't accidentally include
+        // If no tag predicates available, behavior depends on whether user has preferences
+        if (hasPreferences) {
+          // User has preferences but no matching skills/education - be restrictive
+          qbT.where('1=0'); // no tags -> group false so it doesn't accidentally include
+        } else {
+          // User has no preferences - show all jobs (better UX for new users)
+          qbT.where('1=1'); // no tags but no preferences -> show everything
+        }
       }
     });
 

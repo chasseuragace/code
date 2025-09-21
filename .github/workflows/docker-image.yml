@@ -20,7 +20,43 @@ jobs:
           host: ${{ secrets.DEV_IP }}
           username: ${{ secrets.DEV_USER }}
           password: ${{ secrets.DEV_PASS }}   # or use 'key' if you prefer key auth
-          port: 22
+          port: 22          
           script: |
             cd ${{ secrets.DEV_PATH }}
+            echo "🚀 Starting deployment process..."
+            
+            # Pull latest changes
+            echo "📥 Pulling latest code changes..."
             git pull origin main
+            
+            # Check if docker-compose.yml exists
+            if [ ! -f "docker-compose.yml" ]; then
+              echo "❌ Error: docker-compose.yml not found in ${{ secrets.DEV_PATH }}"
+              exit 1
+            fi
+            
+            # Restart Docker containers (no rebuild needed for dev mode)
+            echo "🔄 Restarting Docker containers..."
+            docker-compose restart
+            
+            # Wait a moment for containers to be ready
+            echo "⏳ Waiting for containers to restart..."
+            sleep 10
+            
+            # Quick health check - verify containers are running
+            echo "🔍 Checking container status..."
+            docker-compose ps
+            
+            # Check if critical services are running
+            if ! docker-compose ps | grep -q "Up"; then
+              echo "❌ Critical services are not running properly!"
+              docker-compose logs --tail=20
+              exit 1
+            fi
+            
+            echo "✅ Deployment completed successfully!"
+            echo "📊 Deployment Summary:"
+            echo "   - Code updated from git"
+            echo "   - Containers restarted"
+            echo "   - Services verified running"
+

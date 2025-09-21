@@ -142,7 +142,30 @@ describe('Complete Employment Lifecycle: From Dream to Reality', () => {
       jobId = selectedJob.id;
       
       console.log(`✅ Ramesh found job: ${selectedJob.posting_title}`);
-      console.log(`💰 Salary: ${selectedJob.salary?.currency} ${selectedJob.salary?.monthly_min}`);
+      console.log(`💰 Base Salary: ${selectedJob.salary?.currency} ${selectedJob.salary?.monthly_min}`);
+      
+      // Debug: Log full salary structure
+      console.log(`🔍 Full salary structure:`, JSON.stringify(selectedJob.salary, null, 2));
+      
+      // Show NPR conversion if available
+      if (selectedJob.salary?.converted && selectedJob.salary.converted.length > 0) {
+        const nprConversion = selectedJob.salary.converted.find((c: any) => c.currency === 'NPR');
+        const usdConversion = selectedJob.salary.converted.find((c: any) => c.currency === 'USD');
+        
+        if (nprConversion) {
+          console.log(`🇳🇵 NPR Equivalent: NPR ${nprConversion.amount.toLocaleString()}/month`);
+          console.log(`💡 Ramesh can understand: ${selectedJob.salary?.currency} ${selectedJob.salary?.monthly_min} = NPR ${nprConversion.amount.toLocaleString()}`);
+        } else if (usdConversion) {
+          console.log(`💵 USD Equivalent: USD ${usdConversion.amount}/month`);
+          // Calculate NPR from USD (133 NPR per USD from countries seed)
+          const nprFromUsd = Math.round(usdConversion.amount * 133);
+          console.log(`🇳🇵 NPR Equivalent (via USD): NPR ${nprFromUsd.toLocaleString()}/month`);
+        }
+        
+        console.log(`📊 All conversions: ${selectedJob.salary.converted.map((c: any) => `${c.currency} ${c.amount}`).join(', ')}`);
+      } else {
+        console.log(`ℹ️ No salary conversions available for this job`);
+      }
 
       // Apply to the job
       const applicationResponse = await request(app.getHttpServer())
@@ -318,6 +341,25 @@ describe('Complete Employment Lifecycle: From Dream to Reality', () => {
       console.log(`👤 Contact: ${interview.contact_person}`);
       console.log(`📋 Required Documents: ${interview.required_documents?.join(', ')}`);
       console.log(`🗓️ Date: ${interview.schedule.date_ad} at ${interview.schedule.time}`);
+      
+      // Show job salary with NPR conversion for context
+      if (interview.posting) {
+        console.log(`💼 Job: ${interview.posting.posting_title}`);
+        // Get job details to show salary with conversions
+        const jobDetailsResponse = await request(app.getHttpServer())
+          .get(`/jobs/${jobId}`)
+          .expect(200);
+        
+        if (jobDetailsResponse.body.salary) {
+          console.log(`💰 Salary: ${jobDetailsResponse.body.salary.currency} ${jobDetailsResponse.body.salary.monthly_amount}/month`);
+          if (jobDetailsResponse.body.salary.converted && jobDetailsResponse.body.salary.converted.length > 0) {
+            const nprConv = jobDetailsResponse.body.salary.converted.find((c: any) => c.currency === 'NPR');
+            if (nprConv) {
+              console.log(`🇳🇵 NPR: ${nprConv.amount.toLocaleString()}/month (Ramesh understands this!)`);
+            }
+          }
+        }
+      }
       
       expect(interview.required_documents).toContain('Passport copy');
       expect(interview.location).toBe('Agency Office, Dubai');

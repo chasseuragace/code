@@ -4,7 +4,6 @@ import { Repository, DataSource, ILike, In } from 'typeorm';
 import { MobileJobPostingDto, MobileJobPositionDto, MobileContractTermsDto } from '../candidate/dto/mobile-job.dto';
 import {
   JobPosting,
-  PostingAgency,
   Employer,
   JobContract,
   JobPosition,
@@ -18,6 +17,7 @@ import {
   InterviewDetail,
   InterviewExpense,
 } from './domain.entity';
+import { PostingAgency } from './PostingAgency';
 import { Country } from '../country/country.entity';
 import { JobTitle } from '../job-title/job-title.entity';
 

@@ -7,7 +7,6 @@ import { Country } from '../country/country.entity';
 import { JobTitle } from '../job-title/job-title.entity';
 import {
   JobPosting,
-  PostingAgency,
   Employer,
   JobContract,
   SalaryConversion,
@@ -21,6 +20,7 @@ import {
   InterviewExpense,
   JobPosition,
 } from './domain.entity';
+import { PostingAgency } from './PostingAgency';
 import { ExpenseService, InterviewService, JobPostingService } from './domain.service';
 
 @Module({

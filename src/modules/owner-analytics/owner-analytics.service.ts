@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { PostingAgency, JobPosting, InterviewDetail, JobPosition } from 'src/modules/domain/domain.entity';
+import { JobPosting, InterviewDetail, JobPosition } from 'src/modules/domain/domain.entity';
+import { PostingAgency } from '../domain/PostingAgency';
 
 export interface PortalOverview {
   generated_at: string;

@@ -10,6 +10,7 @@ import { OwnerAnalyticsModule } from './modules/owner-analytics/owner-analytics.
 import { CountryModule } from './modules/country/country.module';
 import { SeedModule } from './modules/seed/seed.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { TesthelperModule } from './modules/testhelper/testhelper.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { AuthModule } from './modules/auth/auth.module';
     CountryModule,
     SeedModule,
     AuthModule,
+    TesthelperModule,
   ],
 })
 export class AppModule {}

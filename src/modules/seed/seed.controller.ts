@@ -13,6 +13,9 @@ class SeedCountsDto {
   @ApiProperty({ required: false, nullable: true, description: 'Number of agencies created (skips existing by license)', example: { created: 10 } })
   agencies?: { created: number } | null;
 
+  @ApiProperty({ required: false, nullable: true, description: 'Number of agency owners created', example: { created: 5 } })
+  agency_owners?: { created: number } | null;
+
   @ApiProperty({ required: false, nullable: true, description: 'Number of sample postings created', example: { created: 1 } })
   sample_postings?: { created: number } | null;
 
@@ -28,6 +31,7 @@ class SeedCountsDto {
 class SeedRequestDto {
   @ApiProperty({ description: 'Seed countries (primary). Default: true', required: false, default: true })
   countries?: boolean;
+
 
   @ApiProperty({ description: 'Seed job titles (primary). Default: true', required: false, default: true })
   job_titles?: boolean;
@@ -52,6 +56,7 @@ class SeedRequestDto {
 export class SeedController {
   constructor(private readonly seedService: SeedService) {}
 
+  
   // POST /seed/seedSystem
   @Post('seedSystem')
   @ApiOperation({
@@ -60,50 +65,38 @@ export class SeedController {
       'Idempotently seeds base reference data such as countries, job titles, agencies, and a sample job posting for smoke testing. Safe to run multiple times.',
   })
   @ApiBody({
-    description: 'Select which categories to seed. By default, countries and job titles are enabled; agencies and sample_postings are disabled.',
+    description:
+      'Select which categories to seed. By default, countries and job titles are enabled; agencies and sample_postings are disabled.',
     type: SeedRequestDto,
     examples: {
       defaultPrimaryOnly: {
         summary: 'Primary only (default behavior if body omitted)',
-        value: { countries: true, job_titles: true, agencies: false, sample_postings: false },
+        value: { countries: true, job_titles: true, agencies: false, sample_postings: false ,},
       },
       everything: {
-        summary: 'All categories',
-        value: { countries: true, job_titles: true, agencies: true, sample_postings: true },
+        summary: 'All ',
+        value: { countries: true, job_titles: true, agencies: true,
+          
+          sample_postings: true, dev_agency_postings_with_tags: true },
       },
-      justJobs: {
-        summary: 'Only sample job postings (assumes prereqs are seeded)',
-        value: { countries: false, job_titles: false, agencies: false, sample_postings: true },
-      },
-      devSetup: {
-        summary: 'Dev: create postings per agency and tag them',
-        value: {
-          countries: true,
-          job_titles: true,
-          agencies: true,
-          sample_postings: false,
-          dev_agency_postings_with_tags: true,
-        },
-      },
-    },
-  })
-  @ApiOkResponse({
-    description: 'Seeding completed successfully with per-category counts',
-    content: {
-      'application/json': {
-        schema: { $ref: getSchemaPath(SeedCountsDto) },
-        example: {
-          countries: { affected: 46 },
-          job_titles: { affected: 51 },
-          agencies: { created: 10 },
-          sample_postings: { created: 1 },
-          dev_agency_postings_with_tags: { created: 10, tagged: 10 },
-        },
-      },
+    
     },
   })
   @HttpCode(200)
+  @ApiOkResponse({ description: 'Seed operation completed', type: SeedCountsDto })
   async seedSystem(@Body() body: SeedRequestDto) {
-    return this.seedService.seedSystem(body);
+    const result: SeedCountsDto = {};
+    if (body.countries !== false) result.countries = await this.seedService.seedCountries();
+    if (body.job_titles !== false) result.job_titles = await this.seedService.seedJobTitles();
+    if (body.agencies !== false) {
+      result.agencies = await this.seedService.seedAgencies(true);
+    }
+    if (body.sample_postings !== false) result.sample_postings = await this.seedService.seedSamplePostings();
+    if (body.dev_agency_postings_with_tags !== false) {
+      result.dev_agency_postings_with_tags = await this.seedService.seedDevAgencyPostingsWithTags();
+    }
+    return result;
   }
+
+  
 }

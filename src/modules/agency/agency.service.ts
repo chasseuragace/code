@@ -3,23 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { InterviewDetail, JobContract, JobPosition, JobPosting } from '../domain/domain.entity';
 import { PostingAgency } from '../domain/PostingAgency';
-
-export interface CreateAgencyDto {
-  name: string;
-  license_number: string;
-  country?: string;
-  city?: string;
-  address?: string;
-  phones?: string[];
-  emails?: string[];
-  contact_email?: string;
-  contact_phone?: string;
-  website?: string;
-  description?: string;
-  logo_url?: string;
-  license_valid_till?: string; // ISO date string
-}
-export type UpdateAgencyDto = Partial<Omit<CreateAgencyDto, 'license_number'>> & { is_active?: boolean };
+import { CreateAgencyDto, UpdateAgencyDto } from './dto/agency.dto';
 
 export interface AgencyAnalytics {
   active_postings: number;
@@ -41,9 +25,38 @@ export class AgencyService {
   async createAgency(dto: CreateAgencyDto): Promise<PostingAgency> {
     const existing = await this.agencyRepository.findOne({ where: { license_number: dto.license_number } });
     if (existing) return existing;
+
+    // Normalize phones/emails arrays from possible single fields
+    const phones = Array.from(new Set([
+      ...(dto.phones || []),
+      ...(dto.phone ? [dto.phone] : []),
+      ...(dto.mobile ? [dto.mobile] : []),
+    ].filter(Boolean))) as string[] | undefined;
+
+    const emails = Array.from(new Set([
+      ...(dto.emails || []),
+      ...(dto.email ? [dto.email] : []),
+      ...(dto.contact_email ? [dto.contact_email] : []),
+    ].filter(Boolean))) as string[] | undefined;
+
     const entity = this.agencyRepository.create({
       ...dto,
+      phones,
+      emails,
       license_valid_till: dto.license_valid_till ? new Date(dto.license_valid_till) : undefined,
+      // Pass-through of richer fields (supported by entity)
+      banner_url: dto.banner_url,
+      established_year: dto.established_year,
+      services: dto.services,
+      certifications: dto.certifications,
+      social_media: dto.social_media,
+      bank_details: dto.bank_details,
+      contact_persons: dto.contact_persons,
+      operating_hours: dto.operating_hours,
+      target_countries: dto.target_countries,
+      specializations: dto.specializations,
+      statistics: dto.statistics,
+      settings: dto.settings,
     } as Partial<PostingAgency>) as PostingAgency;
     return this.agencyRepository.save<PostingAgency>(entity as PostingAgency);
   }

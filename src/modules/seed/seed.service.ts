@@ -8,6 +8,9 @@ import * as path from 'path';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JobPosting } from '../domain/domain.entity';
+import { User } from '../user/user.entity';
+import { AgencyUser } from '../agency/agency-user.entity';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class SeedService {
@@ -19,6 +22,8 @@ export class SeedService {
     private readonly agencyService: AgencyService,
     private readonly jobPostingService: JobPostingService,
     @InjectRepository(JobPosting) private readonly jobPostingRepo: Repository<JobPosting>,
+    @InjectRepository(User) private readonly userRepo: Repository<User>,
+    @InjectRepository(AgencyUser) private readonly agencyUserRepo: Repository<AgencyUser>,
   ) {}
 
   private readJson<T = any>(relPath: string): T | null {
@@ -44,9 +49,71 @@ export class SeedService {
     return this.jobTitleService.upsertMany(rows);
   }
 
-  async seedAgencies(): Promise<{ created: number } | null> {
-    const rows = this.readJson<CreateAgencyDto[]>(`src/seed/agencies.seed.json`);
+  private async createOwnerUser(phone: string, agencyId: string): Promise<User> {
+    const user = this.userRepo.create({
+      id: uuidv4(),
+      phone,
+      role: 'owner',
+      is_active: true,
+      is_agency_owner: true,
+      agency_id: agencyId,
+    });
+    return this.userRepo.save(user);
+  }
+
+  private async createAgencyUser(userId: string, fullName: string, phone: string, agencyId: string): Promise<AgencyUser> {
+    const agencyUser = this.agencyUserRepo.create({
+      id: uuidv4(),
+      full_name: fullName,
+      phone,
+      user_id: userId,
+      agency_id: agencyId,
+      role: 'owner',
+    });
+    return this.agencyUserRepo.save(agencyUser);
+  }
+
+  async seedOwners(): Promise<{ created: number } | null> {
+    const agencies = await this.agencyService.listAgencies({});
+    if (!agencies?.data?.length) {
+      this.logger.warn('No agencies found to create owners for');
+      return null;
+    }
+
+    let created = 0;
+    for (const agency of agencies.data) {
+      // Skip if agency already has an owner
+      const existingOwner = await this.userRepo.findOne({ 
+        where: { 
+          agency_id: agency.id, 
+          is_agency_owner: true 
+        } 
+      });
+      
+      if (existingOwner) continue;
+
+      // Create owner user
+      const phone = `+9779800000${String(created + 1).padStart(3, '0')}`;
+      const user = await this.createOwnerUser(phone, agency.id);
+      
+      // Create agency user
+      await this.createAgencyUser(
+        user.id, 
+        `Owner of ${agency.name}`, 
+        phone,
+        agency.id
+      );
+      
+      created++;
+    }
+    
+    return { created };
+  }
+
+  async seedAgencies(createOwners: boolean = false): Promise<{ created: number } | null> {
+    const rows = this.readJson<Array<CreateAgencyDto & { owner_phone?: string }>>(`src/seed/agencies.seed.json`);
     if (!rows?.length) return null;
+    
     let created = 0;
     for (const r of rows) {
       // Only create if license_number does not exist
@@ -54,10 +121,27 @@ export class SeedService {
         await this.agencyService.findAgencyByLicense(r.license_number);
         // exists -> skip creating, do not increment
       } catch {
-        await this.agencyService.createAgency(r);
+        const { owner_phone, ...agencyData } = r;
+        const agency = await this.agencyService.createAgency(agencyData);
         created++;
+
+        // Create owner if requested and phone is provided
+        if (createOwners && owner_phone) {
+          try {
+            const user = await this.createOwnerUser(owner_phone, agency.id);
+            await this.createAgencyUser(
+              user.id, 
+              `Owner of ${agency.name}`, 
+              owner_phone,
+              agency.id
+            );
+          } catch (error) {
+            this.logger.error(`Failed to create owner for agency ${agency.id}: ${error.message}`);
+          }
+        }
       }
     }
+    
     return { created };
   }
 

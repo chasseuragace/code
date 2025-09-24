@@ -1,152 +1,337 @@
 [
   {
-    "name": "Udaan Global Recruitment",
-    "license_number": "LIC-AG-0001",
-    "country": "Nepal",
-    "city": "Kathmandu",
-    "address": "Putalisadak, Ward 28",
-    "phones": ["+977-1-4444444", "+977-9801000001"],
-    "emails": ["info@udaan.global", "support@udaan.global"],
-    "contact_email": "contact@udaan.global",
-    "contact_phone": "+977-9801000001",
-    "website": "https://udaan.global",
-    "description": "Leading manpower agency specializing in Gulf placements.",
-    "logo_url": "https://cdn.example.com/logos/udaan.png",
-    "license_valid_till": "2026-12-31"
+   
+    "name": "Inspire International Employment Pvt. Ltd",
+    "address": "Manpower Bazar, Sinamangal, Kathmandu, Nepal",
+    "phone": "01-4112800",
+    "mobile": "+977-9841234567",
+    "email": "info@inspireintl.com.np",
+    "website": "www.udaanrecruitment.com",
+    "license_number": "REG-2024-001",
+    "logo_url": "/images/agency_logo.png",
+    "banner_url": "/images/agency_banner.jpg",
+    "established_year": 2020,
+    "description": "Leading recruitment agency specializing in overseas employment opportunities for Nepali workers in Gulf countries and Malaysia.",
+    "services": [
+      "Overseas Job Placement",
+      "Visa Processing",
+      "Document Verification", 
+      "Pre-departure Training",
+      "Post-placement Support"
+    ],
+    "certifications": [
+      {
+        "name": "Government License",
+        "number": "REG-2024-001",
+        "issued_by": "Department of Foreign Employment",
+        "issued_date": "2020-01-15",
+        "expiry_date": "2025-01-15"
+      },
+      {
+        "name": "ISO 9001:2015",
+        "number": "ISO-2021-4567",
+        "issued_by": "International Standards Organization",
+        "issued_date": "2021-06-20",
+        "expiry_date": "2024-06-20"
+      }
+    ],
+    "social_media": {
+      "facebook": "https://facebook.com/udaanrecruitment",
+      "instagram": "https://instagram.com/udaanrecruitment",
+      "linkedin": "https://linkedin.com/company/udaanrecruitment",
+      "twitter": "https://twitter.com/udaanrecruitment"
+    },
+    "bank_details": {
+      "bank_name": "Nepal Investment Bank",
+      "account_name": "Udaan Recruitment Agency Pvt. Ltd.",
+      "account_number": "0123456789",
+      "swift_code": "NIBLNPKT"
+    },
+    "contact_persons": [
+      {
+        "name": "Rajesh Thapa",
+        "position": "Managing Director",
+        "phone": "+977-9841234567",
+        "email": "rajesh@udaanrecruitment.com"
+      },
+      {
+        "name": "Sunita Shrestha", 
+        "position": "Operations Manager",
+        "phone": "+977-9851234567",
+        "email": "sunita@udaanrecruitment.com"
+      }
+    ],
+    "operating_hours": {
+      "weekdays": "09:00 AM - 06:00 PM",
+      "saturday": "09:00 AM - 05:00 PM",
+      "sunday": "Closed"
+    },
+    "target_countries": [
+      "UAE",
+      "Saudi Arabia",
+      "Qatar", 
+      "Kuwait",
+      "Oman",
+      "Bahrain",
+      "Malaysia",
+      "Singapore"
+    ],
+    "specializations": [
+      "Hospitality",
+      "Construction",
+      "Healthcare",
+      "Domestic Work",
+      "Security Services",
+      "Transportation"
+    ],
+    "statistics": {
+      "total_placements": 1250,
+      "active_since": "2020-01-15",
+      "success_rate": 92,
+      "countries_served": 8,
+      "partner_companies": 45,
+      "active_recruiters": 8
+    },
+    "settings": {
+      "currency": "NPR",
+      "timezone": "Asia/Kathmandu",
+      "language": "en",
+      "date_format": "DD/MM/YYYY",
+      "notifications": {
+        "email_enabled": true,
+        "sms_enabled": true,
+        "push_enabled": true
+      },
+      "features": {
+        "online_applications": true,
+        "document_upload": true,
+        "interview_scheduling": true,
+        "candidate_tracking": true,
+        "analytics_dashboard": true
+      }
+    }
   },
-  {
-    "name": "Himalayan Manpower Services",
-    "license_number": "LIC-AG-0002",
-    "country": "Nepal",
-    "city": "Pokhara",
-    "address": "Lakeside-6",
-    "phones": ["+977-61-555555", "+977-9802000002"],
-    "emails": ["hello@himalayanms.com"],
-    "contact_email": "ops@himalayanms.com",
-    "contact_phone": "+977-9802000002",
-    "website": "https://himalayanms.com",
-    "description": "Hospitality placements across GCC.",
-    "logo_url": "https://cdn.example.com/logos/himalayan.png",
-    "license_valid_till": "2027-06-30"
-  },
-  {
-    "name": "Everest Workforce Pvt. Ltd.",
-    "license_number": "LIC-AG-0003",
-    "country": "Nepal",
-    "city": "Lalitpur",
-    "address": "Kupondole-10",
-    "phones": ["+977-1-5550000"],
-    "emails": ["jobs@everestwf.com"],
-    "contact_email": "hr@everestwf.com",
-    "contact_phone": "+977-9803000003",
-    "website": "https://everestwf.com",
-    "description": "Skilled technical roles in manufacturing and MEP.",
-    "logo_url": "https://cdn.example.com/logos/everest.png",
-    "license_valid_till": "2028-03-31"
-  },
-  {
-    "name": "Lumbini Recruitment",
-    "license_number": "LIC-AG-0004",
-    "country": "Nepal",
-    "city": "Butwal",
-    "address": "Traffic Chowk",
-    "phones": ["+977-71-540000"],
-    "emails": ["info@lumbinirecruit.com"],
-    "contact_email": "contact@lumbinirecruit.com",
-    "contact_phone": "+977-9804000004",
-    "website": "https://lumbinirecruit.com",
-    "description": "Construction trades and heavy equipment operators.",
-    "logo_url": "https://cdn.example.com/logos/lumbini.png",
-    "license_valid_till": "2026-09-15"
-  },
-  {
-    "name": "Janakpur Placement Hub",
-    "license_number": "LIC-AG-0005",
-    "country": "Nepal",
-    "city": "Janakpur",
-    "address": "Janak Chowk",
-    "phones": ["+977-41-520000"],
-    "emails": ["care@janakpurhub.com"],
-    "contact_email": "ops@janakpurhub.com",
-    "contact_phone": "+977-9805000005",
-    "website": "https://janakpurhub.com",
-    "description": "Security, drivers and support staff recruitment.",
-    "logo_url": "https://cdn.example.com/logos/janakpur.png",
-    "license_valid_till": "2027-01-01"
-  },
-  {
-    "name": "Biratnagar Talent Source",
-    "license_number": "LIC-AG-0006",
-    "country": "Nepal",
-    "city": "Biratnagar",
-    "address": "Main Road-10",
-    "phones": ["+977-21-470000"],
-    "emails": ["hello@biratnagar-ts.com"],
-    "contact_email": "support@biratnagar-ts.com",
-    "contact_phone": "+977-9806000006",
-    "website": "https://biratnagar-ts.com",
-    "description": "Light industrial and logistics workforce.",
-    "logo_url": "https://cdn.example.com/logos/biratnagar.png",
-    "license_valid_till": "2026-05-20"
-  },
-  {
-    "name": "Nepal Gulf Placements",
-    "license_number": "LIC-AG-0007",
-    "country": "Nepal",
-    "city": "Bhaktapur",
-    "address": "Suryabinayak-5",
-    "phones": ["+977-1-6611111"],
-    "emails": ["connect@ngp.com"],
-    "contact_email": "ops@ngp.com",
-    "contact_phone": "+977-9807000007",
-    "website": "https://ngp.com",
-    "description": "Multi-industry placements to KSA, UAE, Qatar, Oman.",
-    "logo_url": "https://cdn.example.com/logos/ngp.png",
-    "license_valid_till": "2028-11-11"
-  },
-  {
-    "name": "Koseli Overseas",
-    "license_number": "LIC-AG-0008",
-    "country": "Nepal",
-    "city": "Dharan",
-    "address": "Bishnupaduka-7",
-    "phones": ["+977-25-520000"],
-    "emails": ["info@koselioverseas.com"],
-    "contact_email": "contact@koselioverseas.com",
-    "contact_phone": "+977-9808000008",
-    "website": "https://koselioverseas.com",
-    "description": "Healthcare support and care workers.",
-    "logo_url": "https://cdn.example.com/logos/koseli.png",
-    "license_valid_till": "2027-07-07"
-  },
-  {
-    "name": "Sagarmatha HR",
-    "license_number": "LIC-AG-0009",
-    "country": "Nepal",
-    "city": "Hetauda",
-    "address": "Basantapur-3",
-    "phones": ["+977-57-520000"],
-    "emails": ["hr@sagarmathahr.com"],
-    "contact_email": "ops@sagarmathahr.com",
-    "contact_phone": "+977-9809000009",
-    "website": "https://sagarmathahr.com",
-    "description": "Retail and customer support staffing.",
-    "logo_url": "https://cdn.example.com/logos/sagarmatha.png",
-    "license_valid_till": "2029-02-20"
-  },
-  {
-    "name": "Karnali Recruiters",
-    "license_number": "LIC-AG-0010",
-    "country": "Nepal",
-    "city": "Surkhet",
-    "address": "Birendranagar-4",
-    "phones": ["+977-83-520000"],
-    "emails": ["hello@karnalirecruiters.com"],
-    "contact_email": "ops@karnalirecruiters.com",
-    "contact_phone": "+977-9810000010",
-    "website": "https://karnalirecruiters.com",
-    "description": "Skilled trades and maintenance technicians.",
-    "logo_url": "https://cdn.example.com/logos/karnali.png",
-    "license_valid_till": "2026-10-10"
-  }
+    {
+    
+      "name": "Everest Global Recruitment Pvt. Ltd",
+      "address": "Gairidhara, Kathmandu, Nepal",
+      "phone": "01-4432100",
+      "mobile": "+977-9851122334",
+      "email": "contact@everestglobal.com.np",
+      "website": "www.everestglobalrecruitment.com",
+      "license_number": "REG-2022-015",
+      "logo_url": "/images/everest_logo.png",
+      "banner_url": "/images/everest_banner.jpg",
+      "established_year": 2018,
+      "description": "Trusted manpower agency offering skilled, semi-skilled, and unskilled workforce solutions for Middle East and European markets.",
+      "services": [
+        "International Job Placement",
+        "Work Visa Assistance",
+        "Health Checkup Coordination",
+        "Pre-departure Orientation",
+        "Post-deployment Monitoring"
+      ],
+      "certifications": [
+        {
+          "name": "Government License",
+          "number": "REG-2022-015",
+          "issued_by": "Department of Foreign Employment",
+          "issued_date": "2018-03-10",
+          "expiry_date": "2028-03-10"
+        },
+        {
+          "name": "ISO 14001:2015",
+          "number": "ISO-2019-8734",
+          "issued_by": "International Standards Organization",
+          "issued_date": "2019-07-25",
+          "expiry_date": "2025-07-25"
+        }
+      ],
+      "social_media": {
+        "facebook": "https://facebook.com/everestglobal",
+        "instagram": "https://instagram.com/everestglobal",
+        "linkedin": "https://linkedin.com/company/everestglobal",
+        "twitter": "https://twitter.com/everestglobal"
+      },
+      "bank_details": {
+        "bank_name": "Nabil Bank Limited",
+        "account_name": "Everest Global Recruitment Pvt. Ltd.",
+        "account_number": "2233445566",
+        "swift_code": "NARBNPKA"
+      },
+      "contact_persons": [
+        {
+          "name": "Kiran Gurung",
+          "position": "Executive Director",
+          "phone": "+977-9851122334",
+          "email": "kiran@everestglobal.com"
+        },
+        {
+          "name": "Rita Koirala",
+          "position": "HR Manager",
+          "phone": "+977-9845098765",
+          "email": "rita@everestglobal.com"
+        }
+      ],
+      "operating_hours": {
+        "weekdays": "09:30 AM - 06:30 PM",
+        "saturday": "09:30 AM - 04:00 PM",
+        "sunday": "Closed"
+      },
+      "target_countries": [
+        "UAE",
+        "Qatar",
+        "Poland",
+        "Romania",
+        "Saudi Arabia",
+        "Croatia"
+      ],
+      "specializations": [
+        "Engineering",
+        "Hospitality",
+        "Construction",
+        "Manufacturing",
+        "Caregiving",
+        "Security"
+      ],
+      "statistics": {
+        "total_placements": 1890,
+        "active_since": "2018-03-10",
+        "success_rate": 95,
+        "countries_served": 6,
+        "partner_companies": 60,
+        "active_recruiters": 12
+      },
+      "settings": {
+        "currency": "NPR",
+        "timezone": "Asia/Kathmandu",
+        "language": "en",
+        "date_format": "DD/MM/YYYY",
+        "notifications": {
+          "email_enabled": true,
+          "sms_enabled": true,
+          "push_enabled": false
+        },
+        "features": {
+          "online_applications": true,
+          "document_upload": true,
+          "interview_scheduling": true,
+          "candidate_tracking": true,
+          "analytics_dashboard": false
+        }
+      }
+    },
+    {
+    
+      "name": "Himalayan Overseas Manpower Pvt. Ltd",
+      "address": "Putalisadak, Kathmandu, Nepal",
+      "phone": "01-4789000",
+      "mobile": "+977-9860098765",
+      "email": "hello@himalayanoverseas.com",
+      "website": "www.himalayanoverseas.com",
+      "license_number": "REG-2019-045",
+      "logo_url": "/images/himalayan_logo.png",
+      "banner_url": "/images/himalayan_banner.jpg",
+      "established_year": 2015,
+      "description": "One of Nepal’s oldest manpower companies supplying workers to Asia, Europe, and the Gulf region with a strong focus on compliance and welfare.",
+      "services": [
+        "Overseas Employment",
+        "Recruitment Campaigns",
+        "Travel & Ticketing Assistance",
+        "Skill Testing",
+        "Counseling & Support"
+      ],
+      "certifications": [
+        {
+          "name": "Government License",
+          "number": "REG-2019-045",
+          "issued_by": "Department of Foreign Employment",
+          "issued_date": "2015-08-01",
+          "expiry_date": "2025-08-01"
+        },
+        {
+          "name": "ISO 45001:2018",
+          "number": "ISO-2020-3344",
+          "issued_by": "International Standards Organization",
+          "issued_date": "2020-10-05",
+          "expiry_date": "2025-10-05"
+        }
+      ],
+      "social_media": {
+        "facebook": "https://facebook.com/himalayanoverseas",
+        "instagram": "https://instagram.com/himalayanoverseas",
+        "linkedin": "https://linkedin.com/company/himalayanoverseas",
+        "twitter": "https://twitter.com/himalayanoverseas"
+      },
+      "bank_details": {
+        "bank_name": "Standard Chartered Bank Nepal",
+        "account_name": "Himalayan Overseas Manpower Pvt. Ltd.",
+        "account_number": "9876543210",
+        "swift_code": "SCBLNPKA"
+      },
+      "contact_persons": [
+        {
+          "name": "Deepak Shrestha",
+          "position": "Chairman",
+          "phone": "+977-9860098765",
+          "email": "deepak@himalayanoverseas.com"
+        },
+        {
+          "name": "Mina Rana",
+          "position": "Recruitment Head",
+          "phone": "+977-9812345678",
+          "email": "mina@himalayanoverseas.com"
+        }
+      ],
+      "operating_hours": {
+        "weekdays": "09:00 AM - 05:30 PM",
+        "saturday": "10:00 AM - 04:00 PM",
+        "sunday": "Closed"
+      },
+      "target_countries": [
+        "Malaysia",
+        "UAE",
+        "Qatar",
+        "Japan",
+        "Saudi Arabia",
+        "Jordan",
+        "Kuwait"
+      ],
+      "specializations": [
+        "Hospitality",
+        "Agriculture",
+        "Caregiving",
+        "Industrial Work",
+        "Construction",
+        "IT Professionals"
+      ],
+      "statistics": {
+        "total_placements": 3500,
+        "active_since": "2015-08-01",
+        "success_rate": 90,
+        "countries_served": 7,
+        "partner_companies": 85,
+        "active_recruiters": 15
+      },
+      "settings": {
+        "currency": "NPR",
+        "timezone": "Asia/Kathmandu",
+        "language": "en",
+        "date_format": "DD/MM/YYYY",
+        "notifications": {
+          "email_enabled": true,
+          "sms_enabled": false,
+          "push_enabled": true
+        },
+        "features": {
+          "online_applications": true,
+          "document_upload": false,
+          "interview_scheduling": true,
+          "candidate_tracking": true,
+          "analytics_dashboard": true
+        }
+      }
+    }
+  
+  
 ]

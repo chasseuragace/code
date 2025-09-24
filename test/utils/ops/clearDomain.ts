@@ -4,7 +4,6 @@ import {
   JobPosting,
   JobContract,
   JobPosition,
-  PostingAgency,
   Employer,
   SalaryConversion,
   MedicalExpense,
@@ -16,6 +15,7 @@ import {
   InterviewExpense,
   InterviewDetail,
 } from 'src/modules/domain/domain.entity';
+import { PostingAgency } from 'src/modules/domain/PostingAgency';
 
 // Delete in foreign-key-safe order to reset domain tables between tests
 export async function clearDomain(moduleRef: TestingModule) {

@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { InterviewDetail, JobContract, JobPosition, JobPosting, PostingAgency } from '../domain/domain.entity';
+import { InterviewDetail, JobContract, JobPosition, JobPosting } from '../domain/domain.entity';
+import { PostingAgency } from '../domain/PostingAgency';
 
 export interface CreateAgencyDto {
   name: string;

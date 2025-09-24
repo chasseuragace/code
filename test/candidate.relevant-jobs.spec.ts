@@ -7,7 +7,8 @@ import { JobTitleService } from 'src/modules/job-title/job-title.service';
 import { JobPostingService } from 'src/modules/domain/domain.service';
 import { Candidate } from 'src/modules/candidate/candidate.entity';
 import { CandidateJobProfile } from 'src/modules/candidate/candidate-job-profile.entity';
-import { JobPosting, JobContract, JobPosition, PostingAgency, Employer } from 'src/modules/domain/domain.entity';
+import { JobPosting, JobContract, JobPosition, Employer } from 'src/modules/domain/domain.entity';
+import { PostingAgency } from 'src/modules/domain/PostingAgency';
 import { clearDomain } from './utils/ops/clearDomain';
 
 describe('Candidate relevant jobs by preferences', () => {

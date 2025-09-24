@@ -1,8 +1,8 @@
 import { Controller, Post, HttpCode, Param, Body, Patch, Get, ParseUUIDPipe, ForbiddenException, UploadedFile, UseInterceptors, Delete, Query, UseGuards, Req, BadRequestException } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { AgencyService, CreateAgencyDto } from './agency.service';
+import { AgencyService } from './agency.service';
 import { JobPostingService, CreateJobPostingDto } from '../domain/domain.service';
 import { CreateJobPostingWithTagsDto } from '../domain/dto/create-job-posting-with-tags.dto';
 import { UpdateJobTagsDto } from '../domain/dto/update-job-tags.dto';
@@ -19,6 +19,7 @@ import { User } from '../user/user.entity';
 import { AgencyUser } from './agency-user.entity';
 import { DevSmsService } from './dev-sms.service';
 import * as bcrypt from 'bcryptjs';
+import { CreateAgencyDto, AgencyCreatedDto, AgencyResponseDto } from './dto/agency.dto';
 
 function normalizePhone(phone: string): string {
   const digits = phone.replace(/\D/g, '');
@@ -58,8 +59,8 @@ export class AgencyController {
   @ApiBearerAuth()
   @HttpCode(201)
   @ApiOperation({ summary: 'Create one agency for the authenticated owner' })
-  @ApiBody({ schema: { properties: { name: { type: 'string' }, license_number: { type: 'string' } }, required: ['name', 'license_number'] } })
-  @ApiResponse({ status: 201, description: 'Agency created', schema: { properties: { id: { type: 'string', format: 'uuid' }, license_number: { type: 'string' } } } })
+  @ApiBody({ type: CreateAgencyDto })
+  @ApiResponse({ status: 201, description: 'Agency created', type: AgencyCreatedDto })
   async createMyAgency(@Req() req: any, @Body() body: CreateAgencyDto) {
     const user = req.user as any;
     if (!user?.is_agency_owner) throw new ForbiddenException('Only agency owners can create agencies');
@@ -83,21 +84,7 @@ export class AgencyController {
   @ApiBearerAuth()
   @HttpCode(200)
   @ApiOperation({ summary: 'Get agency owned by the authenticated user' })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Agency details',
-    schema: {
-      properties: {
-        id: { type: 'string', format: 'uuid' },
-        name: { type: 'string' },
-        license_number: { type: 'string' },
-        address: { type: 'string', nullable: true },
-        phones: { type: 'array', items: { type: 'string' }, nullable: true },
-        emails: { type: 'array', items: { type: 'string' }, nullable: true },
-        website: { type: 'string', nullable: true }
-      }
-    } 
-  })
+  @ApiOkResponse({ description: 'Agency details', type: AgencyResponseDto })
   @ApiResponse({ status: 403, description: 'Forbidden if user is not an agency owner' })
   @ApiResponse({ status: 404, description: 'Not found if agency does not exist' })
   async getMyAgency(@Req() req: any) {
@@ -114,7 +101,21 @@ export class AgencyController {
       address: agency.address,
       phones: agency.phones,
       emails: agency.emails,
-      website: agency.website
+      website: agency.website,
+      description: agency.description,
+      logo_url: agency.logo_url,
+      banner_url: (agency as any).banner_url ?? null,
+      established_year: (agency as any).established_year ?? null,
+      services: (agency as any).services ?? null,
+      certifications: (agency as any).certifications ?? null,
+      social_media: (agency as any).social_media ?? null,
+      bank_details: (agency as any).bank_details ?? null,
+      contact_persons: (agency as any).contact_persons ?? null,
+      operating_hours: (agency as any).operating_hours ?? null,
+      target_countries: (agency as any).target_countries ?? null,
+      specializations: (agency as any).specializations ?? null,
+      statistics: (agency as any).statistics ?? null,
+      settings: (agency as any).settings ?? null,
     };
   }
 
@@ -215,6 +216,8 @@ export class AgencyController {
   // Create agency (production-friendly controller)
   @Post()
   @HttpCode(201)
+  @ApiBody({ type: CreateAgencyDto })
+  @ApiResponse({ status: 201, type: AgencyCreatedDto })
   async createAgency(@Body() body: CreateAgencyDto) {
     const saved = await this.agencyService.createAgency(body);
     return { id: saved.id, license_number: saved.license_number };

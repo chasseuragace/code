@@ -1,8 +1,9 @@
-import { Controller, Post, Body, HttpCode, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiParam, ApiTags, ApiBody, ApiResponse, ApiBadRequestResponse, ApiCreatedResponse } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Param, ParseUUIDPipe, Query, HttpCode } from '@nestjs/common';
 import { ApplicationService } from './application.service';
-import { ApplicationAnalyticsDto } from './dto/application-analytics.dto';
+import { ApiOperation, ApiParam, ApiTags, ApiOkResponse, ApiQuery, ApiBody, ApiCreatedResponse, ApiBadRequestResponse } from '@nestjs/swagger';
 import { ApplyJobDto, ApplyJobResponseDto } from './dto/apply-job.dto';
+import { ApplicationAnalyticsDto } from './dto/application-analytics.dto';
+import { PaginatedJobApplicationsDto } from './dto/paginated-job-applications.dto';
 
 @ApiTags('applications')
 @Controller('applications')
@@ -39,35 +40,38 @@ export class ApplicationController {
 
   // List applications for a candidate
   @Get('/candidates/:id')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'List job applications for a candidate',
-    description: 'Get a paginated list of all job applications submitted by a specific candidate, with optional status filtering.'
+    description:
+      'Returns a paginated list of job applications submitted by the candidate. By default all statuses are included.'
   })
-  @ApiParam({ 
-    name: 'id', 
-    description: 'Candidate UUID',
-    example: '7103d484-19b0-4c62-ae96-256da67a49a4'
+  @ApiParam({
+    name: 'id',
+    description: 'Candidate UUID (v4)',
+    example: '7103d484-19b0-4c62-ae96-256da67a49a4',
   })
-  @ApiOkResponse({ 
-    description: 'List of candidate applications',
-    example: {
-      data: [
-        {
-          id: '075ce7d9-fcdb-4f7e-b794-4190f49d729f',
-          status: 'applied',
-          job_posting: {
-            id: '1e8c9c1a-352c-485d-ac9a-767cbbca4a4c',
-            posting_title: 'Electrician - Dubai',
-            country: 'UAE',
-            city: 'Dubai'
-          },
-          applied_at: '2025-09-21T10:30:00Z'
-        }
-      ],
-      total: 5,
-      page: 1,
-      limit: 10
-    }
+  @ApiOkResponse({
+    description: 'Paginated list of candidate applications',
+    type: PaginatedJobApplicationsDto,
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description:
+      'Optional application status filter. Allowed values: applied, shortlisted, interview_scheduled, interview_rescheduled, interview_passed, interview_failed, withdrawn',
+    example: 'applied',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number (1-based). Defaults to 1.',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Page size (1-100). Defaults to 20.',
+    example: 20,
   })
   async listForCandidate(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -80,7 +84,19 @@ export class ApplicationController {
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
     });
-    return res;
+    return {
+      items: res.items.map((item) => ({
+        id: item.id,
+        candidate_id: item.candidate_id,
+        job_posting_id: item.job_posting_id,
+        status: item.status,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+      })),
+      total: res.total,
+      page: res.page,
+      limit: res.limit,
+    } satisfies PaginatedJobApplicationsDto;
   }
 
   // Shortlist an application
@@ -123,7 +139,8 @@ export class ApplicationController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() body: { result: 'passed' | 'failed'; note?: string | null; updatedBy?: string | null },
   ) {
-    const saved = await this.apps.completeInterview(id, body.result, { note: body?.note, updatedBy: body?.updatedBy });
+    const note = body?.note ?? `Interview ${body.result} via agency workflow`;
+    const saved = await this.apps.completeInterview(id, body.result, { note, updatedBy: body?.updatedBy });
     return { id: saved.id, status: saved.status };
   }
 

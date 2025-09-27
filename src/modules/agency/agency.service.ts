@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { InterviewDetail, JobContract, JobPosition, JobPosting } from '../domain/domain.entity';
 import { PostingAgency } from '../domain/PostingAgency';
 import { CreateAgencyDto, UpdateAgencyDto } from './dto/agency.dto';
+import { ListAgencyJobPostingsQueryDto } from './dto/agency-job-postings.dto';
 
 export interface AgencyAnalytics {
   active_postings: number;
@@ -152,5 +153,152 @@ export class AgencyService {
     }
 
     return { active_postings, total_postings, interviews_count, salary };
+  }
+
+  // Enriched list of job postings for an agency by license with filters and analytics counts
+  async listAgencyJobPostingsEnriched(license: string, query: ListAgencyJobPostingsQueryDto) {
+    const page = Math.max(1, query.page ?? 1);
+    const limit = Math.min(100, Math.max(1, query.limit ?? 10));
+    const sortBy = query.sort_by ?? 'posted_at';
+    const order: 'ASC' | 'DESC' = (query.order ?? 'desc').toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+
+    // Base count query (for total)
+    const countQb = this.jobPostingRepository.createQueryBuilder('jp')
+      .innerJoin('job_contracts', 'jc', 'jc.job_posting_id = jp.id')
+      .innerJoin('posting_agencies', 'ag', 'ag.id = jc.posting_agency_id')
+      .leftJoin('employers', 'em', 'em.id = jc.employer_id')
+      .leftJoin('job_positions', 'pos', 'pos.job_contract_id = jc.id')
+      .where('ag.license_number = :license', { license });
+
+    if (query.country) countQb.andWhere('jp.country ILIKE :country', { country: `%${query.country}%` });
+    if (query.title) countQb.andWhere('jp.posting_title ILIKE :title', { title: `%${query.title}%` });
+    if (query.refid) countQb.andWhere('(jp.lt_number ILIKE :refid OR jp.chalani_number ILIKE :refid)', { refid: `%${query.refid}%` });
+    if (query.employer_name) countQb.andWhere('em.company_name ILIKE :employer', { employer: `%${query.employer_name}%` });
+    if (query.agency_name) countQb.andWhere('ag.name ILIKE :agency', { agency: `%${query.agency_name}%` });
+    if (query.position_title) countQb.andWhere('pos.title ILIKE :posTitle', { posTitle: `%${query.position_title}%` });
+    if (query.q) {
+      countQb.andWhere(
+        `(
+          jp.posting_title ILIKE :q OR
+          jp.lt_number ILIKE :q OR
+          jp.chalani_number ILIKE :q OR
+          em.company_name ILIKE :q OR
+          ag.name ILIKE :q OR
+          pos.title ILIKE :q
+        )`,
+        { q: `%${query.q}%` },
+      );
+    }
+
+    const totalRaw = await countQb.select('COUNT(DISTINCT jp.id)', 'cnt').getRawOne<{ cnt: string }>();
+    const total = Number(totalRaw?.cnt || 0);
+
+    // Data query with analytics counts
+    const qb = this.jobPostingRepository.createQueryBuilder('jp')
+      .select([
+        'jp.id AS id',
+        'jp.posting_title AS posting_title',
+        'jp.city AS city',
+        'jp.country AS country',
+        'jp.posting_date_ad AS posted_at',
+        'em.company_name AS employer_name',
+        'ag.name AS agency_name',
+      ])
+      .innerJoin('job_contracts', 'jc', 'jc.job_posting_id = jp.id')
+      .innerJoin('posting_agencies', 'ag', 'ag.id = jc.posting_agency_id')
+      .leftJoin('employers', 'em', 'em.id = jc.employer_id')
+      .leftJoin('job_positions', 'pos', 'pos.job_contract_id = jc.id')
+      .where('ag.license_number = :license', { license });
+
+    if (query.country) qb.andWhere('jp.country ILIKE :country', { country: `%${query.country}%` });
+    if (query.title) qb.andWhere('jp.posting_title ILIKE :title', { title: `%${query.title}%` });
+    if (query.refid) qb.andWhere('(jp.lt_number ILIKE :refid OR jp.chalani_number ILIKE :refid)', { refid: `%${query.refid}%` });
+    if (query.employer_name) qb.andWhere('em.company_name ILIKE :employer', { employer: `%${query.employer_name}%` });
+    if (query.agency_name) qb.andWhere('ag.name ILIKE :agency', { agency: `%${query.agency_name}%` });
+    if (query.position_title) qb.andWhere('pos.title ILIKE :posTitle', { posTitle: `%${query.position_title}%` });
+    if (query.q) {
+      qb.andWhere(
+        `(
+          jp.posting_title ILIKE :q OR
+          jp.lt_number ILIKE :q OR
+          jp.chalani_number ILIKE :q OR
+          em.company_name ILIKE :q OR
+          ag.name ILIKE :q OR
+          pos.title ILIKE :q
+        )`,
+        { q: `%${query.q}%` },
+      );
+    }
+
+    // Add counts via subqueries to avoid row multiplication
+    qb.addSelect(
+      (sub) =>
+        sub
+          .select('COUNT(*)')
+          .from('job_applications', 'app')
+          .where('app.job_posting_id = jp.id'),
+      'applicants_count',
+    );
+    qb.addSelect(
+      (sub) =>
+        sub
+          .select("COUNT(*)")
+          .from('job_applications', 'app2')
+          .where("app2.job_posting_id = jp.id AND app2.status = 'shortlisted'"),
+      'shortlisted_count',
+    );
+    qb.addSelect(
+      (sub) =>
+        sub
+          .select('COUNT(*)')
+          .from('interview_details', 'iv')
+          .where('iv.job_posting_id = jp.id'),
+      'interviews_count',
+    );
+    qb.addSelect(
+      (sub) =>
+        sub
+          .select('COUNT(*)')
+          .from('interview_details', 'ivt')
+          .where("ivt.job_posting_id = jp.id AND ivt.interview_date_ad = CURRENT_DATE"),
+      'interviews_today_count',
+    );
+
+    // Sorting
+    if (sortBy === 'posted_at') {
+      qb.orderBy('jp.posting_date_ad', order);
+    } else if (sortBy === 'applicants') {
+      qb.orderBy('applicants_count', order as any);
+    } else if (sortBy === 'shortlisted') {
+      qb.orderBy('shortlisted_count', order as any);
+    } else if (sortBy === 'interviews_today') {
+      qb.orderBy('interviews_today_count', order as any);
+    } else {
+      qb.orderBy('jp.posting_date_ad', 'DESC');
+    }
+
+    const rows = await qb
+      .offset((page - 1) * limit)
+      .limit(limit)
+      .groupBy('jp.id')
+      .addGroupBy('em.company_name')
+      .addGroupBy('ag.name')
+      .getRawMany<any>();
+
+    const data = rows.map((r: any) => ({
+      id: r.id,
+      posting_title: r.posting_title,
+      city: r.city ?? null,
+      country: r.country,
+      employer_name: r.employer_name ?? null,
+      agency_name: r.agency_name ?? null,
+      applicants_count: Number(r.applicants_count || 0),
+      shortlisted_count: Number(r.shortlisted_count || 0),
+      interviews_count: Number(r.interviews_count || 0),
+      interviews_today_count: Number(r.interviews_today_count || 0),
+      posted_at: r.posted_at ? new Date(r.posted_at).toISOString() : null,
+    }));
+
+    return { data, total, page, limit };
   }
 }

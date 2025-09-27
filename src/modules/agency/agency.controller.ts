@@ -1,5 +1,5 @@
 import { Controller, Post, HttpCode, Param, Body, Patch, Get, ParseUUIDPipe, ForbiddenException, UploadedFile, UseInterceptors, Delete, Query, UseGuards, Req, BadRequestException } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiOperation, ApiResponse, ApiTags, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AgencyService } from './agency.service';
@@ -20,6 +20,7 @@ import { AgencyUser } from './agency-user.entity';
 import { DevSmsService } from './dev-sms.service';
 import * as bcrypt from 'bcryptjs';
 import { CreateAgencyDto, AgencyCreatedDto, AgencyResponseDto } from './dto/agency.dto';
+import { ListAgencyJobPostingsQueryDto, PaginatedAgencyJobPostingsDto } from './dto/agency-job-postings.dto';
 
 function normalizePhone(phone: string): string {
   const digits = phone.replace(/\D/g, '');
@@ -403,18 +404,53 @@ export class AgencyController {
     return { id: updated.id, posting_title: updated.posting_title };
   }
 
-  // List job postings for an agency (basic)
+  // List job postings for an agency (enriched with counts + filters/sorting)
   @Get(':license/job-postings')
   @HttpCode(200)
-  async listAgencyJobPostings(@Param('license') license: string) {
-    const rows = await this.jobPostingRepo
-      .createQueryBuilder('jp')
-      .leftJoinAndSelect('jp.contracts', 'c')
-      .leftJoinAndSelect('c.agency', 'ag')
-      .where('ag.license_number = :license', { license })
-      .orderBy('jp.posting_date_ad', 'DESC')
-      .getMany();
-    return rows.map(r => ({ id: r.id, posting_title: r.posting_title }));
+  @ApiOperation({ summary: 'List job postings for an agency with filters and analytics' })
+  @ApiParam({ name: 'license', description: 'Agency license number', example: 'LIC-AG-0001' })
+  @ApiQuery({ name: 'q', required: false, description: 'Free-text search across title, ref ids (lt_number, chalani_number), employer, agency, position title' })
+  @ApiQuery({ name: 'title', required: false, description: 'Filter by posting title (ILIKE)' })
+  @ApiQuery({ name: 'refid', required: false, description: 'Filter by reference id (lt_number or chalani_number) (ILIKE)' })
+  @ApiQuery({ name: 'employer_name', required: false, description: 'Filter by employer company name (ILIKE)' })
+  @ApiQuery({ name: 'agency_name', required: false, description: "Filter by agency name (ILIKE). Redundant when filtering by a single license" })
+  @ApiQuery({ name: 'country', required: false, description: "Filter by country (ILIKE). Uses job posting's country (not agency address). Accepts code or name" })
+  @ApiQuery({ name: 'position_title', required: false, description: 'Filter by position title within posting positions (ILIKE)' })
+  @ApiQuery({ name: 'sort_by', required: false, enum: ['interviews_today', 'shortlisted', 'applicants', 'posted_at'], example: 'posted_at' })
+  @ApiQuery({ name: 'order', required: false, enum: ['asc', 'desc'], example: 'desc' })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiOkResponse({
+    type: PaginatedAgencyJobPostingsDto,
+    description: 'Paginated list of agency job postings with analytics',
+    schema: {
+      example: {
+        data: [
+          {
+            id: 'd841e933-1a14-4602-97e2-c51c9e5d8cf2',
+            posting_title: 'Skilled Workers for ACME Co.',
+            city: 'Dubai',
+            country: 'UAE',
+            employer_name: 'ACME Co.',
+            agency_name: 'Global Recruiters',
+            applicants_count: 156,
+            shortlisted_count: 45,
+            interviews_count: 32,
+            interviews_today_count: 5,
+            posted_at: '2025-09-01T00:00:00.000Z',
+          },
+        ],
+        total: 1,
+        page: 1,
+        limit: 10,
+      },
+    },
+  })
+  async listAgencyJobPostings(
+    @Param('license') license: string,
+    @Query() query: ListAgencyJobPostingsQueryDto,
+  ): Promise<PaginatedAgencyJobPostingsDto> {
+    return this.agencyService.listAgencyJobPostingsEnriched(license, query);
   }
 
   // --- Expenses Endpoints ---

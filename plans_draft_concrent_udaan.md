@@ -1,6 +1,3 @@
-Absolutely! Based on your detailed “Team Work Plan & Reference Guide,” I can help you create a **focused Udaan Saarathi (Job Portal) project document**. This will be a concise, actionable, and link-ready document specifically for the job portal, structured for quick reference and daily tracking. Here's a draft:
-
----
 
 # Udaan Saarathi – Job Portal Focus Document
 
@@ -28,7 +25,7 @@ Absolutely! Based on your detailed “Team Work Plan & Reference Guide,” I can
 | ----------- | ------------------------ | --------------------------------------------------------------------------------------- |
 | **Rojan**   | Mobile app (Android/iOS) | OTP page, Job details, Search & filter, Notifications, My Applications, APK preparation |
 | **Aayush**  | Web portal integration   | Connect APIs, validate test cases, support mobile backend flows                         |
-| **Ishwor**  | Support / API setup      | Assist Aayush with API integration, backend test cases, web flows, payload optimization |
+| **Ishwor**  | Support / API setup      | Assist Aayush,rojan with API integration, backend test cases, web flows, |
 
 ---
 
@@ -38,11 +35,11 @@ Absolutely! Based on your detailed “Team Work Plan & Reference Guide,” I can
 
 | Feature          | Status      | Reference / File Links                                    |
 | ---------------- | ----------- | --------------------------------------------------------- |
-| OTP Page         | In Progress | `/code/variant_dashboard/lib/app/udaan_saarathi/features/presentation/onboarding/page/`, `API: /register, /verify, /login/start, /login/verify` |
-| Job Details Page | In Progress | `/code/variant_dashboard/lib/app/udaan_saarathi/features/presentation/jobs/page/job_details_screen.dart`, `API: /jobs/{id}` |
-| Search & Filter  | In Progress | `/code/variant_dashboard/lib/app/udaan_saarathi/features/presentation/search/page/`, `API: /jobs/search` |
-| Notifications    | Pending     | `/code/variant_dashboard/lib/app/udaan_saarathi/features/presentation/notifications/page/` |
-| My Applications  | Pending     | `/code/variant_dashboard/lib/app/udaan_saarathi/features/presentation/applications/page/` |
+| OTP Page         | edit entered otp was not cool        | `/code/variant_dashboard/lib/app/udaan_saarathi/features/presentation/auth/pages/otp_page.dart`, `API: /register, /verify, /login/start, /login/verify` |
+| Job Details Page | make usre that hte salary field is from api, fallback to defaul not availabe        | `/code/variant_dashboard/lib/app/udaan_saarathi/features/presentation/job_detail/page/job_details_page.dart`, `API: /jobs/{id}` |
+| Search & Filter  | integrate teh search and filter page        | `/code/variant_dashboard/lib/app/udaan_saarathi/features/presentation/jobs/page/job_listings_screen.dart`, `API: /jobs/search` |
+| Notifications    | get apis from ishwor         | `/code/variant_dashboard/lib/app/udaan_saarathi/features/presentation/notifications/page/notification_page.dart` |
+| My Applications  | In Progress, api exists check open api sepc/ ishwor | `/code/variant_dashboard/lib/app/udaan_saarathi/features/presentation/applicaitons/page/list.dart` (Note: typo in folder name) |
 | APK Build        | Pending     | `/code/variant_dashboard/android/app/build.gradle`, `/code/variant_dashboard/pubspec.yaml` |
 
 **Test Coverage:**
@@ -56,13 +53,13 @@ Absolutely! Based on your detailed “Team Work Plan & Reference Guide,” I can
 
 | Feature                   | Status      | Reference / File Links             |
 | ------------------------- | ----------- | ---------------------------------- |
-| API Integration           | In Progress | `Base URL: https://dev.kaha.com.np/job-portal`, `Swagger: /docs` |
-| Registration & Login      | Done        | `/code/src/modules/auth/auth.controller.ts` - `/register`, `/verify`, `/login/start`, `/login/verify` |
-| Agency CRUD               | Done        | `/code/src/modules/agency/agency.controller.ts` - `/agencies/owner/agency` |
-| Job Listing               | Done        | `/code/src/modules/domain/domain.controller.ts`, `/code/src/modules/domain/public-jobs.controller.ts` |
-| Applicant Status Workflow | Done        | `/code/src/modules/application/application.controller.ts` |
-| Multilingual Support      | Done        | Mobile app i18n support implemented |
-| Ramesh's Flow             | Done        | `/dev_tools/test_web_frontend/tests/` - Complete E2E test suite |
+| API Integration           | To be Done        | `Base URL: https://dev.kaha.com.np/job-portal`, `Swagger: /docs`, `OpenAPI Client: /code/variant_dashboard/lib/app/udaan_saarathi/core/config/api_config.dart` |
+| Registration & Login      | To be Done        | `/code/src/modules/auth/auth.controller.ts` - Endpoints: `/register`, `/verify`, `/login/start`, `/login/verify` |
+| Agency CRUD               | To be Done        | `/code/src/modules/agency/agency.controller.ts` - Endpoint: `/agencies/owner/agency` |
+| Job Listing               | To be Done        | `...docs#/Agencies/AgencyController_listAgencyJobPostings`  |
+| Applicant Status Workflow | To be Done , dtos are not available in swagger ,see notes below    | `/code/src/modules/application/application.controller.ts` - Application management |
+| Multilingual Support      | Partially done       | Web app i18n support implemented |
+| Ramesh's Flow             | To be Done,refer to attached file for what tests are passing   | `/dev_tools/test_web_frontend/tests/` - Complete E2E test suite |
 
 ---
 
@@ -123,13 +120,12 @@ Absolutely! Based on your detailed “Team Work Plan & Reference Guide,” I can
 * Ensure client-ready APK and web portal demo
 
 ---
-
-*Document Owner:* Ajay Dahal
-*Last Updated:* September 27, 2024 - Updated with actual workspace links
-*Workspace Root:* `/Users/ajaydahal/portal/agency_research/code/`
-
----
-
-If you want, I can **also create a version with all placeholders ready to insert actual file links, endpoints, and branch hashes**, so it becomes a fully actionable “living document” for the team to reference daily.
-
-Do you want me to do that next?
+Ishowr : 
+- For notification api, we can use the application application status histoy 
+    - find all status history for all applications giveen the candidate id, 
+    - sory be date 
+    rescent activities first.
+        -  grouped by application
+        - this is applcation history disguised as notifications 
+- for workflow apis , teh backend doesnt document he dtos well, however hte test cases , the sure flow , the api's are hit and works fine, refer tot test cases when including dtos. 
+[here](/Users/ajaydahal/portal/agency_research/dev_tools/test_web_frontend/tests/application_owner_status_update.test.ts)

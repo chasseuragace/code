@@ -3,7 +3,7 @@
 
 ---
 
-### 📅 Timeline Overview
+###  Timeline Overview
 - **Work Period**: October 6 (Monday) - October 17 (Friday)
 - **Weekend**: October 18-19 (Sat-Sun)
 - **Team Lead Absence**: October 20-27 (Dashain & Tihar)
@@ -11,7 +11,7 @@
 
 ---
 
-## 🎯 Project Status & Deliverables
+##  Project Status & Deliverables
 
 ### 1. Job Portal (Udaan Saarathi)
 **Team Members**: Rojan, Aayush  
@@ -69,18 +69,18 @@
 **Team Members**: Ishwor, Bhuwan, Sales Team  
 
 #### Priority Tasks
-- [ ] Student enrollment form
-- [ ] Ledger use cases implementation
-- [ ] Package restriction requirements
-- [ ] Admin panel for subscription management
-- [ ] **API Optimization**: Reduce payload size (shimmer/load time issue)
+- [ ] Student enrollment form [is sales available? discuss, document , plan]
+- [ ] Ledger use cases implementation(discuss document plan)
+- [ ] Package restriction requirements (flier, features ,packages, count handeling, setup only ,)
+- [ ] Admin panel for subscription management(this would be required to allow fier tier(so that we can skip tier restrictions implementation on backend, free= all available),the actual panel, well discuss later )
+- [ ] **API Optimization**: Reduce payload size (shimmer/load time issue) for room listing
 
 #### Web Requirements
-- [ ] Room/bed layout management
+- [ ] Room/bed layout management, last moment changes before dashain vacation
 
-#### Mobile Requirements
-- [ ] Booking status display
-- [ ] Notifications system
+#### Mobile Requirements, (sabin )
+- [ ] Booking status display,  
+- [ ] Notifications system, 
 - [ ] Panel login and management
 
 **Note**: Attendance module NOT in current scope unless other priorities are completed first.
@@ -136,7 +136,7 @@
 
 ---
 
-## 👥 Individual Task Assignments
+##  Individual Task Assignments
 
 ### Sabin
 | Priority | Task | Details | Dependencies |
@@ -182,7 +182,7 @@
 
 ---
 
-## 📋 Client Communication (Udaan Saarathi)
+##  Client Communication (Udaan Saarathi)
 
 ### Demo Points
 - ✅ Multilingual support demonstration
@@ -198,7 +198,7 @@
 
 ---
 
-## 🚨 Important Notes
+##  Important Notes
 
 1. **Ishwor cannot work solo** - Team dependencies must be managed
 2. **Weekend (Oct 18-19)** - No office work expected
@@ -207,7 +207,7 @@
 
 ---
 
-## ✅ Daily Checklist
+##  Daily Checklist
 
 ### For Team Members
 - [ ] Check your priority tasks
@@ -223,7 +223,7 @@
 
 ---
 
-## 🔗 Quick References
+##  Quick References
 
 - **Slack Channel**: [Team coordination link]
 - **Test Suite Documentation**: [Link to test cases]
@@ -231,6 +231,8 @@
 - **Design References**: [CEO's shared references]
 
 ---
+
+note : i truely dont think everyting from this doc will be covered in 2 weeks (maybe  65 - 70% coverage, would be enough ), whatever be the case ,this shall be the plan we are sticking to .
 
 *Last Updated: September 27, 2024*  
 *Document Owner: [Your Name]*  

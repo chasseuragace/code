@@ -1,7 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, ILike, In } from 'typeorm';
-import { MobileJobPostingDto, MobileJobPositionDto, MobileContractTermsDto } from '../candidate/dto/mobile-job.dto';
+import { Repository, QueryRunner, DataSource, In, ILike } from 'typeorm';
 import {
   JobPosting,
   Employer,
@@ -17,9 +21,11 @@ import {
   InterviewDetail,
   InterviewExpense,
 } from './domain.entity';
-import { PostingAgency } from './PostingAgency';
 import { Country } from '../country/country.entity';
+import { MobileJobPostingDto, MobileJobPositionDto, MobileContractTermsDto } from '../candidate/dto/mobile-job.dto';
+import { CurrencyConversionService } from '../currency/currency-conversion.service';
 import { JobTitle } from '../job-title/job-title.entity';
+import { PostingAgency } from './PostingAgency';
 
 // Minimal DTOs mirrored from reference/service.ts
 export enum AnnouncementType {
@@ -125,6 +131,7 @@ export class JobPostingService {
     @InjectRepository(Country) private countryRepository: Repository<Country>,
     @InjectRepository(JobTitle) private jobTitleRepository: Repository<JobTitle>,
     private dataSource: DataSource,
+    private currencyConversionService: CurrencyConversionService,
   ) {}
 
   async createJobPosting(dto: CreateJobPostingDto): Promise<JobPosting> {
@@ -272,28 +279,41 @@ export class JobPostingService {
       return `${currency} ${amount}`;
     };
 
-    // Map positions
-    const positionDtos: MobileJobPositionDto[] = positions.map((p: any) => {
-      const baseAmount = Number(p.monthly_salary_amount);
-      const currency = p.salary_currency as string | undefined;
+    // Map positions with runtime conversion
+    const positionDtos: MobileJobPositionDto[] = await Promise.all(
+      positions.map(async (p: any) => {
+        const baseAmount = Number(p.monthly_salary_amount);
+        const currency = p.salary_currency as string | undefined;
 
-      const preferredConv =
-        p.salaryConversions?.find((c: any) => String(c.converted_currency).toUpperCase() === 'NPR') ||
-        p.salaryConversions?.find((c: any) => String(c.converted_currency).toUpperCase() === 'USD') ||
-        p.salaryConversions?.[0];
+        // 🔥 RUNTIME CONVERSION - Replace stored conversions with live calculation
+        let convertedSalary: string | undefined;
+        if (baseAmount && currency) {
+          const conversions = await this.currencyConversionService.convertSalary(
+            baseAmount,
+            currency,
+            ['NPR', 'USD']
+          );
+          
+          // Prefer NPR, then USD, then first available
+          const preferredConv = conversions.find(c => c.currency === 'NPR') ||
+                               conversions.find(c => c.currency === 'USD') ||
+                               conversions[0];
+          
+          convertedSalary = preferredConv ? 
+            formatMoney(preferredConv.amount, preferredConv.currency) : 
+            undefined;
+        }
 
-      return {
-        id: p.id,
-        title: p.title,
-        baseSalary: formatMoney(baseAmount, currency),
-        convertedSalary: formatMoney(
-          preferredConv?.converted_amount ? Number(preferredConv.converted_amount) : undefined,
-          preferredConv?.converted_currency,
-        ),
-        currency,
-        requirements: p.position_notes ? [p.position_notes] : undefined,
-      };
-    });
+        return {
+          id: p.id,
+          title: p.title,
+          baseSalary: formatMoney(baseAmount, currency),
+          convertedSalary,
+          currency,
+          requirements: p.position_notes ? [p.position_notes] : undefined,
+        };
+      })
+    );
 
     // Contract terms mapping (safe defaults for missing fields)
     const contractTerms: MobileContractTermsDto | null = contract

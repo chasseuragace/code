@@ -35,11 +35,13 @@ export class PositionDto {
 }
 
 export class AgencyLiteDto {
+  @ApiProperty() id!: string;
   @ApiProperty() name!: string;
   @ApiProperty() license_number!: string;
 }
 
 export class EmployerLiteDto {
+  @ApiProperty() id!: string;
   @ApiProperty() company_name!: string;
   @ApiProperty() country!: string;
   @ApiProperty({ required: false, nullable: true }) city?: string | null;

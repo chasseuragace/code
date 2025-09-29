@@ -1,6 +1,8 @@
 import { Controller, Get, HttpCode, Param, ParseUUIDPipe, Query } from '@nestjs/common';
 import { JobPostingService, ExpenseService, InterviewService } from './domain.service';
-import { ApiOperation, ApiParam, ApiResponse, ApiTags, ApiQuery } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiResponse, ApiTags, ApiQuery, ApiOkResponse } from '@nestjs/swagger';
+import { JobSearchQueryDto, JobSearchResponseDto } from './dto/job-search.dto';
+import { JobDetailsDto } from './dto/job-details.dto';
 
 @ApiTags('jobs')
 @Controller('jobs')
@@ -13,17 +15,72 @@ export class PublicJobsController {
 
   // Public job search with keyword and filters
   @Get('search')
-  @ApiOperation({ summary: 'Search jobs by keyword with filters' })
-  @ApiQuery({ name: 'keyword', required: false, description: 'Search across job title, position title, employer, agency' })
-  @ApiQuery({ name: 'country', required: false, description: 'Filter by country (ILIKE)' })
-  @ApiQuery({ name: 'min_salary', required: false, type: Number, description: 'Minimum salary amount' })
-  @ApiQuery({ name: 'max_salary', required: false, type: Number, description: 'Maximum salary amount' })
-  @ApiQuery({ name: 'currency', required: false, description: 'Currency for salary filtering (e.g., AED, USD, NPR)' })
-  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
-  @ApiQuery({ name: 'sort_by', required: false, enum: ['posted_at', 'salary', 'relevance'], description: 'Sort by field (default: posted_at)' })
-  @ApiQuery({ name: 'order', required: false, enum: ['asc', 'desc'], description: 'Sort order (default: desc)' })
-  @ApiResponse({ status: 200, description: 'Search results with pagination' })
+  @ApiOperation({ 
+    summary: 'Search jobs by keyword with filters',
+    description: 'Public endpoint to search jobs using keyword across multiple fields with optional filters and sorting. Supports pagination and includes salary conversions.'
+  })
+  @ApiQuery({ name: 'keyword', required: false, description: 'Search across job title, position title, employer, agency', example: 'electrician' })
+  @ApiQuery({ name: 'country', required: false, description: 'Filter by country (case-insensitive)', example: 'UAE' })
+  @ApiQuery({ name: 'min_salary', required: false, type: Number, description: 'Minimum salary amount', example: 2000 })
+  @ApiQuery({ name: 'max_salary', required: false, type: Number, description: 'Maximum salary amount', example: 5000 })
+  @ApiQuery({ name: 'currency', required: false, description: 'Currency for salary filtering', example: 'AED', enum: ['AED', 'USD', 'NPR', 'QAR', 'SAR', 'KWD', 'BHD', 'OMR'] })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)', example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10, max: 100)', example: 10 })
+  @ApiQuery({ name: 'sort_by', required: false, enum: ['posted_at', 'salary', 'relevance'], description: 'Sort by field (default: posted_at)', example: 'posted_at' })
+  @ApiQuery({ name: 'order', required: false, enum: ['asc', 'desc'], description: 'Sort order (default: desc)', example: 'desc' })
+  @ApiOkResponse({ 
+    status: 200, 
+    description: 'Search results with pagination and metadata',
+    type: JobSearchResponseDto,
+    schema: {
+      example: {
+        data: [
+          {
+            id: 'uuid-v4-string',
+            posting_title: 'Senior Electrical Technician - Dubai Project',
+            country: 'UAE',
+            city: 'Dubai',
+            posting_date_ad: '2024-01-15T10:30:00Z',
+            employer: {
+              company_name: 'ACME Engineering Corp',
+              country: 'UAE',
+              city: 'Dubai'
+            },
+            agency: {
+              name: 'ElectroTech Agency',
+              license_number: 'LIC-ELECTRO'
+            },
+            positions: [
+              {
+                title: 'Electrician',
+                vacancies: { male: 3, female: 1, total: 4 },
+                salary: {
+                  monthly_amount: 2500,
+                  currency: 'AED',
+                  converted: [
+                    { amount: 680, currency: 'USD' },
+                    { amount: 90000, currency: 'NPR' }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        total: 42,
+        page: 1,
+        limit: 10,
+        search: {
+          keyword: 'electrician',
+          filters: {
+            country: 'UAE',
+            min_salary: 2000,
+            max_salary: null,
+            currency: 'AED'
+          }
+        }
+      }
+    }
+  })
   @HttpCode(200)
   async searchJobs(
     @Query('keyword') keyword?: string,
@@ -35,7 +92,7 @@ export class PublicJobsController {
     @Query('limit') limit?: string,
     @Query('sort_by') sort_by?: 'posted_at' | 'salary' | 'relevance',
     @Query('order') order?: 'asc' | 'desc',
-  ) {
+  ): Promise<JobSearchResponseDto> {
     const searchParams = {
       keyword,
       country,
@@ -98,11 +155,23 @@ export class PublicJobsController {
 
   // Public job details for mobile app
   @Get(':id')
-  @ApiOperation({ summary: 'Get public job details by ID' })
-  @ApiParam({ name: 'id', description: 'Job Posting ID', required: true })
-  @ApiResponse({ status: 200, description: 'Job details payload' })
+  @ApiOperation({ 
+    summary: 'Get public job details by ID',
+    description: 'Retrieve detailed information about a specific job posting including positions, salary conversions, expenses, and interview details.'
+  })
+  @ApiParam({ 
+    name: 'id', 
+    description: 'Job Posting ID (UUID v4)', 
+    required: true,
+    example: 'uuid-v4-string'
+  })
+  @ApiOkResponse({ 
+    status: 200, 
+    description: 'Detailed job information',
+    type: JobDetailsDto
+  })
   @HttpCode(200)
-  async getJobDetails(@Param('id', ParseUUIDPipe) id: string) {
+  async getJobDetails(@Param('id', ParseUUIDPipe) id: string): Promise<JobDetailsDto> {
     const jp: any = await this.jobs.findJobPostingById(id);
     // Aggregate expenses (single rows per type in current model)
     const ex = await this.expenses.getJobPostingExpenses(id);

@@ -212,7 +212,26 @@ describe('Ramesh Journey: The Complete Udaan Sarathi Experience', () => {
         jobId = response.body.data[0].id;
         const job = response.body.data[0];
         console.log(`✨ SUCCESS: ${job.posting_title} available immediately!`);
-        console.log(`💰 Salary: ${job.salary?.currency} ${job.salary?.monthly_min || 'N/A'} - ${job.salary?.monthly_max || 'N/A'}`);
+        console.log(`💰 International Salary: ${job.salary?.currency} ${job.salary?.monthly_min || 'N/A'} - ${job.salary?.monthly_max || 'N/A'}`);
+        
+        // Log converted salary (NPR equivalent) if available
+        if (job.salary?.converted && Array.isArray(job.salary.converted) && job.salary.converted.length > 0) {
+          const nprConversion = job.salary.converted.find((c: any) => c.currency === 'NPR');
+          const usdConversion = job.salary.converted.find((c: any) => c.currency === 'USD');
+          
+          if (nprConversion) {
+            console.log(`🇳🇵 Nepali Equivalent: NPR ${nprConversion.amount} (${job.salary.currency} ${job.salary.monthly_min} = NPR ${nprConversion.amount})`);
+          }
+          if (usdConversion) {
+            console.log(`🇺🇸 USD Equivalent: USD ${usdConversion.amount}`);
+          }
+          
+          // Log all conversions for debugging
+          console.log(`💱 All conversions available: ${job.salary.converted.map((c: any) => `${c.currency} ${c.amount}`).join(', ')}`);
+        } else {
+          console.log('⚠️ No salary conversions available for this job');
+        }
+        
         console.log('🎉 "Ramesh can explore opportunities right away - no setup required!"');
         console.log('💡 Better UX: Show jobs first, let users refine with preferences later');
       } else {
@@ -250,7 +269,23 @@ describe('Ramesh Journey: The Complete Udaan Sarathi Experience', () => {
       console.log(`📍 Location: ${response.body.location}`);
       console.log(`💼 Position: ${response.body.postingTitle}`);
       console.log(`📊 Match: ${response.body.matchPercentage}% - Your electrical skills are highly valued`);
-      console.log(`💰 Salary: ${response.body.salary}`);
+      console.log(`💰 International Salary: ${response.body.salary}`);
+      
+      // Log mobile converted salary if available
+      if (response.body.convertedSalary) {
+        console.log(`🇳🇵 Mobile Converted Salary: ${response.body.convertedSalary}`);
+      }
+      
+      // Also check positions array for detailed conversion info
+      if (response.body.positions && response.body.positions.length > 0) {
+        const firstPosition = response.body.positions[0];
+        if (firstPosition.convertedSalary) {
+          console.log(`💱 Position Converted Salary: ${firstPosition.convertedSalary}`);
+        }
+        if (firstPosition.baseSalary) {
+          console.log(`💵 Position Base Salary: ${firstPosition.baseSalary}`);
+        }
+      }
     });
   });
 

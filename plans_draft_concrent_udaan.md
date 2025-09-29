@@ -38,38 +38,35 @@ Absolutely! Based on your detailed “Team Work Plan & Reference Guide,” I can
 
 | Feature          | Status      | Reference / File Links                                    |
 | ---------------- | ----------- | --------------------------------------------------------- |
-| OTP Page         | In Progress | `[INSERT: OTP component path]`, `[API docs link]`         |
-| Job Details Page | In Progress | `[INSERT: Path to job details page]`, `[API schema link]` |
-| Search & Filter  | In Progress | `[INSERT: Search/filter implementation path]`             |
-| Notifications    | Pending     | `[INSERT: Notification page code]`                        |
-| My Applications  | Pending     | `[INSERT: My Applications component path]`                |
-| APK Build        | Pending     | `[INSERT: Build config, logo, script]`                    |
+| OTP Page         | In Progress | `/code/variant_dashboard/lib/app/udaan_saarathi/features/presentation/onboarding/page/`, `API: /register, /verify, /login/start, /login/verify` |
+| Job Details Page | In Progress | `/code/variant_dashboard/lib/app/udaan_saarathi/features/presentation/jobs/page/job_details_screen.dart`, `API: /jobs/{id}` |
+| Search & Filter  | In Progress | `/code/variant_dashboard/lib/app/udaan_saarathi/features/presentation/search/page/`, `API: /jobs/search` |
+| Notifications    | Pending     | `/code/variant_dashboard/lib/app/udaan_saarathi/features/presentation/notifications/page/` |
+| My Applications  | Pending     | `/code/variant_dashboard/lib/app/udaan_saarathi/features/presentation/applications/page/` |
+| APK Build        | Pending     | `/code/variant_dashboard/android/app/build.gradle`, `/code/variant_dashboard/pubspec.yaml` |
 
 **Test Coverage:**
 
 * All existing test cases passing
 * Suresh's happy flow implemented
-* Dart test runner logs maintained `[INSERT: path]`
-
----
+* Dart test runner logs maintained `/code/variant_dashboard/test/`
+* Integration tests: `/code/variant_dashboard/integration_test/`
 
 ### 3.2 Web Portal (Aayush + Ishwor)
 
 | Feature                   | Status      | Reference / File Links             |
 | ------------------------- | ----------- | ---------------------------------- |
-| API Integration           | In Progress | `[API base URL]`, `[API doc link]` |
-| Registration & Login      | Pending     | `[Endpoint docs]`                  |
-| Agency CRUD               | Pending     | `[Endpoint docs]`                  |
-| Job Listing               | Pending     | `[Endpoint docs]`                  |
-| Applicant Status Workflow | Pending     | `[Workflow doc]`                   |
-| Multilingual Support      | Done        | `[i18n files path]`                |
-| Ramesh’s Flow             | Done        | `[Flow doc & test runners]`        |
+| API Integration           | In Progress | `Base URL: https://dev.kaha.com.np/job-portal`, `Swagger: /docs` |
+| Registration & Login      | Done        | `/code/src/modules/auth/auth.controller.ts` - `/register`, `/verify`, `/login/start`, `/login/verify` |
+| Agency CRUD               | Done        | `/code/src/modules/agency/agency.controller.ts` - `/agencies/owner/agency` |
+| Job Listing               | Done        | `/code/src/modules/domain/domain.controller.ts`, `/code/src/modules/domain/public-jobs.controller.ts` |
+| Applicant Status Workflow | Done        | `/code/src/modules/application/application.controller.ts` |
+| Multilingual Support      | Done        | Mobile app i18n support implemented |
+| Ramesh's Flow             | Done        | `/dev_tools/test_web_frontend/tests/` - Complete E2E test suite |
 
 ---
 
 ## 4. Expected Status on Oct 28–29
-
-### Mobile App (Rojan)
 
 * OTP page fully functional
 * Job Details page shows complete API data (including converted amounts)
@@ -95,14 +92,18 @@ Absolutely! Based on your detailed “Team Work Plan & Reference Guide,” I can
 
 ---
 
-## 6. Quick Links (To Add)
+## 6. Quick Links
 
-* [ ] Git Repository (Main & Feature Branches)
-* [ ] Dart Test Runner & Logs
-* [ ] Suresh's Flow Documentation
-* [ ] API Documentation / Postman Collection
-* [ ] APK Build Script & Assets
-* [ ] Test Results / Validation Logs
+* [x] **Git Repository**: `/Users/ajaydahal/portal/agency_research/code/.git` (Main branch)
+* [x] **Backend Source**: `/Users/ajaydahal/portal/agency_research/code/src/`
+* [x] **Mobile App**: `/Users/ajaydahal/portal/agency_research/code/variant_dashboard/lib/app/udaan_saarathi/`
+* [x] **API Documentation**: `https://dev.kaha.com.np/job-portal/docs` (Swagger UI)
+* [x] **OpenAPI Spec**: `https://dev.kaha.com.np/job-portal/docs-yaml`
+* [x] **Test Suite (Web)**: `/Users/ajaydahal/portal/agency_research/dev_tools/test_web_frontend/tests/`
+* [x] **Test Runner Script**: `/Users/ajaydahal/portal/agency_research/dev_tools/test_web_frontend/run.sh`
+* [x] **Mobile Tests**: `/Users/ajaydahal/portal/agency_research/code/variant_dashboard/test/`
+* [x] **OpenAPI Client Generator**: `/Users/ajaydahal/portal/agency_research/dev_tools/package_form_open_api/build.sh`
+* [x] **Sample Data**: `/Users/ajaydahal/portal/agency_research/code/src/resource/sample/`
 
 ---
 
@@ -123,8 +124,9 @@ Absolutely! Based on your detailed “Team Work Plan & Reference Guide,” I can
 
 ---
 
-*Document Owner:* `[Your Name]`
-*Last Updated:* September 27, 2024
+*Document Owner:* Ajay Dahal
+*Last Updated:* September 27, 2024 - Updated with actual workspace links
+*Workspace Root:* `/Users/ajaydahal/portal/agency_research/code/`
 
 ---
 

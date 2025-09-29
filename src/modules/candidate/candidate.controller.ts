@@ -16,6 +16,7 @@ import { Request } from 'express';
 import { BadRequestException } from '@nestjs/common';
 import { PaginatedInterviewsDto, InterviewEnrichedDto, EmployerLiteDto, AgencyLiteDto, PostingLiteDto, InterviewExpenseDto, InterviewScheduleDto } from '../domain/dto/interview-list.dto';
 import { MobileJobPostingDto } from './dto/mobile-job.dto';
+import { CurrencyConversionService } from '../currency/currency-conversion.service';
 
 function toBool(val?: string): boolean | undefined {
   if (val == null) return undefined;
@@ -32,6 +33,7 @@ export class CandidateController {
     private readonly expenses: ExpenseService,
     private readonly interviews: InterviewService,
     private readonly auth: AuthService,
+    private readonly currencyConversionService: CurrencyConversionService,
   ) {}
 
   // Get candidate profile
@@ -274,23 +276,39 @@ export class CandidateController {
             annual_leave_days: contract.annual_leave_days,
           }
         : null,
-      positions: positions.map((p: any) => ({
-        title: p.title,
-        vacancies: { male: p.male_vacancies, female: p.female_vacancies, total: p.total_vacancies },
-        salary: {
-          monthly_amount: Number(p.monthly_salary_amount),
-          currency: p.salary_currency,
-          converted: (p.salaryConversions || []).map((c: any) => ({ amount: Number(c.converted_amount), currency: c.converted_currency })),
-        },
-        overrides: {
-          hours_per_day: p.hours_per_day_override ?? null,
-          days_per_week: p.days_per_week_override ?? null,
-          overtime_policy: p.overtime_policy_override ?? null,
-          weekly_off_days: p.weekly_off_days_override ?? null,
-          food: p.food_override ?? null,
-          accommodation: p.accommodation_override ?? null,
-          transport: p.transport_override ?? null,
-        },
+      positions: await Promise.all(positions.map(async (p: any) => {
+        // 🔥 RUNTIME CONVERSION - Replace stored conversions with live calculation
+        let converted: Array<{ amount: number; currency: string }> = [];
+        const baseAmount = Number(p.monthly_salary_amount);
+        const currency = p.salary_currency;
+        
+        if (baseAmount && currency) {
+          const conversions = await this.currencyConversionService.convertSalary(
+            baseAmount,
+            currency,
+            ['NPR', 'USD']
+          );
+          converted = conversions;
+        }
+
+        return {
+          title: p.title,
+          vacancies: { male: p.male_vacancies, female: p.female_vacancies, total: p.total_vacancies },
+          salary: {
+            monthly_amount: baseAmount,
+            currency: currency,
+            converted: converted,
+          },
+          overrides: {
+            hours_per_day: p.hours_per_day_override ?? null,
+            days_per_week: p.days_per_week_override ?? null,
+            overtime_policy: p.overtime_policy_override ?? null,
+            weekly_off_days: p.weekly_off_days_override ?? null,
+            food: p.food_override ?? null,
+            accommodation: p.accommodation_override ?? null,
+            transport: p.transport_override ?? null,
+          },
+        };
       })),
       skills: job.skills ?? [],
       education_requirements: job.education_requirements ?? [],
@@ -417,7 +435,7 @@ export class CandidateController {
 
     const res = await this.candidates.getRelevantJobs(id, opts);
     // Map JobPosting entity to CandidateJobCardDto shape, similar to getRelevantJobsByTitle
-    const data = (res.data || []).map((jp: any) => {
+    const data = await Promise.all((res.data || []).map(async (jp: any) => {
       const contract = Array.isArray(jp.contracts) ? jp.contracts[0] : undefined;
       const positions = contract?.positions || [];
       const titles = Array.from(new Set(positions.map((p: any) => p.title).filter(Boolean))) as string[];
@@ -436,7 +454,16 @@ export class CandidateController {
           monthly_max = Math.max(...amounts);
         }
       }
-      const converted = positions[0]?.salaryConversions?.map((c: any) => ({ amount: Number(c.converted_amount), currency: c.converted_currency })) || [];
+      // 🔥 RUNTIME CONVERSION - Replace stored conversions with live calculation
+      let converted: Array<{ amount: number; currency: string }> = [];
+      if (positions.length && monthly_min && currency) {
+        const conversions = await this.currencyConversionService.convertSalary(
+          monthly_min,
+          currency,
+          ['NPR', 'USD']
+        );
+        converted = conversions;
+      }
       return {
         id: jp.id,
         posting_title: jp.posting_title,
@@ -450,7 +477,7 @@ export class CandidateController {
         cutout_url: jp.cutout_url ?? null,
         fitness_score: (jp as any).fitness_score,
       };
-    });
+    }));
     // Order by fitness_score desc when available
     const ordered = data.slice().sort((a: any, b: any) => ((b.fitness_score ?? 0) - (a.fitness_score ?? 0)));
     return { data: ordered, total: res.total, page: res.page, limit: res.limit };
@@ -525,8 +552,8 @@ export class CandidateController {
 
     const res = await this.candidates.getRelevantJobsGrouped(id, opts);
     // Map domain JobPosting to CandidateJobCardDto shape, similar to getRelevantJobsByTitle
-    const groups = (res.groups || []).map((g: any) => {
-      const jobs = (g.jobs || []).map((jp: any) => {
+    const groups = await Promise.all((res.groups || []).map(async (g: any) => {
+      const jobs = await Promise.all((g.jobs || []).map(async (jp: any) => {
         const contract = Array.isArray(jp.contracts) ? jp.contracts[0] : undefined;
         const positions = contract?.positions || [];
         const titles = Array.from(new Set(positions.map((p: any) => p.title).filter(Boolean))) as string[];
@@ -544,7 +571,16 @@ export class CandidateController {
             monthly_max = Math.max(...amounts);
           }
         }
-        const converted = positions[0]?.salaryConversions?.map((c: any) => ({ amount: Number(c.converted_amount), currency: c.converted_currency })) || [];
+        // 🔥 RUNTIME CONVERSION - Replace stored conversions with live calculation
+        let converted: Array<{ amount: number; currency: string }> = [];
+        if (positions.length && monthly_min && currency) {
+          const conversions = await this.currencyConversionService.convertSalary(
+            monthly_min,
+            currency,
+            ['NPR', 'USD']
+          );
+          converted = conversions;
+        }
         return {
           id: jp.id,
           posting_title: jp.posting_title,
@@ -558,9 +594,9 @@ export class CandidateController {
           cutout_url: jp.cutout_url ?? null,
           fitness_score: (jp as any).fitness_score,
         };
-      });
+      }));
       return { title: g.title, jobs };
-    });
+    }));
     return { groups } as GroupedJobsResponseDto;
   }
 
@@ -634,7 +670,7 @@ export class CandidateController {
       };
     }
     const res = await this.candidates.getRelevantJobs(id, opts);
-    const data = (res.data || []).map((jp: any) => {
+    const data = await Promise.all((res.data || []).map(async (jp: any) => {
       const contract = Array.isArray(jp.contracts) ? jp.contracts[0] : undefined;
       const positions = contract?.positions || [];
       const titles = Array.from(new Set(positions.map((p: any) => p.title).filter(Boolean))) as string[];
@@ -652,7 +688,16 @@ export class CandidateController {
           monthly_max = Math.max(...amounts);
         }
       }
-      const converted = positions[0]?.salaryConversions?.map((c: any) => ({ amount: Number(c.converted_amount), currency: c.converted_currency })) || [];
+      // 🔥 RUNTIME CONVERSION - Replace stored conversions with live calculation
+      let converted: Array<{ amount: number; currency: string }> = [];
+      if (positions.length && monthly_min && currency) {
+        const conversions = await this.currencyConversionService.convertSalary(
+          monthly_min,
+          currency,
+          ['NPR', 'USD']
+        );
+        converted = conversions;
+      }
       return {
         id: jp.id,
         posting_title: jp.posting_title,
@@ -666,7 +711,7 @@ export class CandidateController {
         cutout_url: jp.cutout_url ?? null,
         fitness_score: (jp as any).fitness_score,
       };
-    });
+    }));
     return { data, total: res.total, page: res.page, limit: res.limit };
   }
 

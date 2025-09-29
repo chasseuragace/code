@@ -3,6 +3,7 @@ import { JobPostingService, ExpenseService, InterviewService } from './domain.se
 import { ApiOperation, ApiParam, ApiResponse, ApiTags, ApiQuery, ApiOkResponse } from '@nestjs/swagger';
 import { JobSearchQueryDto, JobSearchResponseDto } from './dto/job-search.dto';
 import { JobDetailsDto } from './dto/job-details.dto';
+import { CurrencyConversionService } from '../currency/currency-conversion.service';
 
 @ApiTags('jobs')
 @Controller('jobs')
@@ -11,6 +12,7 @@ export class PublicJobsController {
     private readonly jobs: JobPostingService,
     private readonly expenses: ExpenseService,
     private readonly interviews: InterviewService,
+    private readonly currencyConversionService: CurrencyConversionService,
   ) {}
 
   // Public job search with keyword and filters
@@ -107,8 +109,8 @@ export class PublicJobsController {
 
     const results = await this.jobs.searchJobsByKeyword(searchParams);
 
-    // Transform results to include salary conversions and clean structure
-    const transformedData = results.data.map((job: any) => ({
+    // Transform results to include runtime salary conversions and clean structure
+    const transformedData = await Promise.all(results.data.map(async (job: any) => ({
       id: job.id,
       posting_title: job.posting_title,
       country: job.country,
@@ -125,32 +127,45 @@ export class PublicJobsController {
         name: job.contracts[0].agency.name,
         license_number: job.contracts[0].agency.license_number,
       } : null,
-      positions: (job.contracts?.[0]?.positions || []).map((p: any) => ({
-        title: p.title,
-        vacancies: { 
-          male: p.male_vacancies, 
-          female: p.female_vacancies, 
-          total: p.total_vacancies 
-        },
-        salary: {
-          monthly_amount: Number(p.monthly_salary_amount),
-          currency: p.salary_currency,
-          converted: (p.salaryConversions || []).map((c: any) => ({ 
-            amount: Number(c.converted_amount), 
-            currency: c.converted_currency 
-          })),
-        },
-        overrides: {
-          hours_per_day: p.hours_per_day_override ?? null,
-          days_per_week: p.days_per_week_override ?? null,
-          overtime_policy: p.overtime_policy_override ?? null,
-          weekly_off_days: p.weekly_off_days_override ?? null,
-          food: p.food_override ?? null,
-          accommodation: p.accommodation_override ?? null,
-          transport: p.transport_override ?? null,
-        },
+      positions: await Promise.all((job.contracts?.[0]?.positions || []).map(async (p: any) => {
+        // 🔥 RUNTIME CONVERSION - Replace stored conversions with live calculation
+        let converted: Array<{ amount: number; currency: string }> = [];
+        const baseAmount = Number(p.monthly_salary_amount);
+        const currency = p.salary_currency;
+        
+        if (baseAmount && currency) {
+          const conversions = await this.currencyConversionService.convertSalary(
+            baseAmount,
+            currency,
+            ['NPR', 'USD']
+          );
+          converted = conversions;
+        }
+
+        return {
+          title: p.title,
+          vacancies: { 
+            male: p.male_vacancies, 
+            female: p.female_vacancies, 
+            total: p.total_vacancies 
+          },
+          salary: {
+            monthly_amount: baseAmount,
+            currency: currency,
+            converted: converted,
+          },
+          overrides: {
+            hours_per_day: p.hours_per_day_override ?? null,
+            days_per_week: p.days_per_week_override ?? null,
+            overtime_policy: p.overtime_policy_override ?? null,
+            weekly_off_days: p.weekly_off_days_override ?? null,
+            food: p.food_override ?? null,
+            accommodation: p.accommodation_override ?? null,
+            transport: p.transport_override ?? null,
+          },
+        };
       })),
-    }));
+    })));
 
     return {
       data: transformedData,
@@ -220,23 +235,39 @@ export class PublicJobsController {
         transport: jp.contracts[0].transport,
         annual_leave_days: jp.contracts[0].annual_leave_days,
       } : null,
-      positions: (jp.contracts?.[0]?.positions || []).map((p: any) => ({
-        title: p.title,
-        vacancies: { male: p.male_vacancies, female: p.female_vacancies, total: p.total_vacancies },
-        salary: {
-          monthly_amount: Number(p.monthly_salary_amount),
-          currency: p.salary_currency,
-          converted: (p.salaryConversions || []).map((c: any) => ({ amount: Number(c.converted_amount), currency: c.converted_currency })),
-        },
-        overrides: {
-          hours_per_day: p.hours_per_day_override ?? null,
-          days_per_week: p.days_per_week_override ?? null,
-          overtime_policy: p.overtime_policy_override ?? null,
-          weekly_off_days: p.weekly_off_days_override ?? null,
-          food: p.food_override ?? null,
-          accommodation: p.accommodation_override ?? null,
-          transport: p.transport_override ?? null,
-        },
+      positions: await Promise.all((jp.contracts?.[0]?.positions || []).map(async (p: any) => {
+        // 🔥 RUNTIME CONVERSION - Replace stored conversions with live calculation
+        let converted: Array<{ amount: number; currency: string }> = [];
+        const baseAmount = Number(p.monthly_salary_amount);
+        const currency = p.salary_currency;
+        
+        if (baseAmount && currency) {
+          const conversions = await this.currencyConversionService.convertSalary(
+            baseAmount,
+            currency,
+            ['NPR', 'USD']
+          );
+          converted = conversions;
+        }
+
+        return {
+          title: p.title,
+          vacancies: { male: p.male_vacancies, female: p.female_vacancies, total: p.total_vacancies },
+          salary: {
+            monthly_amount: baseAmount,
+            currency: currency,
+            converted: converted,
+          },
+          overrides: {
+            hours_per_day: p.hours_per_day_override ?? null,
+            days_per_week: p.days_per_week_override ?? null,
+            overtime_policy: p.overtime_policy_override ?? null,
+            weekly_off_days: p.weekly_off_days_override ?? null,
+            food: p.food_override ?? null,
+            accommodation: p.accommodation_override ?? null,
+            transport: p.transport_override ?? null,
+          },
+        };
       })),
       skills: jp.skills ?? [],
       education_requirements: jp.education_requirements ?? [],

@@ -504,6 +504,80 @@ export class JobPostingService {
     const data = await qb.skip((page - 1) * limit).take(limit).getMany();
     return { data, total, page, limit };
   }
+
+  // Public keyword-based job search (for candidates/public use)
+  async searchJobsByKeyword(params: {
+    keyword?: string;
+    country?: string;
+    min_salary?: number;
+    max_salary?: number;
+    currency?: string;
+    page?: number;
+    limit?: number;
+    sort_by?: 'posted_at' | 'salary' | 'relevance';
+    order?: 'asc' | 'desc';
+  }) {
+    const { 
+      keyword, 
+      country, 
+      min_salary, 
+      max_salary, 
+      currency, 
+      page = 1, 
+      limit = 10,
+      sort_by = 'posted_at',
+      order = 'desc'
+    } = params;
+
+    const qb = this.jobPostingRepository
+      .createQueryBuilder('jp')
+      .leftJoinAndSelect('jp.contracts', 'contracts')
+      .leftJoinAndSelect('contracts.employer', 'employer')
+      .leftJoinAndSelect('contracts.agency', 'agency')
+      .leftJoinAndSelect('contracts.positions', 'positions')
+      .leftJoinAndSelect('positions.salaryConversions', 'salaryConversions')
+      .where('jp.is_active = :isActive', { isActive: true });
+
+    // Keyword search across multiple fields using OR logic
+    if (keyword) {
+      qb.andWhere(`(
+        jp.posting_title ILIKE :keyword OR
+        positions.title ILIKE :keyword OR
+        employer.company_name ILIKE :keyword OR
+        agency.name ILIKE :keyword
+      )`, { keyword: `%${keyword}%` });
+    }
+
+    // Other filters
+    if (country) qb.andWhere('jp.country ILIKE :country', { country: `%${country}%` });
+    if (min_salary && currency) {
+      qb.andWhere('positions.monthly_salary_amount >= :min_salary AND positions.salary_currency = :currency', { min_salary, currency });
+    }
+    if (max_salary && currency) {
+      qb.andWhere('positions.monthly_salary_amount <= :max_salary AND positions.salary_currency = :currency', { max_salary, currency });
+    }
+
+    // Sorting
+    switch (sort_by) {
+      case 'salary':
+        qb.orderBy('positions.monthly_salary_amount', order.toUpperCase() as 'ASC' | 'DESC');
+        break;
+      case 'relevance':
+        // For relevance, we could add more sophisticated scoring later
+        // For now, just use posting date as fallback
+        qb.orderBy('jp.posting_date_ad', 'DESC');
+        break;
+      case 'posted_at':
+      default:
+        qb.orderBy('jp.posting_date_ad', order.toUpperCase() as 'ASC' | 'DESC');
+        break;
+    }
+
+    const total = await qb.getCount();
+    const data = await qb.skip((page - 1) * limit).take(limit).getMany();
+    
+    return { data, total, page, limit, keyword, filters: { country, min_salary, max_salary, currency } };
+  }
 }
 
 @Injectable()

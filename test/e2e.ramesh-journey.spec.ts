@@ -191,6 +191,34 @@ describe('Ramesh Journey: The Complete Udaan Sarathi Experience', () => {
       console.log('🆕 Testing improved UX: Ramesh has no preferences set yet...');
       console.log('🎯 The system should gracefully show all available opportunities!');
       
+      // First, let Ramesh search for jobs by keyword
+      console.log('🔍 Ramesh searches for "electrical" jobs to see what\'s available...');
+      
+      const searchResponse = await request(app.getHttpServer())
+        .get('/jobs/search')
+        .query({
+          keyword: 'electrical',
+          country: 'UAE',
+          limit: 5
+        })
+        .expect(200);
+      
+      console.log(`🎯 Search found ${searchResponse.body.total} electrical jobs in UAE!`);
+      if (searchResponse.body.data.length > 0) {
+        const firstJob = searchResponse.body.data[0];
+        console.log(`✨ Top result: ${firstJob.posting_title}`);
+        console.log(`🏢 Company: ${firstJob.employer?.company_name || 'N/A'}`);
+        console.log(`💰 Salary: ${firstJob.positions?.[0]?.salary?.currency} ${firstJob.positions?.[0]?.salary?.monthly_amount || 'N/A'}`);
+        
+        // Show NPR conversion if available
+        const nprConversion = firstJob.positions?.[0]?.salary?.converted?.find((c: any) => c.currency === 'NPR');
+        if (nprConversion) {
+          console.log(`🇳🇵 NPR Equivalent: NPR ${nprConversion.amount}`);
+        }
+      }
+      
+      console.log('💡 Now let\'s see the personalized matching for Ramesh...');
+      
       // Now try the matching algorithm
       const response = await request(app.getHttpServer())
         .get(`/candidates/${rameshId}/relevant-jobs`)

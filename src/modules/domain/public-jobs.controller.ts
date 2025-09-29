@@ -115,11 +115,13 @@ export class PublicJobsController {
       city: job.city,
       posting_date_ad: job.posting_date_ad,
       employer: job.contracts?.[0]?.employer ? {
+        id: job.contracts[0].employer.id,
         company_name: job.contracts[0].employer.company_name,
         country: job.contracts[0].employer.country,
         city: job.contracts[0].employer.city,
       } : null,
       agency: job.contracts?.[0]?.agency ? {
+        id: job.contracts[0].agency.id,
         name: job.contracts[0].agency.name,
         license_number: job.contracts[0].agency.license_number,
       } : null,
@@ -187,10 +189,12 @@ export class PublicJobsController {
       posting_date_ad: jp.posting_date_ad,
       notes: jp.notes ?? null,
       agency: jp.contracts?.[0]?.agency ? {
+        id: jp.contracts[0].agency.id,
         name: jp.contracts[0].agency.name,
         license_number: jp.contracts[0].agency.license_number,
       } : null,
       employer: jp.contracts?.[0]?.employer ? {
+        id: jp.contracts[0].employer.id,
         company_name: jp.contracts[0].employer.company_name,
         country: jp.contracts[0].employer.country,
         city: jp.contracts[0].employer.city,

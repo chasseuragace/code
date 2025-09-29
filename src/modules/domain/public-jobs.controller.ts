@@ -140,6 +140,15 @@ export class PublicJobsController {
             currency: c.converted_currency 
           })),
         },
+        overrides: {
+          hours_per_day: p.hours_per_day_override ?? null,
+          days_per_week: p.days_per_week_override ?? null,
+          overtime_policy: p.overtime_policy_override ?? null,
+          weekly_off_days: p.weekly_off_days_override ?? null,
+          food: p.food_override ?? null,
+          accommodation: p.accommodation_override ?? null,
+          transport: p.transport_override ?? null,
+        },
       })),
     }));
 

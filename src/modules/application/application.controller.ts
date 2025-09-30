@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Body, Param, ParseUUIDPipe, Query, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, ParseUUIDPipe, Query, HttpCode, NotFoundException } from '@nestjs/common';
 import { ApplicationService } from './application.service';
-import { ApiOperation, ApiParam, ApiTags, ApiOkResponse, ApiQuery, ApiBody, ApiCreatedResponse, ApiBadRequestResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiTags, ApiOkResponse, ApiQuery, ApiBody, ApiCreatedResponse, ApiBadRequestResponse, ApiNotFoundResponse } from '@nestjs/swagger';
 import { ApplyJobDto, ApplyJobResponseDto } from './dto/apply-job.dto';
 import { ApplicationAnalyticsDto } from './dto/application-analytics.dto';
 import { PaginatedJobApplicationsDto } from './dto/paginated-job-applications.dto';
+import { ApplicationDetailDto } from './dto/application-detail.dto';
 
 @ApiTags('applications')
 @Controller('applications')
@@ -132,6 +133,49 @@ export class ApplicationController {
     return { id: saved.id, status: saved.status };
   }
 
+  // Reschedule an interview for an application
+  @Post(':id/reschedule-interview')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Reschedule an interview',
+    description: 'Updates interview details and changes application status to interview_rescheduled',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Application UUID (v4)',
+    example: '075ce7d9-fcdb-4f7e-b794-4190f49d729f',
+  })
+  async rescheduleInterview(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body()
+    body: {
+      interview_id: string;
+      interview_date_ad?: string;
+      interview_date_bs?: string;
+      interview_time?: string;
+      location?: string;
+      contact_person?: string;
+      required_documents?: string[];
+      notes?: string;
+      note?: string | null;
+      updatedBy?: string | null;
+    },
+  ) {
+    // Extract only interview-related fields for the update
+    const interviewUpdates = {
+      interview_date_ad: body.interview_date_ad,
+      interview_date_bs: body.interview_date_bs,
+      interview_time: body.interview_time,
+      location: body.location,
+      contact_person: body.contact_person,
+      required_documents: body.required_documents,
+      notes: body.notes,
+    };
+    
+    const saved = await this.apps.rescheduleInterview(id, body.interview_id, interviewUpdates, { note: body?.note, updatedBy: body?.updatedBy });
+    return { id: saved.id, status: saved.status };
+  }
+
   // Complete interview with pass/fail result
   @Post(':id/complete-interview')
   @HttpCode(200)
@@ -158,6 +202,48 @@ export class ApplicationController {
     }
     const saved = await this.apps.withdraw(app.candidate_id, app.job_posting_id, { note: body?.note, updatedBy: body?.updatedBy });
     return { id: saved.id, status: saved.status };
+  }
+
+  // Get single application details with full history
+  @Get(':id')
+  @ApiOperation({
+    summary: 'Get application details by ID',
+    description: 'Returns complete application details including full status change history timeline. Used for "My Applications" detail view and notifications.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Application UUID (v4)',
+    example: '075ce7d9-fcdb-4f7e-b794-4190f49d729f',
+  })
+  @ApiOkResponse({
+    description: 'Application details with complete history',
+    type: ApplicationDetailDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'Application not found',
+    example: {
+      statusCode: 404,
+      message: 'Application not found',
+      error: 'Not Found',
+    },
+  })
+  async getApplicationById(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ): Promise<ApplicationDetailDto> {
+    const app = await this.apps.getById(id);
+    if (!app) {
+      throw new NotFoundException('Application not found');
+    }
+    return {
+      id: app.id,
+      candidate_id: app.candidate_id,
+      job_posting_id: app.job_posting_id,
+      status: app.status,
+      history_blob: app.history_blob,
+      withdrawn_at: app.withdrawn_at ?? null,
+      created_at: app.created_at,
+      updated_at: app.updated_at,
+    };
   }
 
   // Candidate analytics: totals and per-status counts

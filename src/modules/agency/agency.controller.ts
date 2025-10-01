@@ -541,14 +541,25 @@ export class AgencyController {
   // --- Interview Endpoints ---
   @Post(':license/job-postings/:id/interview')
   @HttpCode(201)
+  @ApiOperation({ 
+    summary: 'Create interview for a job posting',
+    description: 'Schedules an interview. Requires job_application_id to link interview to a specific candidate application.'
+  })
   async createInterview(
     @Param('license') license: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: any,
   ) {
+    // Validate that job_application_id is provided
+    if (!body.job_application_id) {
+      throw new BadRequestException('job_application_id is required. Interviews must be linked to a candidate application.');
+    }
+
     const posting = await this.jobPostingService.findJobPostingById(id);
     const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) throw new ForbiddenException('Cannot modify job posting of another agency');
+    
+    // The service now requires job_application_id, so it will enforce this constraint
     const saved = await this.interviewService.createInterview(id, body as any);
     return { id: saved.id };
   }

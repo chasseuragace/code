@@ -724,6 +724,7 @@ export class InterviewService {
   ) {}
 
   async createInterview(jobPostingId: string, interviewData: {
+    job_application_id: string;
     interview_date_ad?: string;
     interview_date_bs?: string;
     interview_time?: string;
@@ -731,12 +732,11 @@ export class InterviewService {
     contact_person?: string;
     required_documents?: string[];
     notes?: string;
-    job_application_id?: string | null;
     expenses?: Array<{ expense_type: ExpenseType; who_pays: ExpensePayer; is_free?: boolean; amount?: number; currency?: string; refundable?: boolean; notes?: string; }>;
   }): Promise<InterviewDetail> {
     const interview = this.interviewRepository.create({
       job_posting_id: jobPostingId,
-      job_application_id: interviewData.job_application_id ?? null,
+      job_application_id: interviewData.job_application_id,
       interview_date_ad: interviewData.interview_date_ad ? new Date(interviewData.interview_date_ad) : undefined,
       interview_date_bs: interviewData.interview_date_bs,
       interview_time: interviewData.interview_time,

@@ -542,10 +542,11 @@ export class InterviewDetail extends BaseEntity {
   @Column({ type: 'uuid' })
   job_posting_id: string;
 
-  // Optional link to a specific candidate application
+  // Required link to a specific candidate application
+  // Interviews can only be scheduled for candidates who have applied
   // FK and index created via migration; kept as plain column here to avoid circular deps
-  @Column({ type: 'uuid', nullable: true })
-  job_application_id?: string | null;
+  @Column({ type: 'uuid' })
+  job_application_id: string;
 
   @Column({ type: 'date', nullable: true })
   interview_date_ad?: Date;

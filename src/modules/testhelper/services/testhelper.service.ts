@@ -25,71 +25,75 @@ export class TesthelperService {
   ) {}
 
   async findTestSuiteWorkflowPrerequisites() {
-    // Step 1: Find the most recently created candidate named Ramesh
-    const candidate = await this.candidateRepository
-      .createQueryBuilder('candidate')
-      .where('candidate.full_name ILIKE :name', { name: '%ramesh%' })
-      .orderBy('candidate.created_at', 'DESC')
-      .getOne();
+  // Step 1: Find the most recently created candidate named Ramesh
+  const candidate = await this.candidateRepository
+    .createQueryBuilder('candidate')
+    .where('candidate.full_name ILIKE :name', { name: '%ramesh%' })
+    .orderBy('candidate.created_at', 'DESC')
+    .getOne();
 
-    if (!candidate) {
-      throw new NotFoundException('No candidate found with name containing "Ramesh"');
-    }
-
-    // Step 2: Find the most recent application for this candidate
-    const application = await this.applicationRepository
-      .createQueryBuilder('application')
-      .where('application.candidate_id = :candidateId', { candidateId: candidate.id })
-      .orderBy('application.created_at', 'DESC')
-      .getOne();
-
-    if (!application) {
-      throw new NotFoundException('No application found for the candidate');
-    }
-
-    const jobPosting = await this.jobPostingRepository.findOne({
-      where: { id: application.job_posting_id },
-    });
-
-    if (!jobPosting) {
-      throw new NotFoundException('Job posting not found for application');
-    }
-
-    const jobContract = await this.jobContractRepository
-      .createQueryBuilder('contract')
-      .where('contract.job_posting_id = :jobPostingId', { jobPostingId: jobPosting.id })
-      .orderBy('contract.created_at', 'DESC')
-      .getOne();
-
-    if (!jobContract?.posting_agency_id) {
-      throw new NotFoundException('No posting agency linked to job posting');
-    }
-
-    const postingAgency = await this.postingAgencyRepository.findOne({
-      where: { id: jobContract.posting_agency_id },
-    });
-
-    if (!postingAgency) {
-      throw new NotFoundException('Posting agency not found');
-    }
-
-    const agencyOwner = await this.userRepository.findOne({
-      where: {
-        agency_id: postingAgency.id,
-        is_agency_owner: true,
-      },
-      order: { created_at: 'DESC' },
-    });
-
-    if (!agencyOwner) {
-      throw new NotFoundException('Agency owner not found for posting agency');
-    }
-
-    return {
-      candidatePhone: candidate.phone,
-      applicationId: application.id,
-      postingAgencyId: postingAgency.id,
-      agencyOwnerPhone: agencyOwner.phone,
-    };
+  if (!candidate) {
+    throw new NotFoundException('No candidate found with name containing "Ramesh"');
   }
+
+  // Step 2: Find all applications for this candidate
+  const applications = await this.applicationRepository
+    .createQueryBuilder('application')
+    .where('application.candidate_id = :candidateId', { candidateId: candidate.id })
+    .orderBy('application.created_at', 'DESC')
+    .getMany();
+
+  if (!applications || applications.length === 0) {
+    throw new NotFoundException('No applications found for the candidate');
+  }
+
+  // Map to application IDs
+  const applicationIds = applications.map(app => app.id);
+
+  // Use the most recent job posting (or optionally handle all job postings)
+  const jobPosting = await this.jobPostingRepository.findOne({
+    where: { id: applications[0].job_posting_id },
+  });
+
+  if (!jobPosting) {
+    throw new NotFoundException('Job posting not found for application');
+  }
+
+  const jobContract = await this.jobContractRepository
+    .createQueryBuilder('contract')
+    .where('contract.job_posting_id = :jobPostingId', { jobPostingId: jobPosting.id })
+    .orderBy('contract.created_at', 'DESC')
+    .getOne();
+
+  if (!jobContract?.posting_agency_id) {
+    throw new NotFoundException('No posting agency linked to job posting');
+  }
+
+  const postingAgency = await this.postingAgencyRepository.findOne({
+    where: { id: jobContract.posting_agency_id },
+  });
+
+  if (!postingAgency) {
+    throw new NotFoundException('Posting agency not found');
+  }
+
+  const agencyOwner = await this.userRepository.findOne({
+    where: {
+      agency_id: postingAgency.id,
+      is_agency_owner: true,
+    },
+    order: { created_at: 'DESC' },
+  });
+
+  if (!agencyOwner) {
+    throw new NotFoundException('Agency owner not found for posting agency');
+  }
+
+  return {
+    candidatePhone: candidate.phone,
+    applicationIds, // <-- now a list of all application IDs
+    postingAgencyId: postingAgency.id,
+    agencyOwnerPhone: agencyOwner.phone,
+  };
+}
 }

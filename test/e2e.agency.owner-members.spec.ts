@@ -28,7 +28,7 @@ describe('E2E: agency owner members invite + member login', () => {
 
     const reg = await request(app.getHttpServer())
       .post('/agency/register-owner')
-      .send({ phone, full_name: 'Owner One' })
+      .send({ phone, full_name: 'Owner testing Staff creation' })
       .expect(200);
     expect(typeof reg.body?.dev_otp).toBe('string');
 

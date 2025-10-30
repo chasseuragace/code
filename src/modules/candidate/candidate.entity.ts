@@ -17,6 +17,12 @@ export class Candidate {
   @Column({ type: 'varchar', length: 20 })
   phone: string; // stored normalized (E.164)
 
+  @Column({ type: 'varchar', length: 150, nullable: true })
+  email?: string;
+
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  gender?: string;
+
   @Column({ type: 'jsonb', nullable: true })
   address?: {
     name?: string;

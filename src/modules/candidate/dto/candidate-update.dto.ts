@@ -18,5 +18,8 @@ export class CandidateUpdateDto {
   @ApiProperty({ required: false }) full_name?: string;
   @ApiProperty({ required: false }) is_active?: boolean;
   @ApiProperty({ type: AddressDto, required: false, nullable: true }) address?: AddressDto | null;
-  @ApiProperty({ required: false, nullable: true }) passport_number?: string | null;
+  @ApiProperty({ required: false, nullable: true, type: String  }) passport_number?: string | null;
+
+  @ApiProperty({ required: false, nullable: true, type: String }) email?: string | null;
+  @ApiProperty({ required: false, nullable: true, enum: ['Male', 'Female'], description: 'Gender of the candidate' }) gender?: string | null;
 }

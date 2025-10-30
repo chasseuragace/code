@@ -104,6 +104,13 @@ export class CandidateService {
       existing.passport_number = input.passport_number;
     }
 
+    if (input.email !== undefined) {
+      existing.email = input.email;
+    }
+    if (input.gender !== undefined) {
+      existing.gender = input.gender;
+    }
+
     return this.repo.save(existing);
   }
 

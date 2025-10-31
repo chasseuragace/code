@@ -1,4 +1,7 @@
-import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+
+import { JobPosting } from '../domain/domain.entity';
+import { InterviewDetail } from '../domain/domain.entity';
 
 export type JobApplicationHistoryEntry = {
   prev_status: JobApplicationStatus | null;
@@ -31,6 +34,16 @@ export class JobApplication {
 
   @Column('uuid')
   job_posting_id: string;
+
+  @Column('uuid')
+  position_id: string;
+
+  @ManyToOne(() => JobPosting, jobPosting => jobPosting.applications)
+  @JoinColumn({ name: 'job_posting_id' })
+  job_posting: JobPosting;
+
+  @OneToMany(() => InterviewDetail, interview => interview.job_application)
+  interview_details: InterviewDetail[];
 
   @Column({ type: 'varchar' })
   status: JobApplicationStatus;

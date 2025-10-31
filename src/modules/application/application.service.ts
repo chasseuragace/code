@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, FindOptionsWhere, In } from 'typeorm';
+import { Repository, FindOptionsWhere, In, DataSource } from 'typeorm';
 import { JobApplication, JobApplicationHistoryEntry, JobApplicationStatus } from './job-application.entity';
 import { Candidate } from '../candidate/candidate.entity';
-import { JobPosting } from '../domain/domain.entity';
+import { JobApplicationListItemDto } from './dto/paginated-job-applications.dto';
+import { JobPosting, JobPosition } from '../domain/domain.entity';
 import { InterviewService } from '../domain/domain.service';
 
 export type ApplyOptions = { note?: string | null; updatedBy?: string | null };
@@ -48,6 +49,7 @@ export class ApplicationService {
     @InjectRepository(Candidate) private readonly candidateRepo: Repository<Candidate>,
     @InjectRepository(JobPosting) private readonly postingRepo: Repository<JobPosting>,
     private readonly interviewSvc: InterviewService,
+    private dataSource: DataSource,
   ) {}
 
   // Diagnostics
@@ -56,19 +58,47 @@ export class ApplicationService {
   }
 
   // Create a new application
-  async apply(candidateId: string, jobPostingId: string, opts: ApplyOptions = {}): Promise<JobApplication> {
-    // Validate candidate exists
-    const [candidate, posting] = await Promise.all([
+  async apply(
+    candidateId: string, 
+    jobPostingId: string, 
+    positionId: string,
+    opts: ApplyOptions = {}
+  ): Promise<JobApplication> {
+    // Validate candidate exists and posting is active
+    const [candidate, posting, position] = await Promise.all([
       this.candidateRepo.findOne({ where: { id: candidateId as any } as FindOptionsWhere<Candidate> }),
-      this.postingRepo.findOne({ where: { id: jobPostingId as any } as FindOptionsWhere<JobPosting> }),
+      this.postingRepo.findOne({ 
+        where: { id: jobPostingId as any } as FindOptionsWhere<JobPosting>,
+        relations: ['contracts', 'contracts.positions']
+      }),
+      this.dataSource.getRepository(JobPosition).findOne({ 
+        where: { id: positionId as any } as FindOptionsWhere<JobPosition>,
+        relations: ['job_contract']
+      })
     ]);
+
     if (!candidate) throw new Error('Candidate not found');
     if (!posting) throw new Error('Job posting not found');
+    if (!position) throw new Error('Position not found');
     if (!posting.is_active) throw new Error('Job posting is not active');
 
+    // Verify position belongs to the job posting
+    const positionBelongsToPosting = posting.contracts.some(contract => 
+      contract.positions.some(pos => pos.id === positionId)
+    );
+    if (!positionBelongsToPosting) {
+      throw new Error('Position does not belong to the specified job posting');
+    }
+
     // Enforce uniqueness
-    const existing = await this.appRepo.findOne({ where: { candidate_id: candidateId, job_posting_id: jobPostingId } });
-    if (existing) throw new Error('Candidate has already applied to this posting');
+    const existing = await this.appRepo.findOne({ 
+      where: { 
+        candidate_id: candidateId, 
+        job_posting_id: jobPostingId,
+        position_id: positionId
+      } 
+    });
+    if (existing) throw new Error('Candidate has already applied to this position');
 
     const status: JobApplicationStatus = 'applied';
     const history: JobApplicationHistoryEntry[] = [
@@ -84,6 +114,7 @@ export class ApplicationService {
     const entity = this.appRepo.create({
       candidate_id: candidateId,
       job_posting_id: jobPostingId,
+      position_id: positionId,
       status,
       history_blob: history,
       withdrawn_at: null,
@@ -93,20 +124,128 @@ export class ApplicationService {
   }
 
   // List candidate applications with optional status filter
-  async listApplied(candidateId: string, opts: ListOptions = {}): Promise<{ items: JobApplication[]; total: number; page: number; limit: number }> {
-    const page = Math.max(1, opts.page ?? 1);
-    const limit = Math.min(100, Math.max(1, opts.limit ?? 20));
-    const where: FindOptionsWhere<JobApplication> = { candidate_id: candidateId } as any;
-    if (opts.status) (where as any).status = opts.status;
+  async listApplied(
+    candidateId: string,
+    options: ListOptions = {}
+  ): Promise<{ items: any[]; total: number; page: number; limit: number }> {
+    const { status, page = 1, limit = 20 } = options;
+    const where: FindOptionsWhere<JobApplication> = { candidate_id: candidateId };
+
+    if (status) {
+      where.status = status as any;
+    }
 
     const [items, total] = await this.appRepo.findAndCount({
       where,
+      relations: [
+        'job_posting',
+        'job_posting.contracts',
+        'job_posting.contracts.agency',
+        'job_posting.contracts.employer',  // Added employer relationship
+        'job_posting.contracts.positions',
+        'interview_details',
+        'interview_details.expenses',
+      ],
       order: { created_at: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
     });
 
-    return { items, total, page, limit };
+    // Map to DTOs with the required structure
+    const result = items.map((app) => {
+      // Get the first contract (assuming there's at least one)
+      const contract = app.job_posting?.contracts?.[0];
+      const agency = contract?.agency;
+      const interview = app.interview_details?.[0];
+
+      // Find the position for this application
+      const position = contract?.positions?.find(p => p.id === app.position_id);
+
+      // Map position details if found
+      let positionDto = null;
+      if (position) {
+        positionDto = {
+          id: position.id,
+          title: position.title,
+          vacancies: position.total_vacancies,
+          salary_range: `${position.monthly_salary_amount} ${position.salary_currency}`,
+          experience_required: position.position_notes?.match(/experience:?\s*([^\n]+)/i)?.[1]?.trim() || 'Not specified',
+          skills_required: position.position_notes?.match(/skills?:?\s*([^\n]+)/i)?.[1]?.split(',').map(s => s.trim()) || []
+        };
+      }
+
+      // Find the interview details if status is interview_scheduled or interview_rescheduled
+      let interviewDetails: any = null;
+      if (['interview_scheduled', 'interview_rescheduled'].includes(app.status) && app.interview_details?.[0]) {
+        const interview = app.interview_details[0];
+        interviewDetails = {
+          id: interview.id,
+          interview_date_ad: interview.interview_date_ad,
+          interview_date_bs: interview.interview_date_bs,
+          interview_time: interview.interview_time,
+          location: interview.location,
+          contact_person: interview.contact_person,
+          required_documents: interview.required_documents,
+          notes: interview.notes,
+          expenses: interview.expenses?.map(expense => ({
+            id: expense.id,
+            expense_type: expense.expense_type,
+            who_pays: expense.who_pays,
+            is_free: expense.is_free,
+            amount: expense.amount,
+            currency: expense.currency,
+            refundable: expense.refundable,
+            notes: expense.notes
+          })) || []
+        };
+      }
+
+      // Get job posting details from the first contract
+      let jobPosting = null;
+      if (app.job_posting) {
+        const contract = app.job_posting.contracts?.[0];
+        jobPosting = {
+          title: app.job_posting.posting_title,
+          employer: contract?.employer ? {
+            company_name: contract.employer.company_name,
+            country: contract.employer.country || app.job_posting.country,
+            city: contract.employer.city || app.job_posting.city
+          } : {
+            company_name: 'Unknown',
+            country: app.job_posting.country,
+            city: app.job_posting.city
+          },
+          country: app.job_posting.country,
+          city: app.job_posting.city
+        };
+      }
+
+      // Build the response object with all existing fields
+      const response: any = {
+        id: app.id,
+        candidate_id: app.candidate_id,
+        job_posting_id: app.job_posting_id,
+        status: app.status,
+        agency_name: agency?.name || null,
+        interview: interviewDetails,
+        created_at: app.created_at,
+        updated_at: app.updated_at
+      };
+
+      // Add position details if available
+      if (positionDto) {
+        response.position = positionDto;
+      }
+
+      // Add job posting details if available
+      if (jobPosting) {
+        response.job_posting = jobPosting;
+      }
+
+      return response;
+    });
+
+    return { items: result, total, page, limit };
   }
 
   // Withdraw application by candidate + posting

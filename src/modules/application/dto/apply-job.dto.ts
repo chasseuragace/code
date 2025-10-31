@@ -19,6 +19,14 @@ export class ApplyJobDto {
   job_posting_id: string;
 
   @ApiProperty({
+    description: 'UUID of the specific position being applied for within the job posting',
+    example: '2f4a8d3b-1c5e-4f7a-9d2c-8e3f6a5b4d7e',
+    format: 'uuid',
+  })
+  @IsUUID(4)
+  position_id: string;
+
+  @ApiProperty({
     description: 'Optional note or cover letter from the candidate',
     example: 'I am very interested in this electrical position and have 5 years of experience.',
     required: false,

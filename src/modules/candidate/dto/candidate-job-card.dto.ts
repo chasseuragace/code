@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { PositionSummaryDto } from './position-summary.dto';
 
 export class CardAgencyLiteDto {
   @ApiProperty({ type: String }) name!: string;
@@ -35,6 +36,13 @@ export class CandidateJobCardDto {
   @ApiProperty({ type: String, required: false, nullable: true }) posting_date_ad?: string | Date | null;
   @ApiProperty({ type: String, required: false, nullable: true }) cutout_url?: string | null;
   @ApiProperty({ type: Number, required: false, description: '0–100' }) fitness_score?: number;
+
+  @ApiProperty({ 
+    type: [PositionSummaryDto], 
+    description: 'List of available positions for this job',
+    required: false 
+  }) 
+  positions?: PositionSummaryDto[];
 }
 
 export class PaginatedJobsResponseDto {

@@ -1,6 +1,7 @@
 import { Entity, Column, OneToMany, ManyToOne, JoinColumn, ManyToMany, JoinTable } from 'typeorm';
 import { JobTitle } from '../job-title/job-title.entity';
 import { PostingAgency } from './PostingAgency';
+import { JobApplication } from '../application/job-application.entity';
 
 import { BaseEntity, BaseEntityCreatedOnly } from './base.entity';
  
@@ -209,7 +210,15 @@ export class JobPosition extends BaseEntity {
   @Column({ type: 'integer', asExpression: 'male_vacancies + female_vacancies', generatedType: 'STORED' })
   total_vacancies: number;
 
-  @Column({ type: 'decimal', precision: 12, scale: 2 })
+  @Column({
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    transformer: {
+      to: (value: number) => value,
+      from: (value: string | number) => typeof value === 'string' ? parseFloat(value) : value
+    }
+  })
   monthly_salary_amount: number;
 
   @Column({ type: 'varchar', length: 10 })
@@ -572,6 +581,10 @@ export class InterviewDetail extends BaseEntity {
   @ManyToOne(() => JobPosting, posting => posting.interviews, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'job_posting_id' })
   job_posting: JobPosting;
+
+  @ManyToOne(() => JobApplication, application => application.interview_details, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'job_application_id' })
+  job_application: JobApplication;
 
   @OneToMany(() => InterviewExpense, expense => expense.interview, { cascade: true })
   expenses: InterviewExpense[];

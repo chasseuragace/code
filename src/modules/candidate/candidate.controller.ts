@@ -1,22 +1,67 @@
-import { Controller, Get, Param, Query, ParseUUIDPipe, Post, Body, HttpCode, Delete, Put, NotFoundException, Req, UseGuards } from '@nestjs/common';
+import { 
+  Controller, 
+  Get, 
+  Param, 
+  Query, 
+  ParseUUIDPipe, 
+  Post, 
+  Body, 
+  HttpCode, 
+  Delete, 
+  Put, 
+  NotFoundException, 
+  Req, 
+  UseGuards, 
+  BadRequestException 
+} from '@nestjs/common';
+import { 
+  ApiOperation, 
+  ApiParam, 
+  ApiQuery, 
+  ApiResponse, 
+  ApiTags, 
+  ApiBody, 
+  ApiOkResponse, 
+  ApiCreatedResponse, 
+  ApiExtraModels 
+} from '@nestjs/swagger';
+import { Request } from 'express';
+
 import { CandidateService } from './candidate.service';
-import { JobPostingService, ExpenseService, InterviewService } from '../domain/domain.service';
-import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags, ApiBody, ApiOkResponse, ApiCreatedResponse, ApiExtraModels } from '@nestjs/swagger';
+import { JobPostingService, InterviewService } from '../domain/domain.service';
+import { CurrencyConversionService } from '../currency/currency-conversion.service';
+
 import { PaginatedJobsResponseDto } from './dto/candidate-job-card.dto';
 import { CandidateProfileDto } from './dto/candidate-profile.dto';
 import { CandidateUpdateDto } from './dto/candidate-update.dto';
 import { CandidateJobDetailsDto } from '../domain/dto/job-details.dto';
 import { CandidateCreateDto } from './dto/candidate-create.dto';
-import { PreferenceDto, AddPreferenceDto, RemovePreferenceDto, ReorderPreferencesDto } from './dto/candidate-preferences.dto';
-import { UpdateJobProfileDto, CandidateJobProfileDto } from './dto/job-profile.dto';
-import { GroupedJobsResponseDto, CandidateCreatedResponseDto, AddJobProfileResponseDto } from './dto/candidate-responses.dto';
+import { 
+  PreferenceDto, 
+  AddPreferenceDto, 
+  RemovePreferenceDto, 
+  ReorderPreferencesDto 
+} from './dto/candidate-preferences.dto';
+import { 
+  UpdateJobProfileDto, 
+  CandidateJobProfileDto 
+} from './dto/job-profile.dto';
+import { 
+  GroupedJobsResponseDto, 
+  CandidateCreatedResponseDto, 
+  AddJobProfileResponseDto 
+} from './dto/candidate-responses.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { AuthService } from '../auth/auth.service';
-import { Request } from 'express';
-import { BadRequestException } from '@nestjs/common';
-import { PaginatedInterviewsDto, InterviewEnrichedDto, EmployerLiteDto, AgencyLiteDto, PostingLiteDto, InterviewExpenseDto, InterviewScheduleDto } from '../domain/dto/interview-list.dto';
+import { 
+  PaginatedInterviewsDto, 
+  InterviewEnrichedDto, 
+  EmployerLiteDto, 
+  AgencyLiteDto, 
+  PostingLiteDto, 
+  InterviewExpenseDto, 
+  InterviewScheduleDto 
+} from '../domain/dto/interview-list.dto';
 import { MobileJobPostingDto } from './dto/mobile-job.dto';
-import { CurrencyConversionService } from '../currency/currency-conversion.service';
 
 function toBool(val?: string): boolean | undefined {
   if (val == null) return undefined;
@@ -29,11 +74,9 @@ function toBool(val?: string): boolean | undefined {
 export class CandidateController {
   constructor(
     private readonly candidates: CandidateService,
-    private readonly jobs: JobPostingService,
-    private readonly expenses: ExpenseService,
-    private readonly interviews: InterviewService,
-    private readonly auth: AuthService,
+    private readonly jobPostingService: JobPostingService,
     private readonly currencyConversionService: CurrencyConversionService,
+    private readonly interviewService: InterviewService,
   ) {}
 
   // Get candidate profile
@@ -63,10 +106,10 @@ export class CandidateController {
     @Param('jobId', new ParseUUIDPipe({ version: '4' })) jobId: string,
   ): Promise<MobileJobPostingDto> {
     // Base mobile projection with salary conversions preference NPR > USD > first
-    const mobile = await this.jobs.jobbyidmobile(jobId);
+    const mobile = await this.jobPostingService.jobbyidmobile(jobId);
 
     // Compute match percentage similar to getJobDetailsWithFitness
-    const jp = await this.jobs.findJobPostingById(jobId);
+    const jp = await this.jobPostingService.findJobPostingById(jobId);
     const jobProfiles = await this.candidates.listJobProfiles(id);
     const mostRecentJobProfile = jobProfiles[0]; // ordered by updated_at DESC
     const profileBlob = (mostRecentJobProfile?.profile_blob as any) || {};
@@ -557,15 +600,47 @@ export class CandidateController {
         const contract = Array.isArray(jp.contracts) ? jp.contracts[0] : undefined;
         const positions = contract?.positions || [];
         const titles = Array.from(new Set(positions.map((p: any) => p.title).filter(Boolean))) as string[];
+        
+        // Process positions for the response
+        const positionDtos = await Promise.all(positions.map(async (position: any) => {
+          let convertedSalaries: Array<{ amount: number; currency: string }> = [];
+          
+          // Convert salary to other currencies if needed
+          if (position.monthly_salary_amount && position.salary_currency) {
+            const conversions = await this.currencyConversionService.convertSalary(
+              position.monthly_salary_amount,
+              position.salary_currency,
+              ['NPR', 'USD']
+            );
+            convertedSalaries = conversions;
+          }
+          
+          return {
+            id: position.id,
+            title: position.title,
+            male_vacancies: position.male_vacancies || 0,
+            female_vacancies: position.female_vacancies || 0,
+            total_vacancies: position.total_vacancies || 0,
+            monthly_salary_amount: position.monthly_salary_amount,
+            salary_currency: position.salary_currency,
+            salary_display: `${position.monthly_salary_amount} ${position.salary_currency}`,
+            converted_salaries: convertedSalaries,
+            notes: position.position_notes
+          };
+        }));
+        
+        // Calculate salary range for the job card
         let monthly_min: number | null = null;
         let monthly_max: number | null = null;
         let currency: string | null = null;
+        
         if (positions.length) {
           currency = positions[0].salary_currency || null;
           const amounts = positions
             .filter((p: any) => p.salary_currency === currency)
             .map((p: any) => Number(p.monthly_salary_amount))
             .filter((n: any) => !isNaN(n));
+            
           if (amounts.length) {
             monthly_min = Math.min(...amounts);
             monthly_max = Math.max(...amounts);
@@ -589,10 +664,15 @@ export class CandidateController {
           primary_titles: titles,
           salary: { monthly_min, monthly_max, currency, converted },
           agency: contract?.agency ? { name: contract.agency.name, license_number: contract.agency.license_number } : undefined,
-          employer: contract?.employer ? { company_name: contract.employer.company_name, country: contract.employer.country, city: contract.employer.city } : undefined,
+          employer: contract?.employer ? { 
+            company_name: contract.employer.company_name, 
+            country: contract.employer.country, 
+            city: contract.employer.city 
+          } : undefined,
           posting_date_ad: jp.posting_date_ad ?? null,
           cutout_url: jp.cutout_url ?? null,
           fitness_score: (jp as any).fitness_score,
+          positions: positionDtos,
         };
       }));
       return { title: g.title, jobs };
@@ -681,8 +761,14 @@ export class CandidateController {
         currency = positions[0].salary_currency || null;
         const amounts = positions
           .filter((p: any) => p.salary_currency === currency)
-          .map((p: any) => Number(p.monthly_salary_amount))
-          .filter((n: any) => !isNaN(n));
+          .map((p: any) => {
+            // Ensure monthly_salary_amount is a number
+            const amount = typeof p.monthly_salary_amount === 'string' 
+              ? parseFloat(p.monthly_salary_amount) 
+              : p.monthly_salary_amount;
+            return typeof amount === 'number' ? amount : 0;
+          })
+          .filter((n: number) => !isNaN(n) && isFinite(n));
         if (amounts.length) {
           monthly_min = Math.min(...amounts);
           monthly_max = Math.max(...amounts);

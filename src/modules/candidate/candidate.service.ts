@@ -435,6 +435,8 @@ export class CandidateService {
       .leftJoinAndSelect('contracts.agency', 'agency')
       // Explicitly select JSONB requirement fields used for scoring
       .addSelect(['jp.skills', 'jp.education_requirements', 'jp.experience_requirements'])
+      // Ensure monthly_salary_amount is returned as a number
+      .addSelect('positions.monthly_salary_amount::numeric', 'positions_monthly_salary_amount')
       .where('jp.is_active = :active', { active: true })
       .orderBy('jp.posting_date_ad', 'DESC');
 

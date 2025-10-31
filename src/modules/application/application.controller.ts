@@ -35,7 +35,12 @@ export class ApplicationController {
     }
   })
   async apply(@Body() body: ApplyJobDto): Promise<ApplyJobResponseDto> {
-    const saved = await this.apps.apply(body.candidate_id, body.job_posting_id, { note: body.note, updatedBy: body.updatedBy });
+    const saved = await this.apps.apply(
+      body.candidate_id, 
+      body.job_posting_id,
+      body.position_id,
+      { note: body.note, updatedBy: body.updatedBy }
+    );
     return { id: saved.id, status: saved.status };
   }
 
@@ -91,6 +96,9 @@ export class ApplicationController {
         candidate_id: item.candidate_id,
         job_posting_id: item.job_posting_id,
         status: item.status,
+        agency_name: item.agency_name,
+        interview: item.interview,
+        job_posting: item.job_posting, // Include job_posting in the response
         created_at: item.created_at,
         updated_at: item.updated_at,
       })),

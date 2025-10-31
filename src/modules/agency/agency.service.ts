@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Brackets } from 'typeorm';
 import { InterviewDetail, JobContract, JobPosition, JobPosting } from '../domain/domain.entity';
 import { PostingAgency } from '../domain/PostingAgency';
 import { CreateAgencyDto, UpdateAgencyDto } from './dto/agency.dto';
 import { ListAgencyJobPostingsQueryDto } from './dto/agency-job-postings.dto';
+import { AgencySearchDto, AgencyCardDto, PaginatedAgencyResponseDto } from './dto/agency-search.dto';
 
 export interface AgencyAnalytics {
   active_postings: number;
@@ -300,5 +301,94 @@ export class AgencyService {
     }));
 
     return { data, total, page, limit };
+  }
+
+  async searchAgencies(dto: AgencySearchDto): Promise<PaginatedAgencyResponseDto> {
+    const { 
+      keyword, 
+      page = 1, 
+      limit = 10, 
+      sortBy = 'name', 
+      sortOrder = 'ASC' 
+    } = dto;
+
+    const skip = (page - 1) * limit;
+
+    // Create query builder with proper relations
+    const queryBuilder = this.agencyRepository
+      .createQueryBuilder('agency')
+      .leftJoin('agency.contracts', 'contract')
+      .loadRelationCountAndMap('agency.job_posting_count', 'agency.contracts', 'contract', qb => 
+        qb.andWhere('contract.job_posting_id IS NOT NULL')
+      )
+      .where('agency.is_active = :isActive', { isActive: true });
+
+    // Add keyword search if provided
+    if (keyword) {
+      const searchTerm = `%${keyword.toLowerCase()}%`;
+      queryBuilder.andWhere(
+        new Brackets(qb => {
+          qb.where('LOWER(agency.name) LIKE :searchTerm', { searchTerm })
+            .orWhere('LOWER(agency.license_number) LIKE :searchTerm', { searchTerm })
+            .orWhere('LOWER(agency.description) LIKE :searchTerm', { searchTerm })
+            .orWhere('LOWER(agency.city) LIKE :searchTerm', { searchTerm })
+            .orWhere('LOWER(agency.country) LIKE :searchTerm', { searchTerm })
+            .orWhere('EXISTS (SELECT 1 FROM unnest(COALESCE(agency.specializations, \'{}\')) AS spec WHERE LOWER(spec) LIKE :searchTerm)')
+            .orWhere('EXISTS (SELECT 1 FROM unnest(COALESCE(agency.target_countries, \'{}\')) AS country WHERE LOWER(country) LIKE :searchTerm)');
+        })
+      ).setParameter('searchTerm', searchTerm);
+    }
+
+    // Get total count for pagination
+    const total = await queryBuilder.getCount();
+
+    // Apply sorting and pagination
+    const sortField = this.mapSortField(sortBy);
+    const sortDirection = sortOrder.toUpperCase() as 'ASC' | 'DESC';
+    
+    const agencies = await queryBuilder
+      .orderBy(sortField, sortDirection)
+      .skip(skip)
+      .take(limit)
+      .getMany();
+
+    // Map to DTO
+    const data = agencies.map(agency => {
+      const dto = new AgencyCardDto();
+      dto.id = agency.id;
+      dto.name = agency.name;
+      dto.license_number = agency.license_number;
+      dto.logo_url = agency.logo_url;
+      dto.description = agency.description;
+      dto.city = agency.city;
+      dto.country = agency.country;
+      dto.website = agency.website;
+      dto.is_active = agency.is_active;
+      dto.specializations = agency.specializations;
+      dto.created_at = agency.created_at;
+      dto.job_posting_count = (agency as any).job_posting_count || 0;
+      return dto;
+    });
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    };
+  }
+
+  private mapSortField(field: string): string {
+    const fieldMap: Record<string, string> = {
+      'name': 'agency.name',
+      'country': 'agency.country',
+      'city': 'agency.city',
+      'created_at': 'agency.created_at',
+      'job_posting_count': 'job_posting_count'
+    };
+    return fieldMap[field] || 'agency.name';
   }
 }

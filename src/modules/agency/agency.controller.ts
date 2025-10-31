@@ -1,4 +1,4 @@
-import { Controller, Post, HttpCode, Param, Body, Patch, Get, ParseUUIDPipe, ForbiddenException, UploadedFile, UseInterceptors, Delete, Query, UseGuards, Req, BadRequestException } from '@nestjs/common';
+import { Controller, Post, HttpCode, Param, Body, Patch, Get, ParseUUIDPipe, ForbiddenException, UploadedFile, UseInterceptors, Delete, Query, UseGuards, Req, BadRequestException, ValidationPipe } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiOperation, ApiResponse, ApiTags, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -21,6 +21,7 @@ import { DevSmsService } from './dev-sms.service';
 import * as bcrypt from 'bcryptjs';
 import { CreateAgencyDto, AgencyCreatedDto, AgencyResponseDto } from './dto/agency.dto';
 import { ListAgencyJobPostingsQueryDto, PaginatedAgencyJobPostingsDto } from './dto/agency-job-postings.dto';
+import { AgencySearchDto, PaginatedAgencyResponseDto } from './dto/agency-search.dto';
 
 function normalizePhone(phone: string): string {
   const digits = phone.replace(/\D/g, '');
@@ -43,6 +44,56 @@ function generatePassword(length = 10): string {
 @ApiTags('Agencies')
 @Controller('agencies')
 export class AgencyController {
+  @Get('search')
+  @ApiOperation({ 
+    summary: 'Search agencies with keyword search',
+    description: 'Search across agency name, description, location, and specializations with a single keyword.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Returns paginated list of agencies matching the search criteria',
+    type: PaginatedAgencyResponseDto 
+  })
+  @ApiQuery({ 
+    name: 'keyword', 
+    required: false, 
+    description: 'Search term to look up agencies by name, description, location, or specializations',
+    example: 'tech'
+  })
+  @ApiQuery({ 
+    name: 'page', 
+    required: false, 
+    description: 'Page number', 
+    type: Number,
+    example: 1
+  })
+  @ApiQuery({ 
+    name: 'limit', 
+    required: false, 
+    description: 'Items per page (max 100)', 
+    type: Number,
+    example: 10
+  })
+  @ApiQuery({ 
+    name: 'sortBy', 
+    required: false, 
+    description: 'Field to sort by',
+    enum: ['name', 'country', 'city', 'created_at'],
+    example: 'name'
+  })
+  @ApiQuery({ 
+    name: 'sortOrder', 
+    required: false, 
+    description: 'Sort order',
+    enum: ['asc', 'desc'],
+    example: 'asc'
+  })
+  async searchAgencies(
+    @Query(new ValidationPipe({ transform: true })) searchDto: AgencySearchDto
+  ): Promise<PaginatedAgencyResponseDto> {
+    return this.agencyService.searchAgencies(searchDto);
+  }
+
   constructor(
     private readonly agencyService: AgencyService,
     private readonly jobPostingService: JobPostingService,

@@ -91,6 +91,7 @@ export class TesthelperService {
 
   return {
     candidatePhone: candidate.phone,
+    candidateId: candidate.id,
     applicationIds, // <-- now a list of all application IDs
     postingAgencyId: postingAgency.id,
     agencyOwnerPhone: agencyOwner.phone,

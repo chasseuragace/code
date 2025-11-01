@@ -11,6 +11,7 @@ import { CountryModule } from './modules/country/country.module';
 import { SeedModule } from './modules/seed/seed.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { TesthelperModule } from './modules/testhelper/testhelper.module';
+import { NotificationModule } from './modules/notification/notification.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { TesthelperModule } from './modules/testhelper/testhelper.module';
     SeedModule,
     AuthModule,
     TesthelperModule,
+    NotificationModule,
   ],
 })
 export class AppModule {}

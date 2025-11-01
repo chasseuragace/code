@@ -4,7 +4,8 @@ import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
 interface TestSuitePrerequisites {
   candidatePhone: string;
-  applicationId: string;
+  candidateId: string;
+  applicationIds: string[];
   postingAgencyId: string;
   agencyOwnerPhone: string;
 }

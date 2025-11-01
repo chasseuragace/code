@@ -6,6 +6,7 @@ import { Candidate } from '../candidate/candidate.entity';
 import { JobApplicationListItemDto } from './dto/paginated-job-applications.dto';
 import { JobPosting, JobPosition } from '../domain/domain.entity';
 import { InterviewService } from '../domain/domain.service';
+import { NotificationService } from '../notification/notification.service';
 
 export type ApplyOptions = { note?: string | null; updatedBy?: string | null };
 export type ListOptions = { status?: JobApplicationStatus; page?: number; limit?: number };
@@ -49,6 +50,7 @@ export class ApplicationService {
     @InjectRepository(Candidate) private readonly candidateRepo: Repository<Candidate>,
     @InjectRepository(JobPosting) private readonly postingRepo: Repository<JobPosting>,
     private readonly interviewSvc: InterviewService,
+    private readonly notificationService: NotificationService,
     private dataSource: DataSource,
   ) {}
 
@@ -296,7 +298,19 @@ export class ApplicationService {
     };
     app.history_blob = [...(app.history_blob ?? []), entry];
 
-    return this.appRepo.save(app);
+    const savedApp = await this.appRepo.save(app);
+
+    // Trigger notification for shortlisted status
+    if (nextStatus === 'shortlisted') {
+      try {
+        await this.notificationService.createNotificationFromApplication(savedApp, 'shortlisted');
+      } catch (error) {
+        console.error('Failed to create notification for shortlisted status:', error);
+        // Don't fail the main operation if notification fails
+      }
+    }
+
+    return savedApp;
   }
 
   // Override transitions for corrections while auditing
@@ -346,6 +360,15 @@ export class ApplicationService {
     };
     app.history_blob = [...(app.history_blob ?? []), entry];
     const savedApp = await this.appRepo.save(app);
+
+    // Trigger notification for interview scheduled
+    try {
+      await this.notificationService.createNotificationFromApplication(savedApp, 'interview_scheduled', createdInterview.id);
+    } catch (error) {
+      console.error('Failed to create notification for interview scheduled:', error);
+      // Don't fail the main operation if notification fails
+    }
+
     // Attach interview (non-persistent) to ease API responses
     (savedApp as any).interview = { id: createdInterview.id };
     return savedApp;
@@ -371,7 +394,17 @@ export class ApplicationService {
       note: opts.note ?? null,
     };
     app.history_blob = [...(app.history_blob ?? []), entry];
-    return this.appRepo.save(app);
+    const savedApp = await this.appRepo.save(app);
+
+    // Trigger notification for interview rescheduled
+    try {
+      await this.notificationService.createNotificationFromApplication(savedApp, 'interview_rescheduled', interviewId);
+    } catch (error) {
+      console.error('Failed to create notification for interview rescheduled:', error);
+      // Don't fail the main operation if notification fails
+    }
+
+    return savedApp;
   }
 
   // Complete an interview with result pass/fail
@@ -393,7 +426,17 @@ export class ApplicationService {
       note: opts.note ?? null,
     };
     app.history_blob = [...(app.history_blob ?? []), entry];
-    return this.appRepo.save(app);
+    const savedApp = await this.appRepo.save(app);
+
+    // Trigger notification for interview result
+    try {
+      await this.notificationService.createNotificationFromApplication(savedApp, nextStatus);
+    } catch (error) {
+      console.error(`Failed to create notification for interview ${result}:`, error);
+      // Don't fail the main operation if notification fails
+    }
+
+    return savedApp;
   }
 
   // Analytics for a candidate's applications

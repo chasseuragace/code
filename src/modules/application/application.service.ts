@@ -332,8 +332,8 @@ export class ApplicationService {
     const allowedFrom = ['applied', 'shortlisted', 'interview_rescheduled'];
     if (!allowedFrom.includes(app.status)) throw new Error(`Invalid schedule from status ${app.status}`);
 
-    // Persist interview
-    await this.interviewSvc.createInterview(app.job_posting_id, { ...input, job_application_id: app.id });
+    // Persist interview and capture its id
+    const createdInterview = await this.interviewSvc.createInterview(app.job_posting_id, { ...input, job_application_id: app.id });
 
     const prev = app.status;
     app.status = 'interview_scheduled';
@@ -345,7 +345,10 @@ export class ApplicationService {
       note: opts.note ?? null,
     };
     app.history_blob = [...(app.history_blob ?? []), entry];
-    return this.appRepo.save(app);
+    const savedApp = await this.appRepo.save(app);
+    // Attach interview (non-persistent) to ease API responses
+    (savedApp as any).interview = { id: createdInterview.id };
+    return savedApp;
   }
 
   // Reschedule an interview; updates interview details and application status

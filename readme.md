@@ -1,6 +1,6 @@
 
 Quick pointers for next time:
-- Read [docs/guide.md](cci:7://file:///Users/ajaydahal/portal/agency_research/code/docs/guide.md:0:0-0:0) for a full orientation.
+- Read [docs/guide.md](cci:7://file:///Users/code_shared/portal/agency_research/code/docs/guide.md:0:0-0:0) for a full orientation.
 - Run seeds: POST `/countries/seedv1`, `/job-titles/seedv1`.
 - Key flows to try:
   - Candidate matching: `GET /candidates/:id/relevant-jobs`, `/grouped`, `/by-title`.

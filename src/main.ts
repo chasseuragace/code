@@ -19,6 +19,7 @@ async function bootstrap() {
   SwaggerModule.setup('docs', app, document);
 
   await app.listen(3000);
+  
   const url = await app.getUrl();
   // Log the Swagger URL for convenience
   // eslint-disable-next-line no-console

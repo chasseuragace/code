@@ -138,7 +138,7 @@ export class ApplicationController {
     },
   ) {
     const saved = await this.apps.scheduleInterview(id, body, { note: body?.note, updatedBy: body?.updatedBy });
-    return { id: saved.id, status: saved.status };
+    return { id: saved.id, status: saved.status, interview: (saved as any).interview };
   }
 
   // Reschedule an interview for an application

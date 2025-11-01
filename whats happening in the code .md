@@ -240,8 +240,8 @@
                                                                                                                     - t really dont thik the cognitive reframing engine i have [todo immediate : insert link ]
                                                                                                                         - meta : see procanation uprising :
                                                                                                                             - [] 
-                                                                                                                            /Users/ajaydahal/v6/world.md
-                                                                                                                            /Users/ajaydahal/v6/wizard.md
+                                                                                                                            /Users/code_shared/v6/world.md
+                                                                                                                            /Users/code_shared/v6/wizard.md
                                                                                                                             - see i i just broke a ongoing flow 
                             -                                                                                               -  how i need to resolve it 
 
@@ -304,7 +304,7 @@
                                                                                         - since context matters 
                                                                                         - since effiency matters 
                                                                                     - data is available 
-                                                                                        - /Users/ajaydahal/v6/cofnitivive_reframing_engine/rae.json
+                                                                                        - /Users/code_shared/v6/cofnitivive_reframing_engine/rae.json
                                                                         - 
                                                                 - whats gonna happen next 
                                                                     - taht the game to play 
@@ -364,7 +364,7 @@
                                                                                                                                             - the screens  
                                                                             - what i need to see 
                                                                                 - the use of the project activity visualkizer form the old time 
-                                                                                    - linked here /Users/ajaydahal/code/projects/pranit/project_activities_visualizer/README.md
+                                                                                    - linked here /Users/code_shared/code/projects/pranit/project_activities_visualizer/README.md
                                                                                         - notice this readme vs the reality has evolved 
                                                                                             - the hings it mentioss 
                                                                                                 - the overall narrative defination 
@@ -557,7 +557,7 @@
                         - frontend backend integraiton 
                         - backend with frontend 
                     - research agency   
-                        - /Users/ajaydahal/portal/agency_research/documents/doc.md
+                        - /Users/code_shared/portal/agency_research/documents/doc.md
                              - what i did here , understanding 
                              - .md file listed vs consumed
                                 - whats the mindstate
@@ -569,7 +569,7 @@
                     - teh presentation project 
                         - the actual project ill run to presnt 
                             - equivalen t otpwoerpoint presentaion 
-                            - /Users/ajaydahal/my-react-app
+                            - /Users/code_shared/my-react-app
                         
                 - acknowledged 
                     - other pjoject names and paths referenced 
@@ -656,17 +656,17 @@ what aganin compess is the business lens
                                                     - demo
                                                  
 Defining the artifacts 
-- initialize on the /Users/ajaydahal/my-react-app
+- initialize on the /Users/code_shared/my-react-app
     - make sure i can use filesystem mcp to access things outside theis workspace as well
 - document 
     - product requirement document 
-        - the mmd files here /Users/ajaydahal/my-react-app/public/mermaid
+        - the mmd files here /Users/code_shared/my-react-app/public/mermaid
             - serves the structure 
             - while hte workspace there ,  is someone , who 
                 - who can do the mmd to ui rendering. 
                     - it calaim to do so. 
-                    - i shall bear this state of mind when i inter the /Users/ajaydahal/my-react-app/public/mermaid workspace . 
-            - to hvae entry to /Users/ajaydahal/my-react-app/public/mermaid i need a mermaid diagram that follows the convention of hte workspace . 
+                    - i shall bear this state of mind when i inter the /Users/code_shared/my-react-app/public/mermaid workspace . 
+            - to hvae entry to /Users/code_shared/my-react-app/public/mermaid i need a mermaid diagram that follows the convention of hte workspace . 
                 - create mermainds , they have description 
                     - proper data for that exists 
                 - pages exist showing how mermaind diagrams render 

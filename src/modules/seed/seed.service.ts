@@ -313,7 +313,7 @@ export class SeedService {
     //  we will get names form seed eg: in seed  "name": "Karnali Recruiters",
     // find agencies with names in [names froms seed ]
     // now we need to seed n job posting for each agencies 
-    // well use the structure provided in hte /Users/ajaydahal/portal/agency_research/code/src/seed/jobs-to-agencies.seed.json
+    // well use the structure provided in hte /Users/code_shared/portal/agency_research/code/src/seed/jobs-to-agencies.seed.json
     // not the exact data 
     // the posting will be such that we can tell which job is posted by which agency 
     // eg:  "posting_title": "Job 1 from Karnali Recruiters",

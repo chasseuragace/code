@@ -91,16 +91,16 @@
 
 ## 6. Quick Links
 
-* [x] **Git Repository**: `/Users/ajaydahal/portal/agency_research/code/.git` (Main branch)
-* [x] **Backend Source**: `/Users/ajaydahal/portal/agency_research/code/src/`
-* [x] **Mobile App**: `/Users/ajaydahal/portal/agency_research/code/variant_dashboard/lib/app/udaan_saarathi/`
+* [x] **Git Repository**: `/Users/code_shared/portal/agency_research/code/.git` (Main branch)
+* [x] **Backend Source**: `/Users/code_shared/portal/agency_research/code/src/`
+* [x] **Mobile App**: `/Users/code_shared/portal/agency_research/code/variant_dashboard/lib/app/udaan_saarathi/`
 * [x] **API Documentation**: `https://dev.kaha.com.np/job-portal/docs` (Swagger UI)
 * [x] **OpenAPI Spec**: `https://dev.kaha.com.np/job-portal/docs-yaml`
-* [x] **Test Suite (Web)**: `/Users/ajaydahal/portal/agency_research/dev_tools/test_web_frontend/tests/`
-* [x] **Test Runner Script**: `/Users/ajaydahal/portal/agency_research/dev_tools/test_web_frontend/run.sh`
-* [x] **Mobile Tests**: `/Users/ajaydahal/portal/agency_research/code/variant_dashboard/test/`
-* [x] **OpenAPI Client Generator**: `/Users/ajaydahal/portal/agency_research/dev_tools/package_form_open_api/build.sh`
-* [x] **Sample Data**: `/Users/ajaydahal/portal/agency_research/code/src/resource/sample/`
+* [x] **Test Suite (Web)**: `/Users/code_shared/portal/agency_research/dev_tools/test_web_frontend/tests/`
+* [x] **Test Runner Script**: `/Users/code_shared/portal/agency_research/dev_tools/test_web_frontend/run.sh`
+* [x] **Mobile Tests**: `/Users/code_shared/portal/agency_research/code/variant_dashboard/test/`
+* [x] **OpenAPI Client Generator**: `/Users/code_shared/portal/agency_research/dev_tools/package_form_open_api/build.sh`
+* [x] **Sample Data**: `/Users/code_shared/portal/agency_research/code/src/resource/sample/`
 
 ---
 
@@ -128,4 +128,4 @@ Ishowr :
         -  grouped by application
         - this is applcation history disguised as notifications 
 - for workflow apis , teh backend doesnt document he dtos well, however hte test cases , the sure flow , the api's are hit and works fine, refer tot test cases when including dtos. 
-[here](/Users/ajaydahal/portal/agency_research/dev_tools/test_web_frontend/tests/application_owner_status_update.test.ts)
+[here](/Users/code_shared/portal/agency_research/dev_tools/test_web_frontend/tests/application_owner_status_update.test.ts)

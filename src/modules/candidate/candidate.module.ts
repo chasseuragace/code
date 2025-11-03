@@ -9,11 +9,13 @@ import { JobPosting } from 'src/modules/domain/domain.entity';
 import { CandidatePreference } from './candidate-preference.entity';
 import { DomainModule } from '../domain/domain.module';
 import { AuthModule } from '../auth/auth.module';
+import { ApplicationModule } from '../application/application.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Candidate, CandidateJobProfile, CandidatePreference, JobTitle, JobPosting]), 
     DomainModule,
+    ApplicationModule,
     forwardRef(() => AuthModule),
   ],
   providers: [CandidateService],

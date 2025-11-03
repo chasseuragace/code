@@ -439,6 +439,29 @@ export class ApplicationService {
     return savedApp;
   }
 
+  /**
+   * Check which positions a candidate has applied to
+   * @param candidateId - The candidate's UUID
+   * @param positionIds - Array of position UUIDs to check
+   * @returns Set of position IDs that have applications
+   */
+  async getAppliedPositionIds(
+    candidateId: string, 
+    positionIds: string[]
+  ): Promise<Set<string>> {
+    if (positionIds.length === 0) return new Set();
+    
+    const applications = await this.appRepo.find({
+      where: {
+        candidate_id: candidateId,
+        position_id: In(positionIds)
+      },
+      select: ['position_id']
+    });
+    
+    return new Set(applications.map(app => app.position_id));
+  }
+
   // Analytics for a candidate's applications
   async getAnalytics(candidateId: string): Promise<{
     total: number;

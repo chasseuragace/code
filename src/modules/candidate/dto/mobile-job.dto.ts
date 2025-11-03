@@ -7,6 +7,11 @@ export class MobileJobPositionDto {
   @ApiPropertyOptional({ type: String }) convertedSalary?: string;
   @ApiPropertyOptional({ type: String }) currency?: string;
   @ApiPropertyOptional({ type: [String] }) requirements?: string[];
+  @ApiPropertyOptional({ 
+    type: Boolean,
+    description: 'Whether the candidate has applied to this position'
+  })
+  hasApplied?: boolean;
 }
 
 export class MobileContractTermsDto {

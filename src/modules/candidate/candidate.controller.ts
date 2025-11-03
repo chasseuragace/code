@@ -30,6 +30,7 @@ import { Request } from 'express';
 import { CandidateService } from './candidate.service';
 import { JobPostingService, InterviewService } from '../domain/domain.service';
 import { CurrencyConversionService } from '../currency/currency-conversion.service';
+import { ApplicationService } from '../application/application.service';
 
 import { PaginatedJobsResponseDto } from './dto/candidate-job-card.dto';
 import { CandidateProfileDto } from './dto/candidate-profile.dto';
@@ -77,6 +78,7 @@ export class CandidateController {
     private readonly jobPostingService: JobPostingService,
     private readonly currencyConversionService: CurrencyConversionService,
     private readonly interviewService: InterviewService,
+    private readonly applicationService: ApplicationService,
   ) {}
 
   // Get candidate profile
@@ -165,6 +167,17 @@ export class CandidateController {
     const fitness_score = parts > 0 ? Math.round((sumPct / parts) * 100) : undefined;
     if (fitness_score != null) {
       mobile.matchPercentage = String(fitness_score);
+    }
+
+    // Add hasApplied flag to positions
+    const positionIds = mobile.positions?.map(p => p.id) || [];
+    const appliedPositionIds = await this.applicationService.getAppliedPositionIds(id, positionIds);
+    
+    if (mobile.positions) {
+      mobile.positions = mobile.positions.map(pos => ({
+        ...pos,
+        hasApplied: appliedPositionIds.has(pos.id)
+      }));
     }
 
     return mobile as MobileJobPostingDto;
@@ -594,6 +607,20 @@ export class CandidateController {
     }
 
     const res = await this.candidates.getRelevantJobsGrouped(id, opts);
+    
+    // Collect all position IDs from all jobs for batch query
+    const allPositionIds: string[] = [];
+    for (const group of res.groups || []) {
+      for (const job of group.jobs || []) {
+        const contract = Array.isArray(job.contracts) ? job.contracts[0] : undefined;
+        const positions = contract?.positions || [];
+        allPositionIds.push(...positions.map((p: any) => p.id));
+      }
+    }
+    
+    // Batch query for applications
+    const appliedPositionIds = await this.applicationService.getAppliedPositionIds(id, allPositionIds);
+    
     // Map domain JobPosting to CandidateJobCardDto shape, similar to getRelevantJobsByTitle
     const groups = await Promise.all((res.groups || []).map(async (g: any) => {
       const jobs = await Promise.all((g.jobs || []).map(async (jp: any) => {
@@ -625,7 +652,8 @@ export class CandidateController {
             salary_currency: position.salary_currency,
             salary_display: `${position.monthly_salary_amount} ${position.salary_currency}`,
             converted_salaries: convertedSalaries,
-            notes: position.position_notes
+            notes: position.position_notes,
+            has_applied: appliedPositionIds.has(position.id)
           };
         }));
         

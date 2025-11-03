@@ -49,4 +49,11 @@ export class PositionSummaryDto {
     required: false 
   })
   notes?: string;
+
+  @ApiProperty({ 
+    description: 'Whether the candidate has applied to this position',
+    example: true,
+    required: false 
+  })
+  has_applied?: boolean;
 }

@@ -85,4 +85,97 @@ describe('Agency Profile CRUD (AG-CRUD)', () => {
     expect(second.id).toBe(first.id);
     // name should remain as first or as stored; allow either equality by id is sufficient
   });
+
+  it('AG-5: findAgencyById returns complete agency details', async () => {
+    const suf = uniqueSuffix();
+    const dto = {
+      name: `Rich Agency ${suf}`,
+      license_number: `RICH-${suf}`,
+      city: 'Kathmandu',
+      country: 'Nepal',
+      address: '123 Main St',
+      phones: ['+977-1234567', '+977-9876543'],
+      emails: ['info@agency.com', 'contact@agency.com'],
+      website: 'https://agency.com',
+      description: 'A comprehensive manpower agency',
+      logo_url: 'https://agency.com/logo.png',
+      banner_url: 'https://agency.com/banner.jpg',
+      established_year: 2010,
+      services: ['Recruitment', 'Training', 'Visa Processing'],
+      target_countries: ['UAE', 'Qatar', 'Saudi Arabia'],
+      specializations: ['Construction', 'Healthcare', 'IT'],
+      certifications: [
+        { name: 'ISO 9001', number: 'ISO-001', issued_by: 'ISO', issued_date: '2020-01-01', expiry_date: '2023-01-01' }
+      ],
+      social_media: {
+        facebook: 'https://facebook.com/agency',
+        linkedin: 'https://linkedin.com/company/agency'
+      },
+      contact_persons: [
+        { name: 'John Doe', position: 'Manager', phone: '+977-1111111', email: 'john@agency.com' }
+      ],
+      operating_hours: {
+        weekdays: '9:00 AM - 6:00 PM',
+        saturday: '9:00 AM - 2:00 PM',
+        sunday: 'Closed'
+      },
+      statistics: {
+        total_placements: 1500,
+        active_since: '2010-01-01',
+        success_rate: 95,
+        countries_served: 5
+      }
+    };
+    
+    const created = await agencies.createAgency(dto);
+    const found = await agencies.findAgencyById(created.id);
+    
+    // Verify all fields are returned
+    expect(found.id).toBe(created.id);
+    expect(found.name).toBe(dto.name);
+    expect(found.license_number).toBe(dto.license_number);
+    expect(found.city).toBe(dto.city);
+    expect(found.country).toBe(dto.country);
+    expect(found.address).toBe(dto.address);
+    expect(found.phones).toEqual(dto.phones);
+    expect(found.emails).toEqual(dto.emails);
+    expect(found.website).toBe(dto.website);
+    expect(found.description).toBe(dto.description);
+    expect(found.logo_url).toBe(dto.logo_url);
+    expect(found.banner_url).toBe(dto.banner_url);
+    expect(found.established_year).toBe(dto.established_year);
+    expect(found.services).toEqual(dto.services);
+    expect(found.target_countries).toEqual(dto.target_countries);
+    expect(found.specializations).toEqual(dto.specializations);
+    expect(found.certifications).toEqual(dto.certifications);
+    expect(found.social_media).toEqual(dto.social_media);
+    expect(found.contact_persons).toEqual(dto.contact_persons);
+    expect(found.operating_hours).toEqual(dto.operating_hours);
+    expect(found.statistics).toEqual(dto.statistics);
+  });
+
+  it('AG-6: findAgencyByLicense returns complete agency details', async () => {
+    const suf = uniqueSuffix();
+    const dto = {
+      name: `License Agency ${suf}`,
+      license_number: `LIC-FIND-${suf}`,
+      city: 'Pokhara',
+      country: 'Nepal',
+      description: 'Agency found by license',
+      services: ['Recruitment', 'Documentation'],
+      specializations: ['Engineering', 'Medical']
+    };
+    
+    const created = await agencies.createAgency(dto);
+    const found = await agencies.findAgencyByLicense(dto.license_number);
+    
+    expect(found.id).toBe(created.id);
+    expect(found.name).toBe(dto.name);
+    expect(found.license_number).toBe(dto.license_number);
+    expect(found.city).toBe(dto.city);
+    expect(found.country).toBe(dto.country);
+    expect(found.description).toBe(dto.description);
+    expect(found.services).toEqual(dto.services);
+    expect(found.specializations).toEqual(dto.specializations);
+  });
 });

@@ -1,29 +1,29 @@
 we are here in the workspace,
-I will open the backend controllers to verify available endpoints that support the described job creation and expense flows. Specifically, I’ll check `src/modules/domain/domain.controller.ts` and [src/modules/agency/agency.controller.ts](cci:7://file:///Users/code_shared/portal/agency_research/code/src/modules/agency/agency.controller.ts:0:0-0:0).
+I will open the backend controllers to verify available endpoints that support the described job creation and expense flows. Specifically, I’ll check `src/modules/domain/domain.controller.ts` and [src/modules/agency/agency.controller.ts](cci:7://file:///Volumes/shared_code/code_shared/portal/agency_research/code/src/modules/agency/agency.controller.ts:0:0-0:0).
 
-I'll open [src/modules/agency/agency.controller.ts](cci:7://file:///Users/code_shared/portal/agency_research/code/src/modules/agency/agency.controller.ts:0:0-0:0) to verify which endpoints exist for job creation and related flows.
+I'll open [src/modules/agency/agency.controller.ts](cci:7://file:///Volumes/shared_code/code_shared/portal/agency_research/code/src/modules/agency/agency.controller.ts:0:0-0:0) to verify which endpoints exist for job creation and related flows.
 
 Short answer: Partially. You already have the key create and tags endpoints, but not the expense/interview/update endpoints the frontend stepper needs.
 
 What exists now
 - Agency job creation
   - POST `agencies/:license/job-postings`
-    - In [AgencyController.createJobPostingForAgency](cci:1://file:///Users/code_shared/portal/agency_research/code/src/modules/agency/agency.controller.ts:104:2-130:3) uses [CreateJobPostingWithTagsDto](cci:2://file:///Users/code_shared/portal/agency_research/code/src/modules/domain/dto/create-job-posting-with-tags.dto.ts:5:0-50:1) and infers `posting_agency` from the agency license.
+    - In [AgencyController.createJobPostingForAgency](cci:1://file:///Volumes/shared_code/code_shared/portal/agency_research/code/src/modules/agency/agency.controller.ts:104:2-130:3) uses [CreateJobPostingWithTagsDto](cci:2://file:///Volumes/shared_code/code_shared/portal/agency_research/code/src/modules/domain/dto/create-job-posting-with-tags.dto.ts:5:0-50:1) and infers `posting_agency` from the agency license.
 - Tags
   - PATCH `agencies/:license/job-postings/:id/tags`
   - GET `agencies/:license/job-postings/:id/tags`
 - Utilities/seed
-  - POST `jobs/seedv1` in [DomainController](cci:2://file:///Users/code_shared/portal/agency_research/code/src/modules/domain/domain.controller.ts:5:0-36:1) for seeding (not a production endpoint)
+  - POST `jobs/seedv1` in [DomainController](cci:2://file:///Volumes/shared_code/code_shared/portal/agency_research/code/src/modules/domain/domain.controller.ts:5:0-36:1) for seeding (not a production endpoint)
 
 What’s missing for the frontend flow
 - Update posting details/contract
-  - Backend service [JobPostingService.updateJobPosting()](cci:1://file:///Users/code_shared/portal/agency_research/code/src/modules/domain/domain.service.ts:326:2-343:3) exists, but there is no controller route for it.
+  - Backend service [JobPostingService.updateJobPosting()](cci:1://file:///Volumes/shared_code/code_shared/portal/agency_research/code/src/modules/domain/domain.service.ts:326:2-343:3) exists, but there is no controller route for it.
   - Needed: PATCH `agencies/:license/job-postings/:id` to update partial posting details (Step 1) and contract (Step 2).
 - Positions management
   - Create update/remove endpoints or a consolidated PATCH to manage the positions array.
   - Needed: POST/PUT/DELETE under `agencies/:license/job-postings/:id/positions` (or a single PATCH that replaces positions).
 - Expenses
-  - ExpenseService methods exist (medical, insurance, travel, visa, training, welfare) in [domain.service.ts](cci:7://file:///Users/code_shared/portal/agency_research/code/src/modules/domain/domain.service.ts:0:0-0:0), but not exposed via controller.
+  - ExpenseService methods exist (medical, insurance, travel, visa, training, welfare) in [domain.service.ts](cci:7://file:///Volumes/shared_code/code_shared/portal/agency_research/code/src/modules/domain/domain.service.ts:0:0-0:0), but not exposed via controller.
   - Needed:
     - POST `agencies/:license/job-postings/:id/expenses/medical`
     - POST `agencies/:license/job-postings/:id/expenses/insurance`
@@ -33,13 +33,13 @@ What’s missing for the frontend flow
     - POST `agencies/:license/job-postings/:id/expenses/welfare`
     - Optional GET `agencies/:license/job-postings/:id/expenses`
 - Interview
-  - [InterviewService](cci:2://file:///Users/code_shared/portal/agency_research/code/src/modules/domain/domain.service.ts:498:0-562:1) exists, but no controller endpoints shown.
+  - [InterviewService](cci:2://file:///Volumes/shared_code/code_shared/portal/agency_research/code/src/modules/domain/domain.service.ts:498:0-562:1) exists, but no controller endpoints shown.
   - Needed:
     - POST `agencies/:license/job-postings/:id/interview`
     - GET `agencies/:license/job-postings/:id/interview`
     - PATCH `agencies/:license/job-postings/:id/interview`
 - Listing/find for an agency’s postings
-  - [JobPostingService.findAllJobPostings(...)](cci:1://file:///Users/code_shared/portal/agency_research/code/src/modules/domain/domain.service.ts:311:2-324:3) exists; no controller route to expose it filtered by agency.
+  - [JobPostingService.findAllJobPostings(...)](cci:1://file:///Volumes/shared_code/code_shared/portal/agency_research/code/src/modules/domain/domain.service.ts:311:2-324:3) exists; no controller route to expose it filtered by agency.
   - Needed:
     - GET `agencies/:license/job-postings?status=draft|active&...` to power the frontend list view
 
@@ -47,7 +47,7 @@ Proposed minimal API for the stepper
 - Draft creation:
   - Use existing POST `agencies/:license/job-postings` with minimal payload to get the ID.
 - Update details and contract:
-  - PATCH `agencies/:license/job-postings/:id` (maps to [updateJobPosting](cci:1://file:///Users/code_shared/portal/agency_research/code/src/modules/domain/domain.service.ts:326:2-343:3) for fields under CreateJobPostingDto and contract).
+  - PATCH `agencies/:license/job-postings/:id` (maps to [updateJobPosting](cci:1://file:///Volumes/shared_code/code_shared/portal/agency_research/code/src/modules/domain/domain.service.ts:326:2-343:3) for fields under CreateJobPostingDto and contract).
 - Manage positions:
   - Option A: PATCH `agencies/:license/job-postings/:id/positions` with the full desired positions array.
   - Option B: granular POST/PUT/DELETE for each position.
@@ -61,7 +61,7 @@ Proposed minimal API for the stepper
   - GET postings for an agency with paging and optional filters.
 
 Would you like me to implement these controller endpoints now?
-- I can add them under [AgencyController](cci:2://file:///Users/code_shared/portal/agency_research/code/src/modules/agency/agency.controller.ts:12:0-176:1) to enforce ownership via license (mirroring your tag endpoints).
+- I can add them under [AgencyController](cci:2://file:///Volumes/shared_code/code_shared/portal/agency_research/code/src/modules/agency/agency.controller.ts:12:0-176:1) to enforce ownership via license (mirroring your tag endpoints).
 - I will include DTOs for request bodies and wire them to the existing services.
 - I can also add quick Jest tests to cover a couple of endpoints (e.g., create interview; attach medical + travel expenses) to keep parity with the existing mixed-expense service test.
 ## Current Focus

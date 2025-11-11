@@ -36,6 +36,12 @@ export class Candidate {
   @Column({ type: 'varchar', length: 50, nullable: true })
   passport_number?: string;
 
+  @Column({ type: 'varchar', length: 1000, nullable: true })
+  profile_image?: string;
+
   @Column({ type: 'boolean', default: true })
   is_active: boolean;
 }
+
+
+ 

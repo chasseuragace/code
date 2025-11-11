@@ -6,6 +6,9 @@ import { CandidateJobProfile } from './candidate-job-profile.entity';
 import { JobTitle } from 'src/modules/job-title/job-title.entity';
 import { JobPosting } from 'src/modules/domain/domain.entity';
 import { CandidatePreference } from './candidate-preference.entity';
+import { CandidateDocument } from './candidate-document.entity';
+import { DocumentType } from './document-type.entity';
+import { DocumentTypeService } from './document-type.service';
 
 function normalizePhoneE164(phone: string): string {
   if (!phone || typeof phone !== 'string') {
@@ -64,6 +67,9 @@ export class CandidateService {
     private readonly jobTitles: Repository<JobTitle>,
     @InjectRepository(JobPosting)
     private readonly jobPostings: Repository<JobPosting>,
+    @InjectRepository(CandidateDocument)
+    private readonly documents: Repository<CandidateDocument>,
+    private readonly documentTypeService: DocumentTypeService,
   ) {}
 
   async createCandidate(input: Partial<any>): Promise<Candidate> {
@@ -708,5 +714,151 @@ export class CandidateService {
       groups.push({ title, jobs: ordered as any });
     }
     return { groups };
+  }
+
+  // Profile image management
+  async updateProfileImage(id: string, imageUrl: string | null): Promise<void> {
+    const candidate = await this.repo.findOne({ where: { id } });
+    if (!candidate) {
+      throw new NotFoundException('Candidate not found');
+    }
+    candidate.profile_image = imageUrl;
+    await this.repo.save(candidate);
+  }
+
+  // Document management
+  async createDocument(candidateId: string, documentData: Partial<CandidateDocument>): Promise<CandidateDocument> {
+    // Validate document type exists
+    const documentType = await this.documentTypeService.findById(documentData.document_type_id!);
+    if (!documentType) {
+      throw new BadRequestException('Invalid document type');
+    }
+
+    // Check if document of this type already exists for candidate
+    const existing = await this.documents.findOne({
+      where: {
+        candidate_id: candidateId,
+        document_type_id: documentData.document_type_id!,
+        is_active: true,
+      },
+    });
+
+    if (existing) {
+      // Mark old document as replaced
+      existing.is_active = false;
+      existing.replaced_by_document_id = 'pending'; // Will be updated after new doc is created
+      await this.documents.save(existing);
+    }
+
+    const document = new CandidateDocument();
+    document.candidate_id = candidateId;
+    document.document_type_id = documentData.document_type_id!;
+    document.name = documentData.name!;
+    document.description = documentData.description;
+    document.notes = documentData.notes;
+    document.document_url = documentData.document_url!;
+    document.file_type = documentData.file_type;
+    document.file_size = documentData.file_size;
+    document.is_active = documentData.is_active ?? true;
+    document.verification_status = 'pending';
+    
+    const saved = await this.documents.save(document);
+
+    // Update replaced document with new document ID
+    if (existing) {
+      existing.replaced_by_document_id = saved.id;
+      await this.documents.save(existing);
+    }
+
+    return saved;
+  }
+
+  async updateDocumentUrl(documentId: string, url: string): Promise<void> {
+    const document = await this.documents.findOne({ where: { id: documentId } });
+    if (!document) {
+      throw new NotFoundException('Document not found');
+    }
+    document.document_url = url;
+    await this.documents.save(document);
+  }
+
+  async listDocuments(candidateId: string): Promise<CandidateDocument[]> {
+    return await this.documents.find({
+      where: { candidate_id: candidateId, is_active: true },
+      order: { created_at: 'DESC' }
+    });
+  }
+
+  async getDocumentsWithSlots(candidateId: string): Promise<DocumentsWithSlotsResponseDto> {
+    // Get all document types
+    const documentTypes = await this.documentTypeService.findAll();
+    
+    // Get candidate's uploaded documents
+    const uploadedDocs = await this.documents.find({
+      where: { candidate_id: candidateId, is_active: true },
+      relations: ['document_type'],
+    });
+
+    // Create a map of document_type_id -> document
+    const docMap = new Map<string, CandidateDocument>();
+    uploadedDocs.forEach(doc => {
+      docMap.set(doc.document_type_id, doc);
+    });
+
+    // Build slots response
+    const slots = documentTypes.map(type => {
+      const doc = docMap.get(type.id);
+      return {
+        document_type: {
+          id: type.id,
+          name: type.name,
+          type_code: type.type_code,
+          description: type.description,
+          is_required: type.is_required,
+          display_order: type.display_order,
+          allowed_mime_types: type.allowed_mime_types,
+          max_file_size_mb: type.max_file_size_mb,
+        },
+        document: doc ? {
+          id: doc.id,
+          document_url: doc.document_url,
+          name: doc.name,
+          notes: doc.notes,
+          file_type: doc.file_type,
+          file_size: doc.file_size,
+          verification_status: doc.verification_status,
+          rejection_reason: doc.rejection_reason,
+          created_at: doc.created_at,
+          updated_at: doc.updated_at,
+        } : null,
+      };
+    });
+
+    // Calculate summary
+    const uploaded = uploadedDocs.length;
+    const totalTypes = documentTypes.length;
+    const pending = totalTypes - uploaded;
+    const requiredPending = documentTypes.filter(
+      type => type.is_required && !docMap.has(type.id)
+    ).length;
+
+    return {
+      data: slots,
+      summary: {
+        total_types: totalTypes,
+        uploaded,
+        pending,
+        required_pending: requiredPending,
+        progress: Math.round((uploaded / totalTypes) * 100)
+      },
+    };
+  }
+
+  async findDocumentById(documentId: string): Promise<CandidateDocument | null> {
+    return await this.documents.findOne({ where: { id: documentId } });
+  }
+
+  async deleteDocument(documentId: string): Promise<void> {
+    await this.documents.delete({ id: documentId });
   }
 }

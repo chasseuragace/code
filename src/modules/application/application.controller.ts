@@ -5,6 +5,7 @@ import { ApplyJobDto, ApplyJobResponseDto } from './dto/apply-job.dto';
 import { ApplicationAnalyticsDto } from './dto/application-analytics.dto';
 import { PaginatedJobApplicationsDto } from './dto/paginated-job-applications.dto';
 import { ApplicationDetailDto } from './dto/application-detail.dto';
+import { ApplicationDetailsDto } from './dto/application-details.dto';
 
 @ApiTags('applications')
 @Controller('applications')
@@ -210,6 +211,39 @@ export class ApplicationController {
     }
     const saved = await this.apps.withdraw(app.candidate_id, app.job_posting_id, { note: body?.note, updatedBy: body?.updatedBy });
     return { id: saved.id, status: saved.status };
+  }
+
+  // Get comprehensive application details for frontend
+  @Get(':id/details')
+  @ApiOperation({
+    summary: 'Get comprehensive application details',
+    description: 'Returns detailed application information formatted for frontend consumption, including job details, interview info, employer details, and documents.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Application UUID (v4)',
+    example: '075ce7d9-fcdb-4f7e-b794-4190f49d729f',
+  })
+  @ApiOkResponse({
+    description: 'Comprehensive application details',
+    type: ApplicationDetailsDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'Application not found',
+    example: {
+      statusCode: 404,
+      message: 'Application not found',
+      error: 'Not Found',
+    },
+  })
+  async getApplicationDetails(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ): Promise<ApplicationDetailsDto> {
+    const details = await this.apps.getApplicationDetails(id);
+    if (!details) {
+      throw new NotFoundException('Application not found');
+    }
+    return details;
   }
 
   // Get single application details with full history

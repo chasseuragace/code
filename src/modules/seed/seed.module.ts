@@ -6,6 +6,7 @@ import { CountryModule } from '../country/country.module';
 import { JobTitleModule } from '../job-title/job-title.module';
 import { AgencyModule } from '../agency/agency.module';
 import { DomainModule } from '../domain/domain.module';
+import { CandidateModule } from '../candidate/candidate.module';
 import { JobPosting } from '../domain/domain.entity';
 
 @Module({
@@ -15,6 +16,7 @@ import { JobPosting } from '../domain/domain.entity';
     JobTitleModule,
     AgencyModule,
     DomainModule,
+    CandidateModule,
   ],
   providers: [SeedService],
   controllers: [SeedController],

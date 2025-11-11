@@ -1,5 +1,5 @@
 import { Controller, Post, HttpCode, Param, Body, Patch, Get, ParseUUIDPipe, ForbiddenException, UploadedFile, UseInterceptors, Delete, Query, UseGuards, Req, BadRequestException, ValidationPipe } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiOperation, ApiResponse, ApiTags, ApiParam, ApiQuery } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiOperation, ApiResponse, ApiTags, ApiParam, ApiQuery, ApiConsumes } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AgencyService } from './agency.service';
@@ -22,6 +22,8 @@ import * as bcrypt from 'bcryptjs';
 import { CreateAgencyDto, AgencyCreatedDto, AgencyResponseDto } from './dto/agency.dto';
 import { ListAgencyJobPostingsQueryDto, PaginatedAgencyJobPostingsDto } from './dto/agency-job-postings.dto';
 import { AgencySearchDto, PaginatedAgencyResponseDto } from './dto/agency-search.dto';
+import { ImageUploadService, UploadType } from '../shared/image-upload.service';
+import { UploadResponseDto } from '../candidate/dto/candidate-document.dto';
 
 function normalizePhone(phone: string): string {
   const digits = phone.replace(/\D/g, '');
@@ -103,6 +105,7 @@ export class AgencyController {
     @InjectRepository(JobPosting) private readonly jobPostingRepo: Repository<JobPosting>,
     @InjectRepository(AgencyUser) private readonly agencyUserRepo: Repository<AgencyUser>,
     private readonly sms: DevSmsService,
+    private readonly imageUploadService: ImageUploadService,
   ) {}
 
   // Owner creates their single agency and binds it to their user account
@@ -649,51 +652,218 @@ export class AgencyController {
   // --- Cutout Upload/Remove ---
   @Post(':license/job-postings/:id/cutout')
   @HttpCode(201)
-  @UseInterceptors(FileInterceptor('file', {
-    storage: diskStorage({
-      destination: (req, file, cb) => {
-        const license = req.params.license;
-        const id = req.params.id;
-        const dest = path.resolve(process.cwd(), 'public', license, id);
-        fs.mkdirSync(dest, { recursive: true });
-        cb(null, dest);
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Upload job posting cutout image' })
+  @ApiParam({ name: 'license', description: 'Agency license number', required: true })
+  @ApiParam({ name: 'id', description: 'Job posting ID', required: true })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
       },
-      filename: (req, file, cb) => {
-        const ext = path.extname(file.originalname) || '.bin';
-        cb(null, `cutout${ext}`);
-      }
-    })
-  }))
+    },
+  })
+  @ApiOkResponse({ description: 'Cutout uploaded successfully', type: UploadResponseDto })
   async uploadCutout(
     @Param('license') license: string,
     @Param('id', ParseUUIDPipe) id: string,
     @UploadedFile() file: Express.Multer.File,
-  ) {
+  ): Promise<UploadResponseDto> {
     const posting = await this.jobPostingService.findJobPostingById(id);
     const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) throw new ForbiddenException('Cannot modify job posting of another agency');
-    const rel = `/public/${license}/${id}/${file.filename}`;
-    const updated = await this.jobPostingService.updateCutoutUrl(id, rel);
-    return { id: updated.id, cutout_url: rel };
+
+    // Upload the file using our new service
+    const result = await this.imageUploadService.uploadFile(
+      file,
+      UploadType.JOB_CUTOUT,
+      id
+    );
+
+    if (result.success && result.url) {
+      // Update job posting cutout_url field
+      await this.jobPostingService.updateCutoutUrl(id, result.url);
+    }
+
+    return result;
   }
 
   @Delete(':license/job-postings/:id/cutout')
   @HttpCode(200)
+  @ApiOperation({ summary: 'Remove job posting cutout image' })
+  @ApiParam({ name: 'license', description: 'Agency license number', required: true })
+  @ApiParam({ name: 'id', description: 'Job posting ID', required: true })
+  @ApiOkResponse({ description: 'Cutout removed successfully', type: UploadResponseDto })
   async removeCutout(
     @Param('license') license: string,
     @Param('id', ParseUUIDPipe) id: string,
-    @Query('deleteFile') deleteFile?: string,
-  ) {
+  ): Promise<UploadResponseDto> {
     const posting = await this.jobPostingService.findJobPostingById(id);
     const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) throw new ForbiddenException('Cannot modify job posting of another agency');
-    const currentUrl = (posting as any).cutout_url as string | undefined;
-    const shouldDelete = (deleteFile || '').toLowerCase() === 'true';
-    if (shouldDelete && currentUrl) {
-      const absPath = path.resolve(process.cwd(), currentUrl.replace(/^\//, ''));
-      try { if (fs.existsSync(absPath)) fs.unlinkSync(absPath); } catch { /* ignore */ }
+
+    // Delete the file using our new service
+    const result = await this.imageUploadService.deleteFile(
+      UploadType.JOB_CUTOUT,
+      id
+    );
+
+    if (result.success) {
+      // Clear job posting cutout_url field
+      await this.jobPostingService.updateCutoutUrl(id, null);
     }
-    const updated = await this.jobPostingService.updateCutoutUrl(id, null);
-    return { id: updated.id, cutout_url: null };
+
+    return result;
+  }
+
+  // POST /agencies/:license/logo - Upload agency logo
+  @Post(':license/logo')
+  @HttpCode(200)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Upload agency logo' })
+  @ApiParam({ name: 'license', description: 'Agency license number', required: true })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Logo uploaded successfully', type: UploadResponseDto })
+  async uploadLogo(
+    @Param('license') license: string,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<UploadResponseDto> {
+    // Find agency by license
+    const agency = await this.agencyService.findByLicense(license);
+    if (!agency) {
+      throw new BadRequestException('Agency not found');
+    }
+
+    // Upload the file
+    const result = await this.imageUploadService.uploadFile(
+      file,
+      UploadType.AGENCY_LOGO,
+      agency.id
+    );
+
+    if (result.success && result.url) {
+      // Update agency logo_url field
+      await this.agencyService.updateLogoUrl(agency.id, result.url);
+    }
+
+    return result;
+  }
+
+  // DELETE /agencies/:license/logo - Remove agency logo
+  @Delete(':license/logo')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Remove agency logo' })
+  @ApiParam({ name: 'license', description: 'Agency license number', required: true })
+  @ApiOkResponse({ description: 'Logo removed successfully', type: UploadResponseDto })
+  async deleteLogo(
+    @Param('license') license: string,
+  ): Promise<UploadResponseDto> {
+    // Find agency by license
+    const agency = await this.agencyService.findByLicense(license);
+    if (!agency) {
+      throw new BadRequestException('Agency not found');
+    }
+
+    // Delete the file
+    const result = await this.imageUploadService.deleteFile(
+      UploadType.AGENCY_LOGO,
+      agency.id
+    );
+
+    if (result.success) {
+      // Clear agency logo_url field
+      await this.agencyService.updateLogoUrl(agency.id, null);
+    }
+
+    return result;
+  }
+
+  // POST /agencies/:license/banner - Upload agency banner
+  @Post(':license/banner')
+  @HttpCode(200)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Upload agency banner' })
+  @ApiParam({ name: 'license', description: 'Agency license number', required: true })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Banner uploaded successfully', type: UploadResponseDto })
+  async uploadBanner(
+    @Param('license') license: string,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<UploadResponseDto> {
+    // Find agency by license
+    const agency = await this.agencyService.findByLicense(license);
+    if (!agency) {
+      throw new BadRequestException('Agency not found');
+    }
+
+    // Upload the file
+    const result = await this.imageUploadService.uploadFile(
+      file,
+      UploadType.AGENCY_BANNER,
+      agency.id
+    );
+
+    if (result.success && result.url) {
+      // Update agency banner_url field
+      await this.agencyService.updateBannerUrl(agency.id, result.url);
+    }
+
+    return result;
+  }
+
+  // DELETE /agencies/:license/banner - Remove agency banner
+  @Delete(':license/banner')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Remove agency banner' })
+  @ApiParam({ name: 'license', description: 'Agency license number', required: true })
+  @ApiOkResponse({ description: 'Banner removed successfully', type: UploadResponseDto })
+  async deleteBanner(
+    @Param('license') license: string,
+  ): Promise<UploadResponseDto> {
+    // Find agency by license
+    const agency = await this.agencyService.findByLicense(license);
+    if (!agency) {
+      throw new BadRequestException('Agency not found');
+    }
+
+    // Delete the file
+    const result = await this.imageUploadService.deleteFile(
+      UploadType.AGENCY_BANNER,
+      agency.id
+    );
+
+    if (result.success) {
+      // Clear agency banner_url field
+      await this.agencyService.updateBannerUrl(agency.id, null);
+    }
+
+    return result;
   }
 }

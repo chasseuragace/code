@@ -1,0 +1,65 @@
+[
+  {
+    "name": "Passport",
+    "type_code": "PASSPORT",
+    "description": "Valid passport document",
+    "is_required": true,
+    "display_order": 1,
+    "allowed_mime_types": ["application/pdf", "image/jpeg", "image/jpg", "image/png"],
+    "max_file_size_mb": 10
+  },
+  {
+    "name": "Medical Certificate",
+    "type_code": "MEDICAL",
+    "description": "Medical fitness certificate",
+    "is_required": true,
+    "display_order": 2,
+    "allowed_mime_types": ["application/pdf", "image/jpeg", "image/jpg", "image/png"],
+    "max_file_size_mb": 10
+  },
+  {
+    "name": "Insurance Document",
+    "type_code": "INSURANCE",
+    "description": "Health or travel insurance document",
+    "is_required": false,
+    "display_order": 3,
+    "allowed_mime_types": ["application/pdf", "image/jpeg", "image/jpg", "image/png"],
+    "max_file_size_mb": 10
+  },
+  {
+    "name": "SSF Document",
+    "type_code": "SSF",
+    "description": "Social Security Fund document",
+    "is_required": false,
+    "display_order": 4,
+    "allowed_mime_types": ["application/pdf", "image/jpeg", "image/jpg", "image/png"],
+    "max_file_size_mb": 10
+  },
+  {
+    "name": "Educational Certificate",
+    "type_code": "EDUCATION",
+    "description": "Educational qualifications and certificates",
+    "is_required": false,
+    "display_order": 5,
+    "allowed_mime_types": ["application/pdf", "image/jpeg", "image/jpg", "image/png"],
+    "max_file_size_mb": 10
+  },
+  {
+    "name": "Experience Letter",
+    "type_code": "EXPERIENCE",
+    "description": "Work experience letters and references",
+    "is_required": false,
+    "display_order": 6,
+    "allowed_mime_types": ["application/pdf", "image/jpeg", "image/jpg", "image/png"],
+    "max_file_size_mb": 10
+  },
+  {
+    "name": "Police Clearance",
+    "type_code": "POLICE_CLEARANCE",
+    "description": "Police clearance certificate",
+    "is_required": false,
+    "display_order": 7,
+    "allowed_mime_types": ["application/pdf", "image/jpeg", "image/jpg", "image/png"],
+    "max_file_size_mb": 10
+  }
+]

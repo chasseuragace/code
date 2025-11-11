@@ -3,6 +3,7 @@ import { CountryService, CountrySeedDto } from '../country/country.service';
 import { JobTitleService, JobTitleSeedDto } from '../job-title/job-title.service';
 import { AgencyService, CreateAgencyDto } from '../agency/agency.service';
 import { JobPostingService, AnnouncementType, OvertimePolicy, ProvisionType, ExpensePayer, ExpenseType } from '../domain/domain.service';
+import { DocumentTypeService, DocumentTypeSeedDto } from '../candidate/document-type.service';
 import * as fs from 'fs';
 import * as path from 'path';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -21,6 +22,7 @@ export class SeedService {
     private readonly jobTitleService: JobTitleService,
     private readonly agencyService: AgencyService,
     private readonly jobPostingService: JobPostingService,
+    private readonly documentTypeService: DocumentTypeService,
     @InjectRepository(JobPosting) private readonly jobPostingRepo: Repository<JobPosting>,
     @InjectRepository(User) private readonly userRepo: Repository<User>,
     @InjectRepository(AgencyUser) private readonly agencyUserRepo: Repository<AgencyUser>,
@@ -47,6 +49,12 @@ export class SeedService {
     const rows = this.readJson<JobTitleSeedDto[]>(`src/seed/jobs.seed.json`);
     if (!rows?.length) return null;
     return this.jobTitleService.upsertMany(rows);
+  }
+
+  async seedDocumentTypes(): Promise<{ affected: number } | null> {
+    const rows = this.readJson<DocumentTypeSeedDto[]>(`src/seed/document-types.seed.json`);
+    if (!rows?.length) return null;
+    return this.documentTypeService.upsertMany(rows);
   }
 
   private async createOwnerUser(phone: string, agencyId: string): Promise<User> {
@@ -190,10 +198,11 @@ export class SeedService {
     return { created };
   }
 
-  async seedSystem(options?: { countries?: boolean; job_titles?: boolean; agencies?: boolean; sample_postings?: boolean; dev_agency_postings_with_tags?: boolean; }) {
+  async seedSystem(options?: { countries?: boolean; job_titles?: boolean; document_types?: boolean; agencies?: boolean; sample_postings?: boolean; dev_agency_postings_with_tags?: boolean; }) {
     const opts = {
       countries: true,
       job_titles: true,
+      document_types: true,
       agencies: false,
       sample_postings: false,
       dev_agency_postings_with_tags: false,
@@ -202,6 +211,7 @@ export class SeedService {
     const results: any = {};
     if (opts.countries) results.countries = await this.seedCountries();
     if (opts.job_titles) results.job_titles = await this.seedJobTitles();
+    if (opts.document_types) results.document_types = await this.seedDocumentTypes();
     if (opts.agencies) results.agencies = await this.seedAgencies();
     if (opts.sample_postings) results.sample_postings = await this.seedSamplePostings();
     if (opts.dev_agency_postings_with_tags) {
@@ -313,7 +323,7 @@ export class SeedService {
     //  we will get names form seed eg: in seed  "name": "Karnali Recruiters",
     // find agencies with names in [names froms seed ]
     // now we need to seed n job posting for each agencies 
-    // well use the structure provided in hte /Users/code_shared/portal/agency_research/code/src/seed/jobs-to-agencies.seed.json
+    // well use the structure provided in hte /Volumes/shared_code/code_shared/portal/agency_research/code/src/seed/jobs-to-agencies.seed.json
     // not the exact data 
     // the posting will be such that we can tell which job is posted by which agency 
     // eg:  "posting_title": "Job 1 from Karnali Recruiters",

@@ -10,11 +10,13 @@ import { User } from '../user/user.entity';
 import { AgencyUser } from './agency-user.entity';
 import { AuthModule } from '../auth/auth.module';
 import { DevSmsService } from './dev-sms.service';
+import { ImageUploadModule } from '../shared/image-upload.module';
 
 @Module({
   imports: [
     DomainModule,
     AuthModule,
+    ImageUploadModule,
     TypeOrmModule.forFeature([
       PostingAgency,
       JobPosting,

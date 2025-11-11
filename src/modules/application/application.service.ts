@@ -4,6 +4,7 @@ import { Repository, FindOptionsWhere, In, DataSource } from 'typeorm';
 import { JobApplication, JobApplicationHistoryEntry, JobApplicationStatus } from './job-application.entity';
 import { Candidate } from '../candidate/candidate.entity';
 import { JobApplicationListItemDto } from './dto/paginated-job-applications.dto';
+import { ApplicationDetailsDto } from './dto/application-details.dto';
 import { JobPosting, JobPosition } from '../domain/domain.entity';
 import { InterviewService } from '../domain/domain.service';
 import { NotificationService } from '../notification/notification.service';
@@ -460,6 +461,120 @@ export class ApplicationService {
     });
     
     return new Set(applications.map(app => app.position_id));
+  }
+
+  // Get comprehensive application details for frontend
+  async getApplicationDetails(applicationId: string): Promise<ApplicationDetailsDto | null> {
+    const app = await this.appRepo.findOne({
+      where: { id: applicationId },
+      relations: [
+        'job_posting',
+        'job_posting.contracts',
+        'job_posting.contracts.agency',
+        'job_posting.contracts.employer',
+        'job_posting.contracts.positions',
+        'interview_details',
+        'interview_details.expenses',
+      ],
+    });
+
+    if (!app) {
+      return null;
+    }
+
+    // Helper functions for data formatting
+    const formatDate = (date: Date): string => {
+      return date.toLocaleDateString('en-GB', { 
+        day: 'numeric', 
+        month: 'short', 
+        year: 'numeric' 
+      });
+    };
+
+    const getProgressFromStatus = (status: JobApplicationStatus): number => {
+      const progressMap: Record<JobApplicationStatus, number> = {
+        'applied': 1,
+        'shortlisted': 2,
+        'interview_scheduled': 3,
+        'interview_rescheduled': 3,
+        'interview_passed': 5,
+        'interview_failed': 4,
+        'withdrawn': 0,
+      };
+      return progressMap[status] || 0;
+    };
+
+    const formatStatus = (status: JobApplicationStatus): string => {
+      const statusMap: Record<JobApplicationStatus, string> = {
+        'applied': 'Applied',
+        'shortlisted': 'Shortlisted',
+        'interview_scheduled': 'Interview Scheduled',
+        'interview_rescheduled': 'Interview Rescheduled',
+        'interview_passed': 'Interview Passed',
+        'interview_failed': 'Interview Failed',
+        'withdrawn': 'Withdrawn',
+      };
+      return statusMap[status] || status;
+    };
+
+    // Get contract and related data
+    const contract = app.job_posting?.contracts?.[0];
+    const agency = contract?.agency;
+    const employer = contract?.employer;
+    const position = contract?.positions?.find(p => p.id === app.position_id);
+    const interview = app.interview_details?.[0];
+
+    // Build the response
+    const result: ApplicationDetailsDto = {
+      id: app.id,
+      appliedOn: formatDate(app.created_at),
+      lastUpdated: formatDate(app.updated_at),
+      status: formatStatus(app.status),
+      remarks: 'Documents verified, waiting for interview confirmation', // TODO: Add remarks field to entity
+      progress: getProgressFromStatus(app.status),
+      job: {
+        title: position?.title || app.job_posting?.posting_title || 'Unknown Position',
+        company: employer?.company_name || 'Unknown Company',
+        location: `${app.job_posting?.city || 'Unknown'}, ${app.job_posting?.country || 'Unknown'}`,
+        category: 'General', // TODO: Add category field to job posting
+        salary: position ? `${position.monthly_salary_amount} ${position.salary_currency}` : 'Not specified',
+        contract: '2 Years Contract', // TODO: Add contract duration field
+        accommodation: 'Provided by Employer', // TODO: Add accommodation field
+        workingHours: '8 hrs/day, 6 days/week', // TODO: Add working hours field
+        description: position?.position_notes || 'No description available', // TODO: Add proper job description
+      },
+      employer: {
+        name: employer?.company_name || 'Unknown Company',
+        country: employer?.country || app.job_posting?.country || 'Unknown',
+        agency: agency?.name || 'Unknown Agency',
+        license: 'Govt. License No. 1234/067/68', // TODO: Add license field to agency
+        agencyPhone: '+977 9812345678', // TODO: Add phone field to agency
+        agencyEmail: 'info@agency.com', // TODO: Add email field to agency
+        agencyAddress: 'Address not available', // TODO: Add address field to agency
+      },
+      documents: [
+        { name: 'CV.pdf', size: '245 KB' },
+        { name: 'Passport.pdf', size: '1.2 MB' },
+        { name: 'Experience_Certificate.pdf', size: '180 KB' }
+      ], // TODO: Implement document management system
+    };
+
+    // Add interview details if available
+    if (interview && ['interview_scheduled', 'interview_rescheduled'].includes(app.status)) {
+      result.interview = {
+        date: interview.interview_date_ad ? formatDate(interview.interview_date_ad) : 'TBD',
+        time: interview.interview_time || '10:00 AM',
+        mode: 'Online via Zoom', // TODO: Add mode field to interview
+        link: 'https://zoom.us/12345', // TODO: Add link field to interview
+        documents: interview.required_documents || ['Passport Copy', 'Experience Certificate'],
+        contactPerson: interview.contact_person || 'HR Officer',
+        contactRole: 'HR Officer', // TODO: Add contact role field
+        contactPhone: '+971 55 123 4567', // TODO: Add contact phone field
+        contactEmail: 'hr@company.com', // TODO: Add contact email field
+      };
+    }
+
+    return result;
   }
 
   // Analytics for a candidate's applications

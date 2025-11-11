@@ -12,7 +12,9 @@ import {
   NotFoundException, 
   Req, 
   UseGuards, 
-  BadRequestException 
+  BadRequestException,
+  UploadedFile,
+  UseInterceptors
 } from '@nestjs/common';
 import { 
   ApiOperation, 
@@ -23,11 +25,14 @@ import {
   ApiBody, 
   ApiOkResponse, 
   ApiCreatedResponse, 
-  ApiExtraModels 
+  ApiExtraModels,
+  ApiConsumes
 } from '@nestjs/swagger';
 import { Request } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 import { CandidateService } from './candidate.service';
+import { ImageUploadService, UploadType } from '../shared/image-upload.service';
 import { JobPostingService, InterviewService } from '../domain/domain.service';
 import { CurrencyConversionService } from '../currency/currency-conversion.service';
 import { ApplicationService } from '../application/application.service';
@@ -52,6 +57,13 @@ import {
   CandidateCreatedResponseDto, 
   AddJobProfileResponseDto 
 } from './dto/candidate-responses.dto';
+import { 
+  CreateCandidateDocumentDto, 
+  UpdateCandidateDocumentDto, 
+  CandidateDocumentResponseDto, 
+  UploadResponseDto 
+} from './dto/candidate-document.dto';
+import { DocumentsWithSlotsResponseDto } from './dto/document-type.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { 
   PaginatedInterviewsDto, 
@@ -79,6 +91,7 @@ export class CandidateController {
     private readonly currencyConversionService: CurrencyConversionService,
     private readonly interviewService: InterviewService,
     private readonly applicationService: ApplicationService,
+    private readonly imageUploadService: ImageUploadService,
   ) {}
 
   // Get candidate profile
@@ -980,5 +993,228 @@ export class CandidateController {
     }
     const rows = await this.candidates.listPreferenceRows(id);
     return rows.map((r) => ({ id: r.id, title: r.title, priority: r.priority, job_title_id: r.job_title_id ?? null }));
+  }
+
+  // POST /candidates/:id/profile-image - Upload candidate profile image
+  @Post(':id/profile-image')
+  @HttpCode(200)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Upload candidate profile image' })
+  @ApiParam({ name: 'id', description: 'Candidate ID', required: true })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Profile image uploaded successfully', type: UploadResponseDto })
+  async uploadProfileImage(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<UploadResponseDto> {
+    // Verify candidate exists
+    const candidate = await this.candidates.findById(id);
+    if (!candidate) {
+      throw new NotFoundException('Candidate not found');
+    }
+
+    // Upload the file
+    const result = await this.imageUploadService.uploadFile(
+      file,
+      UploadType.CANDIDATE_PROFILE,
+      id
+    );
+
+    if (result.success && result.url) {
+      // Update candidate profile_image field
+      await this.candidates.updateProfileImage(id, result.url);
+    }
+
+    return result;
+  }
+
+  // DELETE /candidates/:id/profile-image - Remove candidate profile image
+  @Delete(':id/profile-image')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Remove candidate profile image' })
+  @ApiParam({ name: 'id', description: 'Candidate ID', required: true })
+  @ApiOkResponse({ description: 'Profile image removed successfully', type: UploadResponseDto })
+  async deleteProfileImage(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ): Promise<UploadResponseDto> {
+    // Verify candidate exists
+    const candidate = await this.candidates.findById(id);
+    if (!candidate) {
+      throw new NotFoundException('Candidate not found');
+    }
+
+    // Delete the file
+    const result = await this.imageUploadService.deleteFile(
+      UploadType.CANDIDATE_PROFILE,
+      id
+    );
+
+    if (result.success) {
+      // Clear candidate profile_image field
+      await this.candidates.updateProfileImage(id, null);
+    }
+
+    return result;
+  }
+
+  // POST /candidates/:id/documents - Upload candidate document
+  @Post(':id/documents')
+  @HttpCode(201)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Upload candidate document' })
+  @ApiParam({ name: 'id', description: 'Candidate ID', required: true })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file', 'document_type_id', 'name'],
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+        document_type_id: {
+          type: 'string',
+          format: 'uuid',
+          description: 'Document type ID',
+        },
+        name: {
+          type: 'string',
+          description: 'Document name',
+        },
+        description: {
+          type: 'string',
+          description: 'Document description',
+        },
+        notes: {
+          type: 'string',
+          description: 'Additional notes',
+        },
+      },
+    },
+  })
+  @ApiCreatedResponse({ description: 'Document uploaded successfully', type: CandidateDocumentResponseDto })
+  async uploadDocument(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body() body: CreateCandidateDocumentDto,
+  ): Promise<CandidateDocumentResponseDto> {
+    // Verify candidate exists
+    const candidate = await this.candidates.findById(id);
+    if (!candidate) {
+      throw new NotFoundException('Candidate not found');
+    }
+
+    // Validate document_type_id is provided
+    if (!body.document_type_id) {
+      throw new BadRequestException('document_type_id is required');
+    }
+
+    // Create document record first to get ID
+    const document = await this.candidates.createDocument(id, {
+      document_type_id: body.document_type_id,
+      name: body.name,
+      description: body.description,
+      notes: body.notes,
+      document_url: '', // Will be updated after upload
+      file_type: file.mimetype,
+      file_size: file.size,
+    });
+
+    // Upload the file with document ID
+    const result = await this.imageUploadService.uploadFile(
+      file,
+      UploadType.CANDIDATE_DOCUMENT,
+      id,
+      document.id
+    );
+
+    if (result.success && result.url) {
+      // Update document with the actual URL
+      await this.candidates.updateDocumentUrl(document.id, result.url);
+      document.document_url = result.url;
+    } else {
+      // If upload failed, delete the document record
+      await this.candidates.deleteDocument(document.id);
+      throw new BadRequestException(result.error || 'Failed to upload document');
+    }
+
+    return document;
+  }
+
+  // GET /candidates/:id/documents - List candidate documents with slots
+  @Get(':id/documents')
+  @ApiOperation({ 
+    summary: 'List candidate documents with slots',
+    description: 'Returns all document types with upload status for the candidate'
+  })
+  @ApiParam({ name: 'id', description: 'Candidate ID', required: true })
+  @ApiOkResponse({ 
+    description: 'Document slots with upload status and summary', 
+    type: DocumentsWithSlotsResponseDto 
+  })
+  async listDocuments(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ): Promise<DocumentsWithSlotsResponseDto> {
+    // Verify candidate exists
+    const candidate = await this.candidates.findById(id);
+    if (!candidate) {
+      throw new NotFoundException('Candidate not found');
+    }
+
+    return await this.candidates.getDocumentsWithSlots(id);
+  }
+
+  // DELETE /candidates/:id/documents/:documentId - Remove candidate document
+  @Delete(':id/documents/:documentId')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Remove candidate document' })
+  @ApiParam({ name: 'id', description: 'Candidate ID', required: true })
+  @ApiParam({ name: 'documentId', description: 'Document ID', required: true })
+  @ApiOkResponse({ description: 'Document removed successfully', type: UploadResponseDto })
+  async deleteDocument(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('documentId', new ParseUUIDPipe({ version: '4' })) documentId: string,
+  ): Promise<UploadResponseDto> {
+    // Verify candidate exists
+    const candidate = await this.candidates.findById(id);
+    if (!candidate) {
+      throw new NotFoundException('Candidate not found');
+    }
+
+    // Get document to find file name
+    const document = await this.candidates.findDocumentById(documentId);
+    if (!document || document.candidate_id !== id) {
+      throw new NotFoundException('Document not found');
+    }
+
+    // Extract filename from URL
+    const fileName = document.document_url.split('/').pop();
+
+    // Delete the file
+    const result = await this.imageUploadService.deleteFile(
+      UploadType.CANDIDATE_DOCUMENT,
+      id,
+      fileName
+    );
+
+    // Delete document record regardless of file deletion result
+    await this.candidates.deleteDocument(documentId);
+
+    return {
+      success: true,
+      message: 'Document removed successfully'
+    };
   }
 }

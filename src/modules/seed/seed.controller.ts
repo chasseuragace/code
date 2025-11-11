@@ -10,6 +10,9 @@ class SeedCountsDto {
   @ApiProperty({ required: false, nullable: true, description: 'Number of job title rows upserted', example: { affected: 51 } })
   job_titles?: { affected: number } | null;
 
+  @ApiProperty({ required: false, nullable: true, description: 'Number of document types upserted', example: { affected: 7 } })
+  document_types?: { affected: number } | null;
+
   @ApiProperty({ required: false, nullable: true, description: 'Number of agencies created (skips existing by license)', example: { created: 10 } })
   agencies?: { created: number } | null;
 
@@ -32,9 +35,11 @@ class SeedRequestDto {
   @ApiProperty({ description: 'Seed countries (primary). Default: true', required: false, default: true })
   countries?: boolean;
 
-
   @ApiProperty({ description: 'Seed job titles (primary). Default: true', required: false, default: true })
   job_titles?: boolean;
+
+  @ApiProperty({ description: 'Seed document types (primary). Default: true', required: false, default: true })
+  document_types?: boolean;
 
   @ApiProperty({ description: 'Seed agencies (secondary). Default: false', required: false, default: false })
   agencies?: boolean;
@@ -88,6 +93,7 @@ export class SeedController {
     const result: SeedCountsDto = {};
     if (body.countries !== false) result.countries = await this.seedService.seedCountries();
     if (body.job_titles !== false) result.job_titles = await this.seedService.seedJobTitles();
+    if (body.document_types !== false) result.document_types = await this.seedService.seedDocumentTypes();
     if (body.agencies !== false) {
       result.agencies = await this.seedService.seedAgencies(true);
     }

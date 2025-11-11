@@ -391,4 +391,27 @@ export class AgencyService {
     };
     return fieldMap[field] || 'agency.name';
   }
+
+  // Image management methods
+  async findByLicense(licenseNumber: string): Promise<PostingAgency | null> {
+    return await this.agencyRepository.findOne({ where: { license_number: licenseNumber } });
+  }
+
+  async updateLogoUrl(agencyId: string, logoUrl: string | null): Promise<void> {
+    const agency = await this.agencyRepository.findOne({ where: { id: agencyId } });
+    if (!agency) {
+      throw new NotFoundException('Agency not found');
+    }
+    agency.logo_url = logoUrl;
+    await this.agencyRepository.save(agency);
+  }
+
+  async updateBannerUrl(agencyId: string, bannerUrl: string | null): Promise<void> {
+    const agency = await this.agencyRepository.findOne({ where: { id: agencyId } });
+    if (!agency) {
+      throw new NotFoundException('Agency not found');
+    }
+    agency.banner_url = bannerUrl;
+    await this.agencyRepository.save(agency);
+  }
 }

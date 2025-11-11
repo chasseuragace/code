@@ -96,6 +96,56 @@ export class AgencyController {
     return this.agencyService.searchAgencies(searchDto);
   }
 
+  // Get agency details by ID (public endpoint for mobile users)
+  @Get(':id')
+  @HttpCode(200)
+  @ApiOperation({ 
+    summary: 'Get agency details by ID',
+    description: 'Returns detailed information about an agency including all profile fields, contact information, and metadata.'
+  })
+  @ApiParam({ 
+    name: 'id', 
+    description: 'Agency UUID',
+    example: 'd841e933-1a14-4602-97e2-c51c9e5d8cf2'
+  })
+  @ApiOkResponse({ 
+    description: 'Agency details retrieved successfully',
+    type: AgencyResponseDto 
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Agency not found' 
+  })
+  async getAgencyById(@Param('id', ParseUUIDPipe) id: string): Promise<AgencyResponseDto> {
+    const agency = await this.agencyService.findAgencyById(id);
+    return this.mapAgencyToResponseDto(agency);
+  }
+
+  // Get agency details by license number (public endpoint for mobile users)
+  @Get('license/:license')
+  @HttpCode(200)
+  @ApiOperation({ 
+    summary: 'Get agency details by license number',
+    description: 'Returns detailed information about an agency using their license number.'
+  })
+  @ApiParam({ 
+    name: 'license', 
+    description: 'Agency license number',
+    example: 'LIC-AG-0001'
+  })
+  @ApiOkResponse({ 
+    description: 'Agency details retrieved successfully',
+    type: AgencyResponseDto 
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Agency not found' 
+  })
+  async getAgencyByLicense(@Param('license') license: string): Promise<AgencyResponseDto> {
+    const agency = await this.agencyService.findAgencyByLicense(license);
+    return this.mapAgencyToResponseDto(agency);
+  }
+
   constructor(
     private readonly agencyService: AgencyService,
     private readonly jobPostingService: JobPostingService,
@@ -865,5 +915,32 @@ export class AgencyController {
     }
 
     return result;
+  }
+
+  // Helper method to map PostingAgency entity to AgencyResponseDto
+  private mapAgencyToResponseDto(agency: any): AgencyResponseDto {
+    return {
+      id: agency.id,
+      name: agency.name,
+      license_number: agency.license_number,
+      address: agency.address,
+      phones: agency.phones,
+      emails: agency.emails,
+      website: agency.website,
+      description: agency.description,
+      logo_url: agency.logo_url,
+      banner_url: agency.banner_url ?? null,
+      established_year: agency.established_year ?? null,
+      services: agency.services ?? null,
+      certifications: agency.certifications ?? null,
+      social_media: agency.social_media ?? null,
+      bank_details: agency.bank_details ?? null,
+      contact_persons: agency.contact_persons ?? null,
+      operating_hours: agency.operating_hours ?? null,
+      target_countries: agency.target_countries ?? null,
+      specializations: agency.specializations ?? null,
+      statistics: agency.statistics ?? null,
+      settings: agency.settings ?? null,
+    };
   }
 }

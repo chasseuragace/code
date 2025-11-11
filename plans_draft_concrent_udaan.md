@@ -94,6 +94,9 @@
 * [x] **Git Repository**: `/Volumes/shared_code/code_shared/portal/agency_research/code/.git` (Main branch)
 * [x] **Backend Source**: `/Volumes/shared_code/code_shared/portal/agency_research/code/src/`
 * [x] **Mobile App**: `/Volumes/shared_code/code_shared/portal/agency_research/code/variant_dashboard/lib/app/udaan_saarathi/`
+* [x] **Git Repository**: `/Volumes/shared_code/code_shared/portal/agency_research/code/.git` (Main branch)
+* [x] **Backend Source**: `/Volumes/shared_code/code_shared/portal/agency_research/code/src/`
+* [x] **Mobile App**: `/Volumes/shared_code/code_shared/portal/agency_research/code/variant_dashboard/lib/app/udaan_saarathi/`
 * [x] **API Documentation**: `https://dev.kaha.com.np/job-portal/docs` (Swagger UI)
 * [x] **OpenAPI Spec**: `https://dev.kaha.com.np/job-portal/docs-yaml`
 * [x] **Test Suite (Web)**: `/Volumes/shared_code/code_shared/portal/dev_tools/test_web_frontend/tests/`

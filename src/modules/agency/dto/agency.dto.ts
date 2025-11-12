@@ -494,10 +494,10 @@ export class AgencyResponseDto {
   @ApiPropertyOptional()
   logo_url?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String, nullable: true })
   banner_url?: string | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: Number, nullable: true })
   established_year?: number | null;
 
   @ApiPropertyOptional({ type: [String] })
@@ -527,7 +527,18 @@ export class AgencyResponseDto {
   @ApiPropertyOptional({ type: StatisticsDto })
   statistics?: StatisticsDto | null;
 
-  @ApiPropertyOptional({ type: SettingsDto })
+  @ApiPropertyOptional({ 
+    type: SettingsDto,
+    example: {
+      currency: 'USD',
+      timezone: 'UTC',
+      language: 'en',
+      date_format: 'YYYY-MM-DD',
+      notifications: { email: true, push: true },
+      features: { darkMode: true, notifications: true }
+    },
+    nullable: true 
+  })
   settings?: SettingsDto | null;
 }
 

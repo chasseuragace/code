@@ -5,6 +5,7 @@ import { JobContract } from './domain.entity';
 
 @Entity('posting_agencies')
 export class PostingAgency extends BaseEntity {
+  // Note: AgencyReview imported at bottom to avoid circular dependency
   @Column({ type: 'varchar', length: 255 })
   name: string;
 
@@ -85,7 +86,16 @@ export class PostingAgency extends BaseEntity {
   @Column({ type: 'jsonb', nullable: true })
   settings?: { currency?: string; timezone?: string; language?: string; date_format?: string; notifications?: any; features?: any };
 
+  @Column({ type: 'decimal', precision: 3, scale: 2, default: 0 })
+  average_rating: number;
+
+  @Column({ type: 'integer', default: 0 })
+  review_count: number;
+
   @OneToMany(() => JobContract, contract => contract.agency)
   contracts: JobContract[];
+
+  @OneToMany('AgencyReview', 'agency')
+  reviews: any[];
 }
 

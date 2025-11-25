@@ -204,6 +204,16 @@ export class CreateAgencyDto {
   @IsString()
   address?: string;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  latitude?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  longitude?: number;
+
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()
   @IsArray()
@@ -478,6 +488,12 @@ export class AgencyResponseDto {
 
   @ApiPropertyOptional()
   address?: string;
+
+  @ApiPropertyOptional({ type: Number, nullable: true })
+  latitude?: number | null;
+
+  @ApiPropertyOptional({ type: Number, nullable: true })
+  longitude?: number | null;
 
   @ApiPropertyOptional({ type: [String] })
   phones?: string[];

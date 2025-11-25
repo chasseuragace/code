@@ -1,8 +1,9 @@
-import { Controller, Post, HttpCode, Param, Body, Patch, Get, ParseUUIDPipe, ForbiddenException, UploadedFile, UseInterceptors, Delete, Query, UseGuards, Req, BadRequestException, ValidationPipe } from '@nestjs/common';
+import { Controller, Post, HttpCode, Param, Body, Patch, Get, ParseUUIDPipe, ForbiddenException, UploadedFile, UseInterceptors, Delete, Query, UseGuards, Req, BadRequestException, ValidationPipe, NotFoundException } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiOperation, ApiResponse, ApiTags, ApiParam, ApiQuery, ApiConsumes } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AgencyService } from './agency.service';
+import { AgencyProfileService } from './agency-profile.service';
 import { JobPostingService, CreateJobPostingDto } from '../domain/domain.service';
 import { CreateJobPostingWithTagsDto } from '../domain/dto/create-job-posting-with-tags.dto';
 import { UpdateJobTagsDto } from '../domain/dto/update-job-tags.dto';
@@ -156,6 +157,7 @@ export class AgencyController {
     @InjectRepository(AgencyUser) private readonly agencyUserRepo: Repository<AgencyUser>,
     private readonly sms: DevSmsService,
     private readonly imageUploadService: ImageUploadService,
+    private readonly agencyProfileService: AgencyProfileService,
   ) {}
 
   // Owner creates their single agency and binds it to their user account
@@ -204,6 +206,8 @@ export class AgencyController {
       name: agency.name,
       license_number: agency.license_number,
       address: agency.address,
+      latitude: (agency as any).latitude ?? null,
+      longitude: (agency as any).longitude ?? null,
       phones: agency.phones,
       emails: agency.emails,
       website: agency.website,
@@ -224,17 +228,126 @@ export class AgencyController {
     };
   }
 
+  @Patch('owner/agency/basic')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Update basic profile information for the authenticated owner agency' })
+  @ApiOkResponse({ description: 'Updated agency profile', type: AgencyResponseDto })
+  async updateMyAgencyBasic(@Req() req: any, @Body() body: any): Promise<AgencyResponseDto> {
+    const user = req.user as any;
+    if (!user?.is_agency_owner || !user?.agency_id) {
+      throw new ForbiddenException('User is not an agency owner or has no agency');
+    }
+    const updated = await this.agencyProfileService.updateBasicInfo(user.agency_id, {
+      name: body.name,
+      description: body.description,
+      established_year: body.established_year,
+      license_number: body.license_number,
+    });
+    return this.mapAgencyToResponseDto(updated);
+  }
+
+  @Patch('owner/agency/contact')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Update contact information for the authenticated owner agency' })
+  @ApiOkResponse({ description: 'Updated agency profile', type: AgencyResponseDto })
+  async updateMyAgencyContact(@Req() req: any, @Body() body: any): Promise<AgencyResponseDto> {
+    const user = req.user as any;
+    if (!user?.is_agency_owner || !user?.agency_id) {
+      throw new ForbiddenException('User is not an agency owner or has no agency');
+    }
+    const updated = await this.agencyProfileService.updateContact(user.agency_id, {
+      phone: body.phone,
+      mobile: body.mobile,
+      email: body.email,
+      website: body.website,
+      contact_persons: body.contact_persons,
+    });
+    return this.mapAgencyToResponseDto(updated);
+  }
+
+  @Patch('owner/agency/location')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Update location information for the authenticated owner agency' })
+  @ApiOkResponse({ description: 'Updated agency profile', type: AgencyResponseDto })
+  async updateMyAgencyLocation(@Req() req: any, @Body() body: any): Promise<AgencyResponseDto> {
+    const user = req.user as any;
+    if (!user?.is_agency_owner || !user?.agency_id) {
+      throw new ForbiddenException('User is not an agency owner or has no agency');
+    }
+    const updated = await this.agencyProfileService.updateLocation(user.agency_id, {
+      address: body.address,
+      latitude: body.latitude,
+      longitude: body.longitude,
+    });
+    return this.mapAgencyToResponseDto(updated);
+  }
+
+  @Patch('owner/agency/social-media')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Update social media links for the authenticated owner agency' })
+  @ApiOkResponse({ description: 'Updated agency profile', type: AgencyResponseDto })
+  async updateMyAgencySocialMedia(@Req() req: any, @Body() body: any): Promise<AgencyResponseDto> {
+    const user = req.user as any;
+    if (!user?.is_agency_owner || !user?.agency_id) {
+      throw new ForbiddenException('User is not an agency owner or has no agency');
+    }
+    const updated = await this.agencyProfileService.updateSocialMedia(user.agency_id, body.social_media ?? body);
+    return this.mapAgencyToResponseDto(updated);
+  }
+
+  @Patch('owner/agency/services')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Update services, specializations, and target countries for the authenticated owner agency' })
+  @ApiOkResponse({ description: 'Updated agency profile', type: AgencyResponseDto })
+  async updateMyAgencyServices(@Req() req: any, @Body() body: any): Promise<AgencyResponseDto> {
+    const user = req.user as any;
+    if (!user?.is_agency_owner || !user?.agency_id) {
+      throw new ForbiddenException('User is not an agency owner or has no agency');
+    }
+    const updated = await this.agencyProfileService.updateServices(user.agency_id, {
+      services: body.services,
+      specializations: body.specializations,
+      target_countries: body.target_countries ?? body.countries,
+    });
+    return this.mapAgencyToResponseDto(updated);
+  }
+
+  @Patch('owner/agency/settings')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Update settings for the authenticated owner agency' })
+  @ApiOkResponse({ description: 'Updated agency profile', type: AgencyResponseDto })
+  async updateMyAgencySettings(@Req() req: any, @Body() body: any): Promise<AgencyResponseDto> {
+    const user = req.user as any;
+    if (!user?.is_agency_owner || !user?.agency_id) {
+      throw new ForbiddenException('User is not an agency owner or has no agency');
+    }
+    const updated = await this.agencyProfileService.updateSettings(user.agency_id, body.settings ?? body);
+    return this.mapAgencyToResponseDto(updated);
+  }
+
   // --- Owner-managed Members ---
   @Post('owner/members/invite')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(201)
   @ApiOperation({ summary: 'Invite an agency member and set an admin-managed password' })
-  @ApiBody({ schema: { properties: { full_name: { type: 'string' }, phone: { type: 'string' }, role: { type: 'string', enum: ['staff', 'owner'] } }, required: ['full_name', 'phone'] } })
+  @ApiBody({ schema: { properties: { full_name: { type: 'string' }, phone: { type: 'string' }, role: { type: 'string', enum: ['staff', 'admin', 'manager', 'recruiter', 'coordinator', 'visaOfficer', 'accountant'] } }, required: ['full_name', 'phone'] } })
   @ApiResponse({ status: 201, description: 'Member invited', schema: { properties: { id: { type: 'string', format: 'uuid' }, phone: { type: 'string' }, role: { type: 'string' }, dev_password: { type: 'string' } } } })
   async inviteMember(
     @Req() req: any,
-    @Body() body: { full_name: string; phone: string; role?: 'staff' },
+    @Body() body: { full_name: string; phone: string; role?: 'staff' | 'admin' | 'manager' | 'recruiter' | 'coordinator' | 'visaOfficer' | 'accountant' },
   ) {
     const user = req.user as any;
     if (!user?.is_agency_owner || !user?.agency_id) throw new ForbiddenException('Only owners with an agency can invite');
@@ -265,6 +378,7 @@ export class AgencyController {
       au.phone = phone;
       au.user_id = u.id;
       au.agency_id = user.agency_id;
+      au.status = 'pending';
       au.password_hash = hash;
       au.password_set_by_admin_at = new Date();
       await this.agencyUserRepo.save(au);
@@ -275,15 +389,22 @@ export class AgencyController {
         user_id: u.id,
         agency_id: user.agency_id,
         role: (body.role as any) || 'staff',
+        status: 'pending',
         password_hash: hash,
         password_set_by_admin_at: new Date(),
       });
       await this.agencyUserRepo.save(au);
     }
 
-    // Send SMS with login URL and password
-    await this.sms.send(phone, `Welcome to ${user.agency_id}. Login at /member/login with password: ${password}`);
-    return { id: au.id, phone: au.phone, role: au.role, dev_password: password };
+    // Send SMS with login URL (OTP-based, no password)
+    await this.sms.send(phone, `Welcome to your agency. Login at /member/login with your phone number and OTP.`);
+    return { 
+      id: au.id, 
+      phone: au.phone, 
+      role: au.role, 
+      status: au.status,
+      created_at: au.created_at
+    };
   }
 
   @Post('owner/members/:id/reset-password')
@@ -310,12 +431,144 @@ export class AgencyController {
   @ApiBearerAuth()
   @HttpCode(200)
   @ApiOperation({ summary: 'List members of the owner\'s agency' })
-  @ApiResponse({ status: 200, description: 'List of members', schema: { type: 'array', items: { properties: { id: { type: 'string', format: 'uuid' }, full_name: { type: 'string' }, phone: { type: 'string' }, role: { type: 'string' } } } } })
-  async listMembers(@Req() req: any) {
+  @ApiQuery({ name: 'search', required: false, description: 'Search by name or phone' })
+  @ApiQuery({ name: 'role', required: false, description: 'Filter by role' })
+  @ApiQuery({ name: 'status', required: false, description: 'Filter by status' })
+  @ApiResponse({ status: 200, description: 'List of members', schema: { type: 'array', items: { properties: { id: { type: 'string', format: 'uuid' }, full_name: { type: 'string' }, phone: { type: 'string' }, role: { type: 'string' }, status: { type: 'string' }, created_at: { type: 'string', format: 'date-time' } } } } })
+  async listMembers(
+    @Req() req: any,
+    @Query('search') search?: string,
+    @Query('role') roleFilter?: string,
+    @Query('status') statusFilter?: string,
+  ) {
     const user = req.user as any;
     if (!user?.is_agency_owner || !user?.agency_id) throw new ForbiddenException('Only owners with an agency can list');
-    const rows = await this.agencyUserRepo.find({ where: { agency_id: user.agency_id } });
-    return rows.map(r => ({ id: r.id, full_name: r.full_name, phone: r.phone, role: r.role }));
+    
+    let query = this.agencyUserRepo.createQueryBuilder('au')
+      .where('au.agency_id = :agencyId', { agencyId: user.agency_id });
+    
+    // Apply search filter
+    if (search) {
+      query = query.andWhere(
+        '(au.full_name ILIKE :search OR au.phone ILIKE :search)',
+        { search: `%${search}%` }
+      );
+    }
+    
+    // Apply role filter
+    if (roleFilter) {
+      query = query.andWhere('au.role = :role', { role: roleFilter });
+    }
+    
+    // Apply status filter
+    if (statusFilter) {
+      query = query.andWhere('au.status = :status', { status: statusFilter });
+    }
+    
+    const rows = await query.orderBy('au.created_at', 'DESC').getMany();
+    return rows.map(r => ({ 
+      id: r.id, 
+      full_name: r.full_name, 
+      phone: r.phone, 
+      role: r.role, 
+      status: r.status || 'active',
+      created_at: r.created_at
+    }));
+  }
+
+  @Get('owner/members/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Get a single member details' })
+  @ApiResponse({ status: 200, description: 'Member details', schema: { properties: { id: { type: 'string', format: 'uuid' }, full_name: { type: 'string' }, phone: { type: 'string' }, role: { type: 'string' }, status: { type: 'string' }, created_at: { type: 'string', format: 'date-time' } } } })
+  async getMember(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    const user = req.user as any;
+    if (!user?.is_agency_owner || !user?.agency_id) throw new ForbiddenException('Only owners with an agency can view');
+    const member = await this.agencyUserRepo.findOne({ where: { id, agency_id: user.agency_id } });
+    if (!member) throw new NotFoundException('Member not found');
+    return { 
+      id: member.id, 
+      full_name: member.full_name, 
+      phone: member.phone, 
+      role: member.role, 
+      status: member.status || 'active',
+      created_at: member.created_at
+    };
+  }
+
+  @Patch('owner/members/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Update member details' })
+  @ApiBody({ schema: { properties: { full_name: { type: 'string' }, role: { type: 'string' } }, required: [] } })
+  @ApiResponse({ status: 200, description: 'Member updated', schema: { properties: { id: { type: 'string', format: 'uuid' }, full_name: { type: 'string' }, phone: { type: 'string' }, role: { type: 'string' }, status: { type: 'string' }, created_at: { type: 'string', format: 'date-time' } } } })
+  async updateMember(@Req() req: any, @Param('id', ParseUUIDPipe) id: string, @Body() body: { full_name?: string; role?: string }) {
+    const user = req.user as any;
+    if (!user?.is_agency_owner || !user?.agency_id) throw new ForbiddenException('Only owners with an agency can update');
+    const member = await this.agencyUserRepo.findOne({ where: { id, agency_id: user.agency_id } });
+    if (!member) throw new NotFoundException('Member not found');
+    
+    if (body.full_name) member.full_name = body.full_name;
+    if (body.role) member.role = body.role as any;
+    
+    await this.agencyUserRepo.save(member);
+    return { 
+      id: member.id, 
+      full_name: member.full_name, 
+      phone: member.phone, 
+      role: member.role,
+      status: member.status || 'active',
+      created_at: member.created_at
+    };
+  }
+
+  @Patch('owner/members/:id/status')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Update member status' })
+  @ApiBody({ schema: { properties: { status: { type: 'string', enum: ['active', 'inactive', 'pending', 'suspended'] } }, required: ['status'] } })
+  @ApiResponse({ status: 200, description: 'Member status updated', schema: { properties: { id: { type: 'string', format: 'uuid' }, status: { type: 'string' } } } })
+  async updateMemberStatus(@Req() req: any, @Param('id', ParseUUIDPipe) id: string, @Body() body: { status: string }) {
+    const user = req.user as any;
+    if (!user?.is_agency_owner || !user?.agency_id) throw new ForbiddenException('Only owners with an agency can update');
+    if (!body.status) throw new BadRequestException('Status is required');
+    
+    const member = await this.agencyUserRepo.findOne({ where: { id, agency_id: user.agency_id } });
+    if (!member) throw new NotFoundException('Member not found');
+    
+    member.status = body.status;
+    await this.agencyUserRepo.save(member);
+    return { id: member.id, status: member.status };
+  }
+
+  @Delete('owner/members/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Delete a member' })
+  @ApiResponse({ status: 200, description: 'Member deleted' })
+  async deleteMember(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    const user = req.user as any;
+    if (!user?.is_agency_owner || !user?.agency_id) throw new ForbiddenException('Only owners with an agency can delete');
+    
+    const member = await this.agencyUserRepo.findOne({ where: { id, agency_id: user.agency_id } });
+    if (!member) throw new NotFoundException('Member not found');
+    
+    // Delete AgencyUser
+    await this.agencyUserRepo.remove(member);
+    
+    // Optionally delete User if they have no other agency associations
+    const mgr = this.jobPostingRepo.manager;
+    const userRepo = mgr.getRepository(User);
+    const otherMembers = await this.agencyUserRepo.find({ where: { user_id: member.user_id } });
+    if (otherMembers.length === 0) {
+      await userRepo.delete({ id: member.user_id });
+    }
+    
+    return { success: true, message: 'Member deleted successfully' };
   }
 
   // Create agency (production-friendly controller)

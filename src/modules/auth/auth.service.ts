@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../user/user.entity';
@@ -165,9 +165,10 @@ export class AuthService {
       // upgrade to owner if not already; but reject if linked to candidate only? We'll allow multi-purpose users later; for now ensure role owner
       user.role = 'owner';
       user.is_agency_owner = true;
+      user.full_name = input.full_name; // Store full_name in User
       await this.users.save(user);
     } else {
-      user = this.users.create({ phone, role: 'owner', is_active: false, is_agency_owner: true });
+      user = this.users.create({ phone, full_name: input.full_name, role: 'owner', is_active: false, is_agency_owner: true });
       await this.users.save(user);
     }
 
@@ -189,7 +190,7 @@ export class AuthService {
     return { dev_otp: otp };
   }
 
-  async verifyOwner(input: { phone: string; otp: string }): Promise<{ token: string; user_id: string }> {
+  async verifyOwner(input: { phone: string; otp: string }): Promise<{ token: string; user_id: string; agency_id?: string | null; user_type: string; phone: string; full_name?: string | null; role: string }> {
     if (!input?.phone || !input?.otp) throw new BadRequestException('phone and otp are required');
     const phone = normalizePhoneE164(input.phone);
     const rec = this.otps.get(phone);
@@ -210,7 +211,15 @@ export class AuthService {
       user.is_agency_owner = true;
       await this.users.save(user);
     }
-    return { token, user_id: rec.userId };
+    
+    // Get full_name from User, or fallback to AgencyUser if not set
+    let fullName = user?.full_name;
+    if (!fullName) {
+      const agencyUser = await this.agencyUsers.findOne({ where: { user_id: rec.userId } });
+      fullName = agencyUser?.full_name || null;
+    }
+    
+    return { token, user_id: rec.userId, agency_id: user?.agency_id || null, user_type: 'owner', phone, full_name: fullName, role: 'owner' };
   }
 
   async loginStartOwner(input: { phone: string }): Promise<{ dev_otp: string }> {
@@ -225,11 +234,11 @@ export class AuthService {
     return { dev_otp: otp };
   }
 
-  async loginVerifyOwner(input: { phone: string; otp: string }): Promise<{ token: string; user_id: string }> {
+  async loginVerifyOwner(input: { phone: string; otp: string }): Promise<{ token: string; user_id: string; agency_id?: string | null; user_type: string; phone: string; full_name?: string | null; role: string }> {
     return this.verifyOwner(input);
   }
 
-  async memberLogin(input: { phone: string; password: string }): Promise<{ token: string; user_id: string; agency_id: string }> {
+  async memberLogin(input: { phone: string; password: string }): Promise<{ token: string; user_id: string; agency_id: string; user_type: string; role: string }> {
     if (!input?.phone || !input?.password) throw new BadRequestException('phone and password are required');
     const phone = normalizePhoneE164(input.phone);
     const au = await this.agencyUsers.findOne({ where: { phone } });
@@ -241,8 +250,103 @@ export class AuthService {
     if (!user || user.role !== 'agency_user' || !user.agency_id) {
       throw new BadRequestException('Invalid member account');
     }
+
+    // Check if member is suspended
+    if (au.status === 'suspended') {
+      throw new ForbiddenException('Your account has been suspended. Contact administrator.');
+    }
+
+    // Update member status to active on first login (if pending)
+    if (au.status === 'pending') {
+      au.status = 'active';
+      await this.agencyUsers.save(au);
+    }
+
     const token = await this.jwt.signAsync({ sub: user.id, aid: user.agency_id, role: 'agency_user' });
-    return { token, user_id: user.id, agency_id: user.agency_id };
+    return { token, user_id: user.id, agency_id: user.agency_id, user_type: 'member', role: au.role || 'staff' };
+  }
+
+  // --- Member OTP Login Flow ---
+  async memberLoginStart(input: { phone: string }): Promise<{ dev_otp: string }> {
+    if (!input?.phone) throw new BadRequestException('phone is required');
+    const phone = normalizePhoneE164(input.phone);
+    const isBlocked = await this.blocked.findOne({ where: { phone } });
+    if (isBlocked) throw new BadRequestException('Phone is blocked');
+    
+    // Verify member exists
+    const au = await this.agencyUsers.findOne({ where: { phone } });
+    if (!au) throw new NotFoundException('Member not found');
+    
+    // Verify user exists and is active
+    const user = await this.users.findOne({ where: { id: au.user_id } });
+    if (!user || user.role !== 'agency_user' || !user.agency_id) {
+      throw new BadRequestException('Invalid member account');
+    }
+    
+    // Generate OTP
+    const otp = this.generateOtp();
+    this.otps.set(phone, { otp, expiresAt: Date.now() + 5 * 60_000, userId: user.id, candidateId: '' as any });
+    
+    // Send SMS with OTP
+    // await this.sms.send(phone, `Your login OTP is: ${otp}`);
+    
+    return { dev_otp: otp };
+  }
+
+  async memberLoginVerify(input: { phone: string; otp: string }): Promise<{ token: string; user_id: string; agency_id: string; user_type: string; phone: string; full_name?: string | null; role: string }> {
+    if (!input?.phone || !input?.otp) throw new BadRequestException('phone and otp are required');
+    const phone = normalizePhoneE164(input.phone);
+    
+    // Verify OTP
+    const rec = this.otps.get(phone);
+    if (!rec) throw new BadRequestException('No OTP requested for this phone');
+    if (Date.now() > rec.expiresAt) {
+      this.otps.delete(phone);
+      throw new BadRequestException('OTP expired');
+    }
+    if (rec.otp !== input.otp) throw new BadRequestException('Invalid OTP');
+    
+    // Get member details
+    const au = await this.agencyUsers.findOne({ where: { phone } });
+    if (!au) throw new NotFoundException('Member not found');
+    
+    const user = await this.users.findOne({ where: { id: au.user_id } });
+    if (!user || user.role !== 'agency_user' || !user.agency_id) {
+      throw new BadRequestException('Invalid member account');
+    }
+    
+    // Check if member is suspended
+    if (au.status === 'suspended') {
+      throw new ForbiddenException('Your account has been suspended. Contact administrator.');
+    }
+    
+    // Mark user as active
+    if (!user.is_active) {
+      user.is_active = true;
+      await this.users.save(user);
+    }
+    
+    // Update member status to active on first login (if pending)
+    if (au.status === 'pending') {
+      au.status = 'active';
+      await this.agencyUsers.save(au);
+    }
+    
+    // Generate JWT
+    const token = await this.jwt.signAsync({ sub: user.id, aid: user.agency_id, role: 'agency_user' });
+    
+    // Clean up OTP
+    this.otps.delete(phone);
+    
+    return { 
+      token, 
+      user_id: user.id, 
+      agency_id: user.agency_id, 
+      user_type: 'member',
+      phone,
+      full_name: au.full_name || null,
+      role: au.role || 'staff'
+    };
   }
 
   async initiatePhoneChange(candidateId: string, newPhone: string) {

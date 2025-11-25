@@ -17,6 +17,9 @@ export class User {
   @Column({ type: 'varchar', length: 20 })
   phone: string; // E.164
 
+  @Column({ type: 'varchar', length: 150, nullable: true })
+  full_name?: string | null; // User's full name
+
   @Column({ type: 'varchar', length: 32 })
   role: UserRole;
 

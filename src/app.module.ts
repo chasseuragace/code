@@ -12,6 +12,7 @@ import { SeedModule } from './modules/seed/seed.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { TesthelperModule } from './modules/testhelper/testhelper.module';
 import { NotificationModule } from './modules/notification/notification.module';
+import { DraftJobModule } from './modules/draft-job/draft-job.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { NotificationModule } from './modules/notification/notification.module';
     AuthModule,
     TesthelperModule,
     NotificationModule,
+    DraftJobModule,
   ],
 })
 export class AppModule {}

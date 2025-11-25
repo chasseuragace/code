@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
-export type AgencyUserRole = 'owner' | 'staff';
+export type AgencyUserRole = 'owner' | 'staff' | 'admin' | 'manager' | 'recruiter' | 'coordinator' | 'visaOfficer' | 'accountant';
 
 @Entity('agency_users')
 export class AgencyUser {
@@ -30,6 +30,9 @@ export class AgencyUser {
 
   @Column({ type: 'varchar', length: 32, default: 'owner' })
   role: AgencyUserRole;
+
+  @Column({ type: 'varchar', length: 32, default: 'active' })
+  status?: string; // active, inactive, pending, suspended
 
   @Column({ type: 'varchar', length: 200, nullable: true })
   password_hash?: string | null;

@@ -96,6 +96,24 @@ export class AuthController {
     return this.auth.memberLogin(body);
   }
 
+  @Post('member/login/start')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Start member login OTP flow' })
+  @ApiBody({ schema: { properties: { phone: { type: 'string' } }, required: ['phone'] } })
+  @ApiResponse({ status: 200, description: 'OTP issued', schema: { properties: { dev_otp: { type: 'string' } } } })
+  async memberLoginStart(@Body() body: { phone: string }) {
+    return this.auth.memberLoginStart(body);
+  }
+
+  @Post('member/login/verify')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Verify member login OTP' })
+  @ApiBody({ schema: { properties: { phone: { type: 'string' }, otp: { type: 'string' } }, required: ['phone', 'otp'] } })
+  @ApiResponse({ status: 200, description: 'Token issued', schema: { properties: { token: { type: 'string' }, user_id: { type: 'string', format: 'uuid' }, agency_id: { type: 'string', format: 'uuid' }, user_type: { type: 'string' }, phone: { type: 'string' }, full_name: { type: 'string' } } } })
+  async memberLoginVerify(@Body() body: { phone: string; otp: string }) {
+    return this.auth.memberLoginVerify(body);
+  }
+
   @Post('phone-change-requests')
   async requestPhoneChange(
     @Body() body: { candidateId: string; newPhone: string },

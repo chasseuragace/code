@@ -9,6 +9,17 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   // Serve static assets under /public for cutout URLs
   app.useStaticAssets(join(process.cwd(), 'public'), { prefix: '/public/' });
+  
+  // Enable CORS for frontend apps
+  app.enableCors({
+    origin: [
+      'http://localhost:5850',
+      'http://localhost:3000',
+    ],
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: 'Content-Type, Authorization, Accept, X-Requested-With',
+    credentials: true,
+  });
   // Swagger setup
   const config = new DocumentBuilder()
     .setTitle('Agency Service API')

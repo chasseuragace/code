@@ -8,6 +8,7 @@ import { User } from '../user/user.entity';
 import { JobPosting } from '../domain/domain.entity';
 import { JobContract } from '../domain/domain.entity';
 import { PostingAgency } from '../domain/PostingAgency';
+import { DraftJob } from '../draft-job/draft-job.entity';
 
 @Module({
   imports: [
@@ -17,7 +18,8 @@ import { PostingAgency } from '../domain/PostingAgency';
       User,
       JobPosting,
       JobContract,
-      PostingAgency
+      PostingAgency,
+      DraftJob
     ]),
   ],
   controllers: [TesthelperController],

@@ -29,4 +29,15 @@ export class TesthelperController {
   async findTestSuiteWorkflowPrerequisites(): Promise<TestSuitePrerequisites> {
     return this.testhelperService.findTestSuiteWorkflowPrerequisites();
   }
+
+  @Get('platform-owner/agencies-analytics')
+  @ApiOperation({ summary: 'Get all agencies with owner phone numbers for platform owner' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns list of agencies with analytics',
+    type: Array,
+  })
+  async getAgenciesAnalytics() {
+    return this.testhelperService.getAgenciesAnalytics();
+  }
 }

@@ -6,6 +6,7 @@ import { JobApplication } from '../../application/job-application.entity';
 import { JobPosting, JobContract } from '../../domain/domain.entity';
 import { PostingAgency } from '../../domain/PostingAgency';
 import { User } from '../../user/user.entity';
+import { DraftJob } from '../../draft-job/draft-job.entity';
 
 @Injectable()
 export class TesthelperService {
@@ -22,6 +23,8 @@ export class TesthelperService {
     private readonly postingAgencyRepository: Repository<PostingAgency>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(DraftJob)
+    private readonly draftJobRepository: Repository<DraftJob>,
   ) {}
 
   async findTestSuiteWorkflowPrerequisites() {
@@ -97,4 +100,58 @@ export class TesthelperService {
     agencyOwnerPhone: agencyOwner.phone,
   };
 }
+
+  async getAgenciesAnalytics() {
+    // Get all agencies with their owners
+    const agencies = await this.postingAgencyRepository
+      .createQueryBuilder('agency')
+      .orderBy('agency.created_at', 'DESC')
+      .getMany();
+
+    const result: any[] = [];
+    
+    for (const agency of agencies) {
+      // Find owner
+      const owner = await this.userRepository.findOne({
+        where: {
+          agency_id: agency.id,
+          is_agency_owner: true,
+        },
+        order: { created_at: 'DESC' },
+      });
+
+      // Count drafts
+      const draftCount = await this.draftJobRepository.count({
+        where: { posting_agency_id: agency.id },
+      });
+
+      // Count job postings
+      const jobCount = await this.jobContractRepository
+        .createQueryBuilder('contract')
+        .where('contract.posting_agency_id = :agencyId', { agencyId: agency.id })
+        .getCount();
+
+      // Count applications
+      const applicationCount = await this.applicationRepository
+        .createQueryBuilder('app')
+        .innerJoin(JobContract, 'contract', 'contract.job_posting_id = app.job_posting_id')
+        .where('contract.posting_agency_id = :agencyId', { agencyId: agency.id })
+        .getCount();
+
+      result.push({
+        id: agency.id,
+        name: agency.name,
+        license_number: agency.license_number,
+        owner_phone: owner?.phone || null,
+        owner_id: owner?.id || null,
+        analytics: {
+          draft_count: draftCount,
+          job_count: jobCount,
+          application_count: applicationCount,
+        },
+      });
+    }
+
+    return result;
+  }
 }

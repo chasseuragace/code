@@ -13,6 +13,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { TesthelperModule } from './modules/testhelper/testhelper.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { DraftJobModule } from './modules/draft-job/draft-job.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { DraftJobModule } from './modules/draft-job/draft-job.module';
     TesthelperModule,
     NotificationModule,
     DraftJobModule,
+    AdminModule,
   ],
 })
 export class AppModule {}

@@ -102,6 +102,72 @@ export interface ContractDto {
   annual_leave_days?: number;
 }
 export interface ExpenseDto { who_pays: ExpensePayer; is_free?: boolean; amount?: number; currency?: string; notes?: string }
+
+// Expense DTOs for job posting creation
+export interface MedicalExpenseDto {
+  domestic?: { who_pays?: ExpensePayer; is_free?: boolean; amount?: number; currency?: string; notes?: string };
+  foreign?: { who_pays?: ExpensePayer; is_free?: boolean; amount?: number; currency?: string; notes?: string };
+}
+
+export interface InsuranceExpenseDto {
+  who_pays?: ExpensePayer;
+  is_free?: boolean;
+  amount?: number;
+  currency?: string;
+  coverage_amount?: number;
+  coverage_currency?: string;
+  notes?: string;
+}
+
+export interface TravelExpenseDto {
+  who_provides?: ExpensePayer;
+  ticket_type?: TicketType;
+  is_free?: boolean;
+  amount?: number;
+  currency?: string;
+  notes?: string;
+}
+
+export interface VisaPermitExpenseDto {
+  who_pays?: ExpensePayer;
+  is_free?: boolean;
+  amount?: number;
+  currency?: string;
+  refundable?: boolean;
+  notes?: string;
+}
+
+export interface TrainingExpenseDto {
+  who_pays?: ExpensePayer;
+  is_free?: boolean;
+  amount?: number;
+  currency?: string;
+  duration_days?: number;
+  mandatory?: boolean;
+  notes?: string;
+}
+
+export interface WelfareServiceExpenseDto {
+  welfare?: {
+    who_pays?: ExpensePayer;
+    is_free?: boolean;
+    amount?: number;
+    currency?: string;
+    fund_purpose?: string;
+    refundable?: boolean;
+    notes?: string;
+  };
+  service?: {
+    who_pays?: ExpensePayer;
+    is_free?: boolean;
+    amount?: number;
+    currency?: string;
+    service_type?: string;
+    refundable?: boolean;
+    notes?: string;
+  };
+}
+
 export interface CreateJobPostingDto {
   posting_title: string;
   country: string;
@@ -118,6 +184,14 @@ export interface CreateJobPostingDto {
   employer: EmployerDto;
   contract: ContractDto;
   positions: PositionDto[];
+  
+  // Optional expenses
+  medical_expense?: MedicalExpenseDto;
+  insurance_expense?: InsuranceExpenseDto;
+  travel_expense?: TravelExpenseDto;
+  visa_permit_expense?: VisaPermitExpenseDto;
+  training_expense?: TrainingExpenseDto;
+  welfare_service_expense?: WelfareServiceExpenseDto;
 }
 
 @Injectable()
@@ -248,6 +322,105 @@ export class JobPostingService {
         }
       }
 
+      // Optional Expenses
+      // Medical Expense
+      if (dto.medical_expense) {
+        const medicalExp = qr.manager.create(MedicalExpense, {
+          job_posting_id: savedJP.id,
+          domestic_who_pays: dto.medical_expense.domestic?.who_pays,
+          domestic_is_free: dto.medical_expense.domestic?.is_free || false,
+          domestic_amount: dto.medical_expense.domestic?.amount,
+          domestic_currency: dto.medical_expense.domestic?.currency,
+          domestic_notes: dto.medical_expense.domestic?.notes,
+          foreign_who_pays: dto.medical_expense.foreign?.who_pays,
+          foreign_is_free: dto.medical_expense.foreign?.is_free || false,
+          foreign_amount: dto.medical_expense.foreign?.amount,
+          foreign_currency: dto.medical_expense.foreign?.currency,
+          foreign_notes: dto.medical_expense.foreign?.notes,
+        });
+        await qr.manager.save(medicalExp);
+      }
+
+      // Insurance Expense
+      if (dto.insurance_expense) {
+        const insuranceExp = qr.manager.create(InsuranceExpense, {
+          job_posting_id: savedJP.id,
+          who_pays: dto.insurance_expense.who_pays,
+          is_free: dto.insurance_expense.is_free || false,
+          amount: dto.insurance_expense.amount,
+          currency: dto.insurance_expense.currency,
+          coverage_amount: dto.insurance_expense.coverage_amount,
+          coverage_currency: dto.insurance_expense.coverage_currency,
+          notes: dto.insurance_expense.notes,
+        });
+        await qr.manager.save(insuranceExp);
+      }
+
+      // Travel Expense
+      if (dto.travel_expense) {
+        const travelExp = qr.manager.create(TravelExpense, {
+          job_posting_id: savedJP.id,
+          who_provides: dto.travel_expense.who_provides,
+          ticket_type: dto.travel_expense.ticket_type,
+          is_free: dto.travel_expense.is_free || false,
+          amount: dto.travel_expense.amount,
+          currency: dto.travel_expense.currency,
+          notes: dto.travel_expense.notes,
+        });
+        await qr.manager.save(travelExp);
+      }
+
+      // Visa/Permit Expense
+      if (dto.visa_permit_expense) {
+        const visaExp = qr.manager.create(VisaPermitExpense, {
+          job_posting_id: savedJP.id,
+          who_pays: dto.visa_permit_expense.who_pays,
+          is_free: dto.visa_permit_expense.is_free || false,
+          amount: dto.visa_permit_expense.amount,
+          currency: dto.visa_permit_expense.currency,
+          refundable: dto.visa_permit_expense.refundable || false,
+          notes: dto.visa_permit_expense.notes,
+        });
+        await qr.manager.save(visaExp);
+      }
+
+      // Training Expense
+      if (dto.training_expense) {
+        const trainingExp = qr.manager.create(TrainingExpense, {
+          job_posting_id: savedJP.id,
+          who_pays: dto.training_expense.who_pays,
+          is_free: dto.training_expense.is_free || false,
+          amount: dto.training_expense.amount,
+          currency: dto.training_expense.currency,
+          duration_days: dto.training_expense.duration_days,
+          mandatory: dto.training_expense.mandatory !== undefined ? dto.training_expense.mandatory : true,
+          notes: dto.training_expense.notes,
+        });
+        await qr.manager.save(trainingExp);
+      }
+
+      // Welfare/Service Charge Expense
+      if (dto.welfare_service_expense) {
+        const welfareExp = qr.manager.create(WelfareServiceExpense, {
+          job_posting_id: savedJP.id,
+          welfare_who_pays: dto.welfare_service_expense.welfare?.who_pays,
+          welfare_is_free: dto.welfare_service_expense.welfare?.is_free || false,
+          welfare_amount: dto.welfare_service_expense.welfare?.amount,
+          welfare_currency: dto.welfare_service_expense.welfare?.currency,
+          welfare_fund_purpose: dto.welfare_service_expense.welfare?.fund_purpose,
+          welfare_refundable: dto.welfare_service_expense.welfare?.refundable || false,
+          welfare_notes: dto.welfare_service_expense.welfare?.notes,
+          service_who_pays: dto.welfare_service_expense.service?.who_pays,
+          service_is_free: dto.welfare_service_expense.service?.is_free || false,
+          service_amount: dto.welfare_service_expense.service?.amount,
+          service_currency: dto.welfare_service_expense.service?.currency,
+          service_type: dto.welfare_service_expense.service?.service_type,
+          service_refundable: dto.welfare_service_expense.service?.refundable || false,
+          service_notes: dto.welfare_service_expense.service?.notes,
+        });
+        await qr.manager.save(welfareExp);
+      }
+
       await qr.commitTransaction();
       return this.findJobPostingById(savedJP.id);
     } catch (e) {
@@ -265,6 +438,14 @@ export class JobPostingService {
     });
     if (!jp) throw new NotFoundException(`Job posting with ID ${id} not found`);
     return jp;
+  }
+
+  async updateCutoutUrl(id: string, cutoutUrl: string | null): Promise<void> {
+    await this.jobPostingRepository.update(id, { cutout_url: cutoutUrl });
+  }
+
+  async updatePublishedStatus(id: string, isPublished: boolean): Promise<void> {
+    await this.jobPostingRepository.update(id, { is_published: isPublished });
   }
 
   // Mobile-optimized projection of a job posting by ID

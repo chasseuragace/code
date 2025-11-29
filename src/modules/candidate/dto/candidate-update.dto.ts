@@ -22,4 +22,5 @@ export class CandidateUpdateDto {
 
   @ApiProperty({ required: false, nullable: true, type: String }) email?: string | null;
   @ApiProperty({ required: false, nullable: true, enum: ['Male', 'Female'], description: 'Gender of the candidate' }) gender?: string | null;
+  @ApiProperty({ required: false, nullable: true, type: Number, description: 'Age of the candidate' }) age?: number | null;
 }

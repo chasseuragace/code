@@ -39,14 +39,14 @@ export class AgencyProfileService {
   async updateContact(agencyId: string, payload: { phone?: string; mobile?: string; email?: string; website?: string; contact_persons?: any[]; }): Promise<PostingAgency> {
     const current = await this.getAgencyOrThrow(agencyId);
 
+    // Replace phones array with new values (don't append to existing)
     const phones = Array.from(new Set([
-      ...(current.phones || []),
       ...(payload.phone ? [payload.phone] : []),
       ...(payload.mobile ? [payload.mobile] : []),
     ].filter(Boolean))) as string[] | undefined;
 
+    // Replace emails array with new value (don't append to existing)
     const emails = Array.from(new Set([
-      ...(current.emails || []),
       ...(payload.email ? [payload.email] : []),
     ].filter(Boolean))) as string[] | undefined;
 

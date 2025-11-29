@@ -22,6 +22,7 @@ export class CandidateProfileDto {
   @ApiProperty({ required: false, nullable: true }) passport_number?: string | null;
   @ApiProperty({ required: false, nullable: true, type: String }) email?: string | null;
   @ApiProperty({ required: false, nullable: true, enum: ['Male', 'Female'], description: 'Gender of the candidate' }) gender?: string | null;
+  @ApiProperty({ required: false, nullable: true, type: Number, description: 'Age of the candidate' }) age?: number | null;
   @ApiProperty() is_active!: boolean;
   @ApiProperty() created_at!: Date;
   @ApiProperty() updated_at!: Date;

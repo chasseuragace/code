@@ -1068,6 +1068,85 @@ export class CandidateController {
     return result;
   }
 
+  // POST /candidates/:id/media - Upload file to candidate's media manager
+  @Post(':id/media')
+  @HttpCode(201)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Upload file to candidate media manager (images and documents)' })
+  @ApiParam({ name: 'id', description: 'Candidate ID', required: true })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'File to upload (Images: JPEG, PNG, GIF, WebP | Documents: PDF, DOC, DOCX) - Max 10MB',
+        },
+      },
+    },
+  })
+  @ApiCreatedResponse({ 
+    description: 'File uploaded to media manager successfully', 
+    type: UploadResponseDto 
+  })
+  async uploadMediaFile(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<UploadResponseDto> {
+    // Verify candidate exists
+    const candidate = await this.candidates.findById(id);
+    if (!candidate) {
+      throw new NotFoundException('Candidate not found');
+    }
+
+    // Upload the file to mediamanager folder
+    const result = await this.imageUploadService.uploadFile(
+      file,
+      UploadType.CANDIDATE_MEDIA,
+      id
+    );
+
+    return result;
+  }
+
+  // GET /candidates/:id/media - List all media files for candidate
+  @Get(':id/media')
+  @ApiOperation({ summary: 'List all media files for candidate' })
+  @ApiParam({ name: 'id', description: 'Candidate ID', required: true })
+  @ApiOkResponse({ 
+    description: 'List of media files',
+    schema: {
+      type: 'object',
+      properties: {
+        files: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              fileName: { type: 'string' },
+              url: { type: 'string' },
+              size: { type: 'number' },
+              createdAt: { type: 'string', format: 'date-time' },
+            },
+          },
+        },
+      },
+    },
+  })
+  async listMediaImages(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
+    // Verify candidate exists
+    const candidate = await this.candidates.findById(id);
+    if (!candidate) {
+      throw new NotFoundException('Candidate not found');
+    }
+
+    return this.imageUploadService.listMediaFiles(id);
+  }
+
   // POST /candidates/:id/documents - Upload candidate document
   @Post(':id/documents')
   @HttpCode(201)

@@ -1,4 +1,4 @@
-import { Controller, Post, HttpCode, Param, Body, Patch, Get, ParseUUIDPipe, ForbiddenException, UploadedFile, UseInterceptors, Delete, Query, UseGuards, Req, BadRequestException, ValidationPipe, NotFoundException } from '@nestjs/common';
+import { Controller, Post, HttpCode, Param, Body, Patch, Get, ParseUUIDPipe, ForbiddenException, UploadedFile, UploadedFiles, UseInterceptors, Delete, Query, UseGuards, Req, BadRequestException, ValidationPipe, NotFoundException } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiOperation, ApiResponse, ApiTags, ApiParam, ApiQuery, ApiConsumes } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -11,7 +11,7 @@ import { JobApplication } from '../application/job-application.entity';
 import { JobPosting } from '../domain/domain.entity';
 import * as fs from 'fs';
 import * as path from 'path';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, AnyFilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import type { Express } from 'express';
 import { ExpenseService, InterviewService } from '../domain/domain.service';
@@ -669,16 +669,31 @@ export class AgencyController {
   // Create a job posting for an existing agency by license number.
   // The request body should contain all fields of CreateJobPostingDto except posting_agency.
   // We will infer posting_agency from the path param license.
+  // Optionally accepts a 'cutout' file for the job posting image.
   @Post(':license/job-postings')
   @HttpCode(201)
+  @UseInterceptors(AnyFilesInterceptor())
+  @ApiConsumes('multipart/form-data', 'application/json')
   async createJobPostingForAgency(
     @Param('license') license: string,
-    @Body() body: CreateJobPostingWithTagsDto,
+    @Body() body: any,
+    @UploadedFiles() files?: Express.Multer.File[],
   ) {
     // Ensure agency exists
     const agency = await this.agencyService.findAgencyByLicense(license);
+    
+    // Parse JSON data if sent as multipart
+    let jobData = body;
+    if (body.data && typeof body.data === 'string') {
+      try {
+        jobData = JSON.parse(body.data);
+      } catch (e) {
+        throw new BadRequestException('Invalid JSON in data field');
+      }
+    }
+    
     const dto: CreateJobPostingDto = {
-      ...body,
+      ...jobData,
       posting_agency: {
         name: agency.name,
         license_number: agency.license_number,
@@ -689,6 +704,26 @@ export class AgencyController {
       },
     } as any;
     const created = await this.jobPostingService.createJobPosting(dto);
+    
+    // If cutout file provided, upload it
+    const cutoutFile = files?.find(f => f.fieldname === 'cutout');
+    if (cutoutFile) {
+      try {
+        const uploadResult = await this.imageUploadService.uploadFile(
+          cutoutFile,
+          UploadType.JOB_CUTOUT,
+          created.id
+        );
+        
+        if (uploadResult.success && uploadResult.url) {
+          await this.jobPostingService.updateCutoutUrl(created.id, uploadResult.url);
+        }
+      } catch (uploadErr) {
+        console.error('Failed to upload cutout during job creation:', uploadErr);
+        // Don't fail the job creation if image upload fails
+      }
+    }
+    
     return {
       id: created.id,
       posting_title: created.posting_title,
@@ -1022,6 +1057,54 @@ export class AgencyController {
     }
 
     return result;
+  }
+
+  // PATCH /agencies/:license/job-postings/:id/toggle-published - Toggle published status
+  @Patch(':license/job-postings/:id/toggle-published')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Toggle job posting published status' })
+  @ApiParam({ name: 'license', description: 'Agency license number', required: true })
+  @ApiParam({ name: 'id', description: 'Job posting ID', required: true })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        is_published: { type: 'boolean', description: 'New published status' }
+      },
+      required: ['is_published']
+    }
+  })
+  @ApiOkResponse({ description: 'Published status toggled successfully' })
+  async togglePublished(
+    @Param('license') license: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('is_published') isPublished: boolean,
+  ): Promise<{ success: boolean; is_published: boolean; message?: string }> {
+    const posting = await this.jobPostingService.findJobPostingById(id);
+    const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
+    if (!belongs) throw new ForbiddenException('Cannot modify job posting of another agency');
+
+    // If trying to unpublish (set to false), check for applications
+    if (!isPublished && posting.is_published) {
+      const applicationCount = await this.jobAppRepo.count({
+        where: { job_posting_id: id }
+      });
+      
+      if (applicationCount > 0) {
+        throw new BadRequestException(
+          `Cannot unpublish job posting. There are ${applicationCount} application(s) already submitted.`
+        );
+      }
+    }
+
+    // Update the published status
+    await this.jobPostingService.updatePublishedStatus(id, isPublished);
+
+    return {
+      success: true,
+      is_published: isPublished,
+      message: isPublished ? 'Job posting published successfully' : 'Job posting unpublished successfully'
+    };
   }
 
   // POST /agencies/:license/logo - Upload agency logo

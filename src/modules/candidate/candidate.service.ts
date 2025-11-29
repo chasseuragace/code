@@ -116,6 +116,9 @@ export class CandidateService {
     if (input.gender !== undefined) {
       existing.gender = input.gender;
     }
+    if (input.age !== undefined) {
+      existing.age = input.age;
+    }
 
     return this.repo.save(existing);
   }

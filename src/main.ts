@@ -12,10 +12,14 @@ async function bootstrap() {
   
   // Enable CORS for frontend apps
   app.enableCors({
-    origin: [
-      'http://localhost:5850',
-      'http://localhost:3000',
-    ],
+    origin: (origin, callback) => {
+      // Allow any localhost origin
+      if (!origin || origin.startsWith('http://localhost:') || origin.startsWith('https://localhost:')) {
+        callback(null, true);
+      } else {
+        callback(null, false);
+      }
+    },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: 'Content-Type, Authorization, Accept, X-Requested-With',
     credentials: true,

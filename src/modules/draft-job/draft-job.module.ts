@@ -5,6 +5,7 @@ import { DraftJobService } from './draft-job.service';
 import { DraftJob } from './draft-job.entity';
 import { DomainModule } from '../domain/domain.module';
 import { AuthModule } from '../auth/auth.module';
+import { AgencyModule } from '../agency/agency.module';
 import { User } from '../user/user.entity';
 
 @Module({
@@ -12,6 +13,7 @@ import { User } from '../user/user.entity';
     TypeOrmModule.forFeature([DraftJob, User]),
     DomainModule,
     AuthModule,
+    AgencyModule,
   ],
   controllers: [DraftJobController],
   providers: [DraftJobService],

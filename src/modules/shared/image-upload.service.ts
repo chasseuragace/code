@@ -19,7 +19,8 @@ export enum UploadType {
   AGENCY_BANNER = 'agency_banner',
   JOB_CUTOUT = 'job_cutout',
   CANDIDATE_PROFILE = 'candidate_profile',
-  CANDIDATE_DOCUMENT = 'candidate_document'
+  CANDIDATE_DOCUMENT = 'candidate_document',
+  CANDIDATE_MEDIA = 'candidate_media'
 }
 
 @Injectable()
@@ -56,6 +57,8 @@ export class ImageUploadService {
       case UploadType.CANDIDATE_PROFILE:
       case UploadType.CANDIDATE_DOCUMENT:
         return path.join(this.uploadDir, 'candidates', entityId);
+      case UploadType.CANDIDATE_MEDIA:
+        return path.join(this.uploadDir, 'candidates', entityId, 'mediamanager');
       case UploadType.JOB_CUTOUT:
         return path.join(this.uploadDir, 'jobs', entityId);
       default:
@@ -77,6 +80,10 @@ export class ImageUploadService {
         return `profile${extension}`;
       case UploadType.CANDIDATE_DOCUMENT:
         return documentId ? `${documentId}${extension}` : `${uuidv4()}${extension}`;
+      case UploadType.CANDIDATE_MEDIA:
+        // Generate unique filename with timestamp for media manager
+        const timestamp = Date.now();
+        return `${timestamp}_${uuidv4()}${extension}`;
       default:
         throw new BadRequestException('Invalid upload type');
     }
@@ -88,8 +95,13 @@ export class ImageUploadService {
     }
 
     const isDocument = type === UploadType.CANDIDATE_DOCUMENT;
-    const maxSize = isDocument ? this.maxDocumentSize : this.maxImageSize;
-    const allowedTypes = isDocument ? this.allowedDocumentTypes : this.allowedImageTypes;
+    const isMedia = type === UploadType.CANDIDATE_MEDIA;
+    const maxSize = (isDocument || isMedia) ? this.maxDocumentSize : this.maxImageSize;
+    
+    // Media manager accepts both images and documents
+    const allowedTypes = isMedia 
+      ? [...this.allowedImageTypes, ...this.allowedDocumentTypes]
+      : (isDocument ? this.allowedDocumentTypes : this.allowedImageTypes);
 
     if (file.size > maxSize) {
       const maxSizeMB = maxSize / (1024 * 1024);
@@ -97,7 +109,7 @@ export class ImageUploadService {
     }
 
     if (!allowedTypes.includes(file.mimetype)) {
-      const typeCategory = isDocument ? 'document' : 'image';
+      const typeCategory = isMedia ? 'file' : (isDocument ? 'document' : 'image');
       throw new BadRequestException(`Invalid ${typeCategory} type. Allowed types: ${allowedTypes.join(', ')}`);
     }
   }
@@ -111,6 +123,8 @@ export class ImageUploadService {
       case UploadType.CANDIDATE_PROFILE:
       case UploadType.CANDIDATE_DOCUMENT:
         return `${basePath}/candidates/${entityId}/${fileName}`;
+      case UploadType.CANDIDATE_MEDIA:
+        return `${basePath}/candidates/${entityId}/mediamanager/${fileName}`;
       case UploadType.JOB_CUTOUT:
         return `${basePath}/jobs/${entityId}/${fileName}`;
       default:
@@ -211,5 +225,34 @@ export class ImageUploadService {
 
   sanitizeFileName(filename: string): string {
     return filename.replace(/[^a-zA-Z0-9.-]/g, '_');
+  }
+
+  async listMediaFiles(candidateId: string): Promise<{ files: Array<{ fileName: string; url: string; size: number; createdAt: Date }> }> {
+    try {
+      const mediaPath = path.join(this.uploadDir, 'candidates', candidateId, 'mediamanager');
+      
+      if (!fs.existsSync(mediaPath)) {
+        return { files: [] };
+      }
+
+      const files = fs.readdirSync(mediaPath);
+      const fileDetails = files
+        .filter(file => !file.startsWith('.')) // Ignore hidden files
+        .map(file => {
+          const filePath = path.join(mediaPath, file);
+          const stats = fs.statSync(filePath);
+          return {
+            fileName: file,
+            url: `public/uploads/candidates/${candidateId}/mediamanager/${file}`,
+            size: stats.size,
+            createdAt: stats.birthtime
+          };
+        })
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()); // Sort by newest first
+
+      return { files: fileDetails };
+    } catch (error) {
+      throw new InternalServerErrorException('Failed to list media files');
+    }
   }
 }

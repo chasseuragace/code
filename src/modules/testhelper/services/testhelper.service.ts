@@ -154,4 +154,22 @@ export class TesthelperService {
 
     return result;
   }
+
+  async getCandidates(page: number = 1, limit: number = 20) {
+    const skip = (page - 1) * limit;
+
+    const [candidates, total] = await this.candidateRepository.findAndCount({
+      select: ['id', 'phone', 'full_name'],
+      order: { created_at: 'DESC' },
+      skip,
+      take: limit,
+    });
+
+    return {
+      data: candidates,
+      total,
+      page,
+      limit,
+    };
+  }
 }

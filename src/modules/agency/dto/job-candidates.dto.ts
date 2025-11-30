@@ -69,6 +69,39 @@ export class GetJobCandidatesQueryDto {
   @IsOptional()
   @IsEnum(['today', 'tomorrow', 'unattended', 'all'])
   interview_filter?: string;
+
+  @ApiPropertyOptional({ 
+    description: 'Date alias for quick filtering (takes precedence over date_from/date_to)',
+    enum: ['today', 'tomorrow', 'this_week', 'next_week', 'this_month'],
+    example: 'this_week'
+  })
+  @IsOptional()
+  @IsEnum(['today', 'tomorrow', 'this_week', 'next_week', 'this_month'])
+  date_alias?: string;
+
+  @ApiPropertyOptional({ 
+    description: 'Start date for date range filter (YYYY-MM-DD)',
+    example: '2024-01-01'
+  })
+  @IsOptional()
+  @IsString()
+  date_from?: string;
+
+  @ApiPropertyOptional({ 
+    description: 'End date for date range filter (YYYY-MM-DD)',
+    example: '2024-01-31'
+  })
+  @IsOptional()
+  @IsString()
+  date_to?: string;
+
+  @ApiPropertyOptional({ 
+    description: 'Search query for candidate name, phone, or interviewer',
+    example: 'John Doe'
+  })
+  @IsOptional()
+  @IsString()
+  search?: string;
 }
 
 export class CandidateDocumentDto {
@@ -321,4 +354,32 @@ export class BulkScheduleInterviewDto {
   @IsOptional()
   @IsString()
   updatedBy?: string;
+}
+
+
+// Interview Statistics DTO
+export class InterviewStatsDto {
+  @ApiProperty({ description: 'Total scheduled interviews', example: 45 })
+  total_scheduled: number;
+
+  @ApiProperty({ description: 'Interviews scheduled for today', example: 5 })
+  today: number;
+
+  @ApiProperty({ description: 'Interviews scheduled for tomorrow', example: 3 })
+  tomorrow: number;
+
+  @ApiProperty({ description: 'Unattended interviews (no-show)', example: 2 })
+  unattended: number;
+
+  @ApiProperty({ description: 'Completed interviews', example: 30 })
+  completed: number;
+
+  @ApiProperty({ description: 'Passed interviews', example: 22 })
+  passed: number;
+
+  @ApiProperty({ description: 'Failed interviews', example: 8 })
+  failed: number;
+
+  @ApiProperty({ description: 'Cancelled interviews', example: 3 })
+  cancelled: number;
 }

@@ -908,8 +908,21 @@ export class InterviewService {
     contact_person?: string;
     required_documents?: string[];
     notes?: string;
+    type?: 'In-person' | 'Online' | 'Phone';
+    interviewer_email?: string;
     expenses?: Array<{ expense_type: ExpenseType; who_pays: ExpensePayer; is_free?: boolean; amount?: number; currency?: string; refundable?: boolean; notes?: string; }>;
   }): Promise<InterviewDetail> {
+    // Determine interview type from location if not explicitly provided
+    let interviewType: 'In-person' | 'Online' | 'Phone' = interviewData.type || 'In-person';
+    if (!interviewData.type && interviewData.location) {
+      const locationLower = interviewData.location.toLowerCase();
+      if (locationLower.includes('zoom') || locationLower.includes('meet') || locationLower.includes('teams') || locationLower.includes('online') || locationLower.includes('video')) {
+        interviewType = 'Online';
+      } else if (locationLower.includes('phone') || locationLower.includes('call')) {
+        interviewType = 'Phone';
+      }
+    }
+
     const interview = this.interviewRepository.create({
       job_posting_id: jobPostingId,
       job_application_id: interviewData.job_application_id,
@@ -921,6 +934,9 @@ export class InterviewService {
       contact_person: interviewData.contact_person,
       required_documents: interviewData.required_documents,
       notes: interviewData.notes,
+      status: 'scheduled', // New field
+      type: interviewType, // New field
+      interviewer_email: interviewData.interviewer_email, // New field
     });
     const saved = await this.interviewRepository.save(interview);
 

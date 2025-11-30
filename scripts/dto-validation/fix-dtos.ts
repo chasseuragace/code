@@ -145,11 +145,12 @@ class DtoFixer {
     if (isOptional && hasApiProperty && !hasApiPropertyOptional) {
       const apiPropertyDecorator = decorators.find((d) => d.getName() === 'ApiProperty');
       if (apiPropertyDecorator) {
-        const args = apiPropertyDecorator.getArguments();
+        // Get arguments BEFORE removing the decorator
+        const args = apiPropertyDecorator.getArguments().map((a) => a.getText());
         apiPropertyDecorator.remove();
         property.addDecorator({
           name: 'ApiPropertyOptional',
-          arguments: args.map((a) => a.getText()),
+          arguments: args,
         });
 
         this.addFix({

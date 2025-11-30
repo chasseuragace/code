@@ -7,6 +7,7 @@ import { JobApplicationListItemDto } from './dto/paginated-job-applications.dto'
 import { ApplicationDetailsDto } from './dto/application-details.dto';
 import { JobPosting, JobPosition } from '../domain/domain.entity';
 import { InterviewService } from '../domain/domain.service';
+import { InterviewHelperService } from '../domain/interview-helper.service';
 import { NotificationService } from '../notification/notification.service';
 
 export type ApplyOptions = { note?: string | null; updatedBy?: string | null };
@@ -52,6 +53,7 @@ export class ApplicationService {
     @InjectRepository(Candidate) private readonly candidateRepo: Repository<Candidate>,
     @InjectRepository(JobPosting) private readonly postingRepo: Repository<JobPosting>,
     private readonly interviewSvc: InterviewService,
+    private readonly interviewHelperSvc: InterviewHelperService,
     private readonly notificationService: NotificationService,
     private dataSource: DataSource,
   ) {}
@@ -259,6 +261,15 @@ export class ApplicationService {
     if (app.status === 'withdrawn') return app; // idempotent
     if (TERMINAL_STATUSES.has(app.status)) throw new Error('Cannot withdraw from terminal status');
 
+    // If there's an active interview, cancel it
+    const interview = await this.interviewHelperSvc.findLatestInterviewForApplication(app.id);
+    if (interview && interview.status === 'scheduled') {
+      await this.interviewHelperSvc.cancelInterview(interview.id, {
+        rejection_reason: opts.note || 'Application withdrawn',
+        notes: opts.note || undefined,
+      });
+    }
+
     const prev = app.status;
     app.status = 'withdrawn';
     app.withdrawn_at = new Date();
@@ -384,7 +395,11 @@ export class ApplicationService {
     const allowedFrom = ['interview_scheduled', 'interview_rescheduled'];
     if (!allowedFrom.includes(app.status)) throw new Error(`Invalid reschedule from status ${app.status}`);
 
-    await this.interviewSvc.updateInterview(interviewId, updates as any);
+    // Use interview helper to reschedule (sets rescheduled_at timestamp)
+    await this.interviewHelperSvc.rescheduleInterview(interviewId, {
+      ...updates,
+      notes: opts.note || undefined,
+    });
 
     const prev = app.status;
     app.status = 'interview_rescheduled';
@@ -416,6 +431,15 @@ export class ApplicationService {
     if (TERMINAL_STATUSES.has(app.status)) throw new Error('Cannot complete interview for terminal application');
     const allowedFrom = ['interview_scheduled', 'interview_rescheduled'];
     if (!allowedFrom.includes(app.status)) throw new Error(`Invalid complete from status ${app.status}`);
+
+    // Update interview entity with result and completion timestamp
+    const interview = await this.interviewHelperSvc.findLatestInterviewForApplication(applicationId);
+    if (interview) {
+      await this.interviewHelperSvc.completeInterview(interview.id, {
+        result: result === 'passed' ? 'pass' : 'fail',
+        notes: opts.note || undefined,
+      });
+    }
 
     const nextStatus: JobApplicationStatus = result === 'passed' ? 'interview_passed' : 'interview_failed';
     const prev = app.status;

@@ -16,6 +16,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { JobPostingService } from '../domain/domain.service';
+import { InterviewHelperService } from '../domain/interview-helper.service';
 import { ApplicationService } from '../application/application.service';
 import { CandidateService } from '../candidate/candidate.service';
 import { JobApplication } from '../application/job-application.entity';
@@ -31,7 +32,8 @@ import {
   BulkScheduleInterviewDto,
   BulkActionResponseDto,
   JobDetailsWithAnalyticsDto,
-  JobCandidateDto
+  JobCandidateDto,
+  InterviewStatsDto
 } from './dto/job-candidates.dto';
 import { CandidateFullDetailsDto } from './dto/candidate-full-details.dto';
 
@@ -40,6 +42,7 @@ import { CandidateFullDetailsDto } from './dto/candidate-full-details.dto';
 export class JobCandidatesController {
   constructor(
     private readonly jobPostingService: JobPostingService,
+    private readonly interviewHelperService: InterviewHelperService,
     private readonly applicationService: ApplicationService,
     private readonly candidateService: CandidateService,
     @InjectRepository(JobApplication)
@@ -199,7 +202,7 @@ export class JobCandidatesController {
       throw new ForbiddenException('Cannot access job posting of another agency');
     }
 
-    const { stage, limit = 10, offset = 0, skills, sort_by = 'priority_score', sort_order = 'desc', interview_filter } = query;
+    const { stage, limit = 10, offset = 0, skills, sort_by = 'priority_score', sort_order = 'desc', interview_filter, date_alias, date_from, date_to, search } = query;
 
     // Parse skills filter
     const skillsArray = skills ? skills.split(',').map(s => s.trim()).filter(Boolean) : [];
@@ -254,6 +257,118 @@ export class JobCandidatesController {
           default:
             return true;
         }
+      });
+    }
+
+    // Apply date filtering (date_alias takes precedence over date_from/date_to)
+    if (stage === 'interview_scheduled' && (date_alias || date_from || date_to)) {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      let filterStartDate: Date | null = null;
+      let filterEndDate: Date | null = null;
+
+      // Process date_alias first (takes precedence)
+      if (date_alias) {
+        switch (date_alias) {
+          case 'today':
+            filterStartDate = new Date(today);
+            filterEndDate = new Date(today);
+            filterEndDate.setDate(filterEndDate.getDate() + 1);
+            break;
+          
+          case 'tomorrow':
+            filterStartDate = new Date(today);
+            filterStartDate.setDate(filterStartDate.getDate() + 1);
+            filterEndDate = new Date(filterStartDate);
+            filterEndDate.setDate(filterEndDate.getDate() + 1);
+            break;
+          
+          case 'this_week':
+            // Get Monday of current week
+            const dayOfWeek = today.getDay();
+            const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+            filterStartDate = new Date(today);
+            filterStartDate.setDate(filterStartDate.getDate() + mondayOffset);
+            // Get Sunday of current week
+            filterEndDate = new Date(filterStartDate);
+            filterEndDate.setDate(filterEndDate.getDate() + 7);
+            break;
+          
+          case 'next_week':
+            // Get Monday of next week
+            const currentDayOfWeek = today.getDay();
+            const nextMondayOffset = currentDayOfWeek === 0 ? 1 : 8 - currentDayOfWeek;
+            filterStartDate = new Date(today);
+            filterStartDate.setDate(filterStartDate.getDate() + nextMondayOffset);
+            // Get Sunday of next week
+            filterEndDate = new Date(filterStartDate);
+            filterEndDate.setDate(filterEndDate.getDate() + 7);
+            break;
+          
+          case 'this_month':
+            // First day of current month
+            filterStartDate = new Date(today.getFullYear(), today.getMonth(), 1);
+            // First day of next month
+            filterEndDate = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+            break;
+        }
+      } else if (date_from || date_to) {
+        // Use custom date range
+        if (date_from) {
+          filterStartDate = new Date(date_from);
+          filterStartDate.setHours(0, 0, 0, 0);
+        }
+        if (date_to) {
+          filterEndDate = new Date(date_to);
+          filterEndDate.setHours(23, 59, 59, 999);
+        }
+      }
+
+      // Apply date filter
+      if (filterStartDate || filterEndDate) {
+        applications = applications.filter(app => {
+          const interview = app.interview_details?.[0];
+          if (!interview || !interview.interview_date_ad) return false;
+          
+          const interviewDate = new Date(interview.interview_date_ad);
+          interviewDate.setHours(0, 0, 0, 0);
+          
+          if (filterStartDate && interviewDate < filterStartDate) return false;
+          if (filterEndDate && interviewDate >= filterEndDate) return false;
+          
+          return true;
+        });
+      }
+    }
+
+    // Apply search filter (candidate name, phone, or interviewer)
+    if (search && search.trim().length > 0) {
+      const searchLower = search.toLowerCase().trim();
+      const candidateIds = applications.map(app => app.candidate_id);
+      
+      // Fetch candidate data for search
+      const candidatesForSearch = await this.candidateRepo
+        .createQueryBuilder('c')
+        .where('c.id IN (:...candidateIds)', { candidateIds })
+        .getMany();
+      
+      const candidateMap = new Map(candidatesForSearch.map(c => [c.id, c]));
+      
+      applications = applications.filter(app => {
+        const candidate = candidateMap.get(app.candidate_id);
+        const interview = app.interview_details?.[0];
+        
+        // Search in candidate name
+        if (candidate?.full_name?.toLowerCase().includes(searchLower)) return true;
+        
+        // Search in candidate phone
+        if (candidate?.phone?.toLowerCase().includes(searchLower)) return true;
+        
+        // Search in interviewer name
+        if (interview?.contact_person?.toLowerCase().includes(searchLower)) return true;
+        
+        return false;
       });
     }
 
@@ -1006,5 +1121,46 @@ export class JobCandidatesController {
         })),
       } : null,
     };
+  }
+
+  /**
+   * Get interview statistics for a job
+   * GET /agencies/:license/jobs/:jobId/interview-stats
+   */
+  @Get(':jobId/interview-stats')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Get interview statistics for a job',
+    description: 'Returns summary statistics for interviews including counts by status, date, and result. Supports optional date range filtering.'
+  })
+  @ApiParam({ name: 'license', description: 'Agency license number', example: 'LIC-AG-0001' })
+  @ApiParam({ name: 'jobId', description: 'Job posting ID (UUID)', example: 'job-uuid' })
+  @ApiQuery({ 
+    name: 'date_range', 
+    required: false, 
+    description: 'Date range filter',
+    enum: ['today', 'week', 'month', 'all'],
+    example: 'all'
+  })
+  @ApiOkResponse({ 
+    description: 'Interview statistics',
+    type: InterviewStatsDto 
+  })
+  async getInterviewStats(
+    @Param('license') license: string,
+    @Param('jobId', ParseUUIDPipe) jobId: string,
+    @Query('date_range') dateRange?: 'today' | 'week' | 'month' | 'all',
+  ): Promise<InterviewStatsDto> {
+    // Verify agency owns this job
+    const job = await this.jobPostingService.findJobPostingById(jobId);
+    const belongs = job.contracts?.some(c => c.agency?.license_number === license);
+    if (!belongs) {
+      throw new ForbiddenException('Cannot access job posting of another agency');
+    }
+
+    // Get statistics from interview helper service
+    const stats = await this.interviewHelperService.getInterviewStatsForJob(jobId, dateRange || 'all');
+
+    return stats;
   }
 }

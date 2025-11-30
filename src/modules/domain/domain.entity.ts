@@ -581,6 +581,59 @@ export class InterviewDetail extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   notes?: string;
 
+  // Status tracking (scheduled, completed, cancelled)
+  // Note: 'no_show' status is derived by comparing interview_date_ad + interview_time + duration_minutes + 30min grace period with current time
+  @Column({ 
+    type: 'enum',
+    enum: ['scheduled', 'completed', 'cancelled'],
+    default: 'scheduled'
+  })
+  status: 'scheduled' | 'completed' | 'cancelled';
+
+  // Result tracking (pass, fail, rejected)
+  @Column({ 
+    type: 'enum',
+    enum: ['pass', 'fail', 'rejected'],
+    nullable: true
+  })
+  result?: 'pass' | 'fail' | 'rejected' | null;
+
+  // Interview type
+  @Column({ 
+    type: 'enum',
+    enum: ['In-person', 'Online', 'Phone'],
+    default: 'In-person'
+  })
+  type: 'In-person' | 'Online' | 'Phone';
+
+  // Interviewer details
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  interviewer_email?: string;
+
+  // Feedback and scoring
+  @Column({ type: 'text', nullable: true })
+  feedback?: string;
+
+  @Column({ type: 'integer', nullable: true })
+  score?: number; // 0-10
+
+  @Column({ type: 'text', nullable: true })
+  recommendation?: string;
+
+  // Rejection reason
+  @Column({ type: 'text', nullable: true })
+  rejection_reason?: string;
+
+  // Additional timestamps
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  completed_at?: Date;
+
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  cancelled_at?: Date;
+
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  rescheduled_at?: Date;
+
   @ManyToOne(() => JobPosting, posting => posting.interviews, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'job_posting_id' })
   job_posting: JobPosting;

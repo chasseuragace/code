@@ -22,6 +22,7 @@ import {
 } from './domain.entity';
 import { PostingAgency } from './PostingAgency';
 import { ExpenseService, InterviewService, JobPostingService } from './domain.service';
+import { InterviewHelperService } from './interview-helper.service';
 import { CurrencyConversionService } from '../currency/currency-conversion.service';
 
 @Module({
@@ -45,8 +46,8 @@ import { CurrencyConversionService } from '../currency/currency-conversion.servi
       Country,
     ]),
   ],
-  providers: [JobPostingService, ExpenseService, InterviewService, CurrencyConversionService],
+  providers: [JobPostingService, ExpenseService, InterviewService, InterviewHelperService, CurrencyConversionService],
   controllers: [DomainController, PublicJobsController, InterviewsController],
-  exports: [TypeOrmModule, JobPostingService, ExpenseService, InterviewService, CurrencyConversionService],
+  exports: [TypeOrmModule, JobPostingService, ExpenseService, InterviewService, InterviewHelperService, CurrencyConversionService],
 })
 export class DomainModule {}

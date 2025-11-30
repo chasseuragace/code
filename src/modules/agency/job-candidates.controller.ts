@@ -28,10 +28,12 @@ import {
   GetJobCandidatesResponseDto,
   BulkShortlistDto,
   BulkRejectDto,
+  BulkScheduleInterviewDto,
   BulkActionResponseDto,
   JobDetailsWithAnalyticsDto,
   JobCandidateDto
 } from './dto/job-candidates.dto';
+import { CandidateFullDetailsDto } from './dto/candidate-full-details.dto';
 
 @ApiTags('Agency Job Candidates')
 @Controller('agencies/:license/jobs')
@@ -197,17 +199,63 @@ export class JobCandidatesController {
       throw new ForbiddenException('Cannot access job posting of another agency');
     }
 
-    const { stage, limit = 10, offset = 0, skills, sort_by = 'priority_score', sort_order = 'desc' } = query;
+    const { stage, limit = 10, offset = 0, skills, sort_by = 'priority_score', sort_order = 'desc', interview_filter } = query;
 
     // Parse skills filter
     const skillsArray = skills ? skills.split(',').map(s => s.trim()).filter(Boolean) : [];
 
-    // Fetch applications for this job and stage
-    const applications = await this.jobAppRepo
+    // Fetch applications for this job and stage with interview details
+    let applications = await this.jobAppRepo
       .createQueryBuilder('ja')
+      .leftJoinAndSelect('ja.interview_details', 'interview')
       .where('ja.job_posting_id = :jobId', { jobId })
       .andWhere('ja.status = :stage', { stage })
       .getMany();
+
+    // Apply interview filtering if requested (only for interview_scheduled stage)
+    if (stage === 'interview_scheduled' && interview_filter && interview_filter !== 'all') {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      applications = applications.filter(app => {
+        const interview = app.interview_details?.[0];
+        if (!interview || !interview.interview_date_ad) return false;
+        
+        const interviewDate = new Date(interview.interview_date_ad);
+        const interviewDateTime = new Date(interviewDate);
+        
+        // Parse time if available (format: "HH:MM:SS" or "HH:MM")
+        if (interview.interview_time) {
+          const timeParts = interview.interview_time.toString().split(':');
+          const hours = parseInt(timeParts[0], 10);
+          const minutes = parseInt(timeParts[1], 10);
+          interviewDateTime.setHours(hours, minutes, 0, 0);
+        }
+        
+        switch (interview_filter) {
+          case 'today':
+            return interviewDate >= today && interviewDate < tomorrow;
+          
+          case 'tomorrow':
+            const dayAfterTomorrow = new Date(tomorrow);
+            dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
+            return interviewDate >= tomorrow && interviewDate < dayAfterTomorrow;
+          
+          case 'unattended':
+            // Interview time + duration + 30min grace period has passed
+            const duration = interview.duration_minutes || 60;
+            const gracePeriod = 30; // minutes
+            const endTime = new Date(interviewDateTime);
+            endTime.setMinutes(endTime.getMinutes() + duration + gracePeriod);
+            return now > endTime;
+          
+          default:
+            return true;
+        }
+      });
+    }
 
     if (applications.length === 0) {
       return {
@@ -373,6 +421,9 @@ export class JobCandidatesController {
       const city = address?.municipality || address?.district || 'N/A';
       const country = 'Nepal'; // Default, could be in profile
 
+      // Extract interview data if available
+      const interview = application.interview_details?.[0];
+
       return {
         id: candidate.id,
         name: candidate.full_name,
@@ -388,6 +439,20 @@ export class JobCandidatesController {
         applied_at: application.created_at.toISOString(),
         application_id: application.id,
         documents: (application as any).documents || [],
+        interview: interview ? {
+          id: interview.id,
+          scheduled_at: interview.interview_date_ad 
+            ? (interview.interview_date_ad instanceof Date 
+                ? interview.interview_date_ad.toISOString() 
+                : new Date(interview.interview_date_ad).toISOString())
+            : null,
+          time: interview.interview_time ? String(interview.interview_time) : null,
+          duration: interview.duration_minutes || 60,
+          location: interview.location || null,
+          interviewer: interview.contact_person || null,
+          notes: interview.notes || null,
+          required_documents: interview.required_documents || []
+        } : null
       };
     });
 
@@ -654,6 +719,292 @@ export class JobCandidatesController {
       updated_count,
       failed: failed.length > 0 ? failed : undefined,
       errors: Object.keys(errors).length > 0 ? errors : undefined,
+    };
+  }
+
+  /**
+   * Bulk schedule interviews
+   * POST /agencies/:license/jobs/:jobId/candidates/bulk-schedule-interview
+   */
+  @Post(':jobId/candidates/bulk-schedule-interview')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Bulk schedule interviews for multiple candidates',
+    description: 'Schedule interviews for multiple candidates in a single operation. Only candidates in "shortlisted" stage can be scheduled.'
+  })
+  @ApiParam({ name: 'license', description: 'Agency license number', example: 'LIC-AG-0001' })
+  @ApiParam({ name: 'jobId', description: 'Job posting ID (UUID)', example: 'job-uuid' })
+  @ApiBody({ type: BulkScheduleInterviewDto })
+  @ApiOkResponse({ 
+    description: 'Bulk schedule result',
+    type: BulkActionResponseDto 
+  })
+  @ApiBadRequestResponse({ description: 'Invalid request or candidates not in "shortlisted" stage' })
+  async bulkScheduleInterview(
+    @Param('license') license: string,
+    @Param('jobId', ParseUUIDPipe) jobId: string,
+    @Body() body: BulkScheduleInterviewDto,
+  ): Promise<BulkActionResponseDto> {
+    // Verify agency owns this job
+    const job = await this.jobPostingService.findJobPostingById(jobId);
+    const belongs = job.contracts?.some(c => c.agency?.license_number === license);
+    if (!belongs) {
+      throw new ForbiddenException('Cannot access job posting of another agency');
+    }
+
+    const { candidate_ids, ...interviewData } = body;
+    const failed: string[] = [];
+    const errors: Record<string, string> = {};
+    let scheduled_count = 0;
+
+    // Process each candidate
+    for (const candidateId of candidate_ids) {
+      try {
+        // Find application for this candidate and job
+        const application = await this.jobAppRepo.findOne({
+          where: {
+            candidate_id: candidateId,
+            job_posting_id: jobId,
+          },
+        });
+
+        if (!application) {
+          failed.push(candidateId);
+          errors[candidateId] = 'Application not found';
+          continue;
+        }
+
+        // Only schedule if currently in "shortlisted" stage
+        if (application.status !== 'shortlisted') {
+          failed.push(candidateId);
+          errors[candidateId] = `Cannot schedule from "${application.status}" stage`;
+          continue;
+        }
+
+        // Schedule interview
+        await this.applicationService.scheduleInterview(
+          application.id,
+          {
+            interview_date_ad: interviewData.interview_date_ad,
+            interview_date_bs: interviewData.interview_date_bs,
+            interview_time: interviewData.interview_time,
+            duration_minutes: interviewData.duration_minutes || 60,
+            location: interviewData.location,
+            contact_person: interviewData.contact_person,
+            required_documents: interviewData.required_documents,
+            notes: interviewData.notes,
+          },
+          {
+            note: 'Bulk scheduled via agency workflow',
+            updatedBy: interviewData.updatedBy || 'agency',
+          }
+        );
+
+        scheduled_count++;
+      } catch (error) {
+        failed.push(candidateId);
+        errors[candidateId] = error.message || 'Unknown error';
+      }
+    }
+
+    return {
+      success: failed.length === 0,
+      updated_count: scheduled_count,
+      failed: failed.length > 0 ? failed : undefined,
+      errors: Object.keys(errors).length > 0 ? errors : undefined,
+    };
+  }
+
+  /**
+   * Get complete candidate details for a job application (unified endpoint)
+   * GET /agencies/:license/jobs/:jobId/candidates/:candidateId/details
+   */
+  @Get(':jobId/candidates/:candidateId/details')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Get complete candidate details for a job application',
+    description: 'Returns all candidate information in a single response: profile, job profile, application history, and interview details. Documents are fetched separately.'
+  })
+  @ApiParam({ name: 'license', description: 'Agency license number', example: 'LIC-AG-0001' })
+  @ApiParam({ name: 'jobId', description: 'Job posting ID (UUID)', example: 'job-uuid' })
+  @ApiParam({ name: 'candidateId', description: 'Candidate ID (UUID)', example: 'candidate-uuid' })
+  @ApiOkResponse({ 
+    description: 'Complete candidate details',
+    type: CandidateFullDetailsDto 
+  })
+  async getCandidateFullDetails(
+    @Param('license') license: string,
+    @Param('jobId', ParseUUIDPipe) jobId: string,
+    @Param('candidateId', ParseUUIDPipe) candidateId: string,
+  ): Promise<CandidateFullDetailsDto> {
+    // 1. Verify agency owns this job
+    const job = await this.jobPostingService.findJobPostingById(jobId);
+    const belongs = job.contracts?.some(c => c.agency?.license_number === license);
+    if (!belongs) {
+      throw new ForbiddenException('Cannot access job posting of another agency');
+    }
+
+    // 2. Fetch candidate basic info
+    const candidate = await this.candidateService.findById(candidateId);
+    if (!candidate) {
+      throw new NotFoundException('Candidate not found');
+    }
+
+    // 3. Fetch job profile (most recent)
+    const jobProfiles = await this.candidateJobProfileRepo.find({
+      where: { candidate_id: candidateId },
+      order: { updated_at: 'DESC' },
+      take: 1,
+    });
+    const profile = jobProfiles[0];
+    const profileBlob = (profile?.profile_blob as any) || {};
+
+    // 4. Fetch application with history
+    const application = await this.jobAppRepo.findOne({
+      where: {
+        candidate_id: candidateId,
+        job_posting_id: jobId,
+      },
+      relations: ['interview_details', 'interview_details.expenses'],
+    });
+
+    if (!application) {
+      throw new NotFoundException('Application not found for this candidate and job');
+    }
+
+    // 5. Get interview details (if exists)
+    const interview = application.interview_details?.[0] || null;
+
+    // 6. Get job context
+    const contract = job.contracts[0];
+    const position = contract?.positions?.find(p => p.id === application.position_id);
+
+    // 7. Format address with formatted field
+    const formatAddress = (addr: any): any => {
+      if (!addr) return null;
+      
+      const parts: string[] = [];
+      if (addr.name) parts.push(addr.name);
+      if (addr.ward) parts.push(`Ward ${addr.ward}`);
+      if (addr.municipality && addr.municipality !== addr.name) parts.push(addr.municipality);
+      if (addr.district && addr.district !== addr.municipality) parts.push(addr.district);
+      if (addr.province) parts.push(`${addr.province} Province`);
+      
+      return {
+        formatted: parts.length > 0 ? parts.join(', ') : null,
+        name: addr.name || null,
+        province: addr.province || null,
+        district: addr.district || null,
+        municipality: addr.municipality || null,
+        ward: addr.ward || null,
+      };
+    };
+
+    // 8. Extract and flatten skills to array of strings
+    const skills = Array.isArray(profileBlob.skills)
+      ? profileBlob.skills
+          .map((s: any) => (typeof s === 'string' ? s : s?.title))
+          .filter((v: any) => typeof v === 'string' && v.trim().length > 0)
+      : [];
+
+    // 9. Extract education
+    const education = Array.isArray(profileBlob.education)
+      ? profileBlob.education.map((e: any) => {
+          if (typeof e === 'string') {
+            return { degree: e, institution: null, year_completed: null };
+          }
+          return {
+            degree: e.degree || e.title || e.name || 'Unknown',
+            institution: e.institution || null,
+            year_completed: e.year_completed || null,
+          };
+        })
+      : [];
+
+    // 10. Extract trainings
+    const trainings = Array.isArray(profileBlob.trainings)
+      ? profileBlob.trainings.map((t: any) => ({
+          title: t.title || 'Unknown',
+          provider: t.provider || null,
+          hours: t.hours || null,
+          certificate: t.certificate || false,
+        }))
+      : [];
+
+    // 11. Extract experience
+    const experience = Array.isArray(profileBlob.experience)
+      ? profileBlob.experience.map((exp: any) => ({
+          title: exp.title || 'Unknown',
+          employer: exp.employer || null,
+          start_date_ad: exp.start_date_ad || null,
+          end_date_ad: exp.end_date_ad || null,
+          months: exp.months || exp.duration_months || null,
+          description: exp.description || null,
+        }))
+      : [];
+
+    // 12. Build and return response
+    return {
+      candidate: {
+        id: candidate.id,
+        name: candidate.full_name,
+        phone: candidate.phone,
+        email: candidate.email || null,
+        gender: candidate.gender || null,
+        age: candidate.age || null,
+        address: formatAddress(candidate.address),
+        passport_number: candidate.passport_number || null,
+        profile_image: candidate.profile_image || null,
+        is_active: candidate.is_active,
+      },
+      job_profile: {
+        summary: profileBlob.summary || null,
+        skills,
+        education,
+        trainings,
+        experience,
+      },
+      job_context: {
+        job_id: job.id,
+        job_title: job.posting_title,
+        job_company: contract?.employer?.company_name || null,
+        job_location: {
+          city: job.city || null,
+          country: job.country,
+        },
+      },
+      application: {
+        id: application.id,
+        position_id: application.position_id,
+        position_title: position?.title || null,
+        status: application.status,
+        created_at: application.created_at.toISOString(),
+        updated_at: application.updated_at.toISOString(),
+        history_blob: application.history_blob || [],
+      },
+      interview: interview ? {
+        id: interview.id,
+        interview_date_ad: interview.interview_date_ad 
+          ? (interview.interview_date_ad instanceof Date 
+              ? interview.interview_date_ad.toISOString() 
+              : new Date(interview.interview_date_ad).toISOString())
+          : null,
+        interview_date_bs: interview.interview_date_bs || null,
+        interview_time: interview.interview_time ? String(interview.interview_time) : null,
+        location: interview.location || null,
+        contact_person: interview.contact_person || null,
+        required_documents: interview.required_documents || null,
+        notes: interview.notes || null,
+        expenses: (interview.expenses || []).map(exp => ({
+          expense_type: exp.expense_type,
+          who_pays: exp.who_pays,
+          is_free: exp.is_free,
+          amount: exp.amount || null,
+          currency: exp.currency || null,
+          refundable: exp.refundable || false,
+          notes: exp.notes || null,
+        })),
+      } : null,
     };
   }
 }

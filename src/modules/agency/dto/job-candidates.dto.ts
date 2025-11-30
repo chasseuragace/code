@@ -60,6 +60,15 @@ export class GetJobCandidatesQueryDto {
   @IsOptional()
   @IsEnum(['asc', 'desc'])
   sort_order?: string = 'desc';
+
+  @ApiPropertyOptional({ 
+    description: 'Interview date filter (only for interview_scheduled stage)',
+    enum: ['today', 'tomorrow', 'unattended', 'all'],
+    example: 'today'
+  })
+  @IsOptional()
+  @IsEnum(['today', 'tomorrow', 'unattended', 'all'])
+  interview_filter?: string;
 }
 
 export class CandidateDocumentDto {
@@ -112,6 +121,30 @@ export class JobCandidateDto {
 
   @ApiPropertyOptional({ description: 'Attached documents', type: [CandidateDocumentDto] })
   documents?: CandidateDocumentDto[];
+
+  @ApiPropertyOptional({ 
+    description: 'Interview details (if scheduled)',
+    example: {
+      id: 'interview-uuid',
+      scheduled_at: '2025-12-01T00:00:00.000Z',
+      time: '10:00:00',
+      duration: 60,
+      location: 'Office',
+      interviewer: 'HR Manager',
+      notes: 'Bring original documents',
+      required_documents: ['passport', 'cv']
+    }
+  })
+  interview?: {
+    id: string;
+    scheduled_at: string | null;
+    time: string | null;
+    duration: number;
+    location: string | null;
+    interviewer: string | null;
+    notes: string | null;
+    required_documents: string[];
+  } | null;
 }
 
 export class PaginationDto {
@@ -223,4 +256,69 @@ export class JobDetailsWithAnalyticsDto {
     scheduled_count: number;
     passed_count: number;
   };
+}
+
+export class BulkScheduleInterviewDto {
+  @ApiProperty({ 
+    description: 'Array of candidate IDs to schedule interviews for',
+    example: ['candidate-uuid-1', 'candidate-uuid-2'],
+    type: [String]
+  })
+  @IsArray()
+  @IsString({ each: true })
+  candidate_ids: string[];
+
+  @ApiProperty({ description: 'Interview date in AD format', example: '2025-12-01' })
+  @IsString()
+  interview_date_ad: string;
+
+  @ApiPropertyOptional({ description: 'Interview date in BS format', example: '2082-08-15' })
+  @IsOptional()
+  @IsString()
+  interview_date_bs?: string;
+
+  @ApiProperty({ description: 'Interview time', example: '10:00 AM' })
+  @IsString()
+  interview_time: string;
+
+  @ApiPropertyOptional({ 
+    description: 'Interview duration in minutes', 
+    example: 60,
+    default: 60,
+    minimum: 15,
+    maximum: 480
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(15)
+  @Max(480)
+  duration_minutes?: number;
+
+  @ApiProperty({ description: 'Interview location', example: 'Office' })
+  @IsString()
+  location: string;
+
+  @ApiProperty({ description: 'Contact person name', example: 'HR Manager' })
+  @IsString()
+  contact_person: string;
+
+  @ApiPropertyOptional({ 
+    description: 'Required documents', 
+    example: ['passport', 'cv'],
+    type: [String]
+  })
+  @IsOptional()
+  @IsArray()
+  required_documents?: string[];
+
+  @ApiPropertyOptional({ description: 'Additional notes' })
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
+  @ApiPropertyOptional({ description: 'User ID who is scheduling' })
+  @IsOptional()
+  @IsString()
+  updatedBy?: string;
 }

@@ -130,6 +130,7 @@ export class ApplicationController {
       interview_date_ad?: string;
       interview_date_bs?: string;
       interview_time?: string;
+      duration_minutes?: number;
       location?: string;
       contact_person?: string;
       required_documents?: string[];
@@ -162,6 +163,7 @@ export class ApplicationController {
       interview_date_ad?: string;
       interview_date_bs?: string;
       interview_time?: string;
+      duration_minutes?: number;
       location?: string;
       contact_person?: string;
       required_documents?: string[];
@@ -175,6 +177,7 @@ export class ApplicationController {
       interview_date_ad: body.interview_date_ad,
       interview_date_bs: body.interview_date_bs,
       interview_time: body.interview_time,
+      duration_minutes: body.duration_minutes,
       location: body.location,
       contact_person: body.contact_person,
       required_documents: body.required_documents,

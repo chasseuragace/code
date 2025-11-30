@@ -566,6 +566,9 @@ export class InterviewDetail extends BaseEntity {
   @Column({ type: 'time', nullable: true })
   interview_time?: string;
 
+  @Column({ type: 'integer', default: 60 })
+  duration_minutes: number;
+
   @Column({ type: 'text', nullable: true })
   location?: string;
 

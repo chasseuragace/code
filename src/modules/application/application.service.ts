@@ -17,6 +17,7 @@ export type ScheduleInterviewInput = {
   interview_date_ad?: string;
   interview_date_bs?: string;
   interview_time?: string;
+  duration_minutes?: number;
   location?: string;
   contact_person?: string;
   required_documents?: string[];

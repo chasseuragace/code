@@ -440,13 +440,7 @@ export class JobPostingService {
     return jp;
   }
 
-  async updateCutoutUrl(id: string, cutoutUrl: string | null): Promise<void> {
-    await this.jobPostingRepository.update(id, { cutout_url: cutoutUrl });
-  }
-
-  async updatePublishedStatus(id: string, isPublished: boolean): Promise<void> {
-    await this.jobPostingRepository.update(id, { is_published: isPublished });
-  }
+  // Removed duplicate - see full implementation below
 
   // Mobile-optimized projection of a job posting by ID
   async jobbyidmobile(id: string): Promise<MobileJobPostingDto> {
@@ -909,6 +903,7 @@ export class InterviewService {
     interview_date_ad?: string;
     interview_date_bs?: string;
     interview_time?: string;
+    duration_minutes?: number;
     location?: string;
     contact_person?: string;
     required_documents?: string[];
@@ -921,6 +916,7 @@ export class InterviewService {
       interview_date_ad: interviewData.interview_date_ad ? new Date(interviewData.interview_date_ad) : undefined,
       interview_date_bs: interviewData.interview_date_bs,
       interview_time: interviewData.interview_time,
+      duration_minutes: interviewData.duration_minutes || 60,
       location: interviewData.location,
       contact_person: interviewData.contact_person,
       required_documents: interviewData.required_documents,
@@ -956,7 +952,7 @@ export class InterviewService {
     return this.interviewRepository.findOne({ where: { job_posting_id: jobPostingId }, relations: ['expenses'] });
   }
 
-  async updateInterview(id: string, updateData: Partial<{ interview_date_ad: string; interview_date_bs: string; interview_time: string; location: string; contact_person: string; required_documents: string[]; notes: string; }>): Promise<InterviewDetail> {
+  async updateInterview(id: string, updateData: Partial<{ interview_date_ad: string; interview_date_bs: string; interview_time: string; duration_minutes: number; location: string; contact_person: string; required_documents: string[]; notes: string; }>): Promise<InterviewDetail> {
     const res = await this.interviewRepository.update(id, { ...updateData, interview_date_ad: updateData.interview_date_ad ? new Date(updateData.interview_date_ad) : undefined, updated_at: new Date() });
     if (res.affected === 0) throw new NotFoundException(`Interview with ID ${id} not found`);
     return this.findInterviewById(id);

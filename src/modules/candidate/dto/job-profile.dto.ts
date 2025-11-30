@@ -147,14 +147,17 @@ export class UpdateJobProfileDto {
 }
 
 export class CandidateJobProfileDto {
-  @ApiProperty({ format: 'uuid' })
-  id!: string;
+  
+  @ApiProperty({ description: 'Id', format: 'uuid' })
+    id!: string;
 
-  @ApiProperty({ format: 'uuid' })
-  candidate_id!: string;
+  
+  @ApiProperty({ description: 'Candidate id', format: 'uuid' })
+    candidate_id!: string;
 
-  @ApiProperty({ type: JobProfileBlobDto })
-  profile_blob!: JobProfileBlobDto;
+  
+  @ApiProperty({ description: 'Profile blob', type: JobProfileBlobDto })
+    profile_blob!: JobProfileBlobDto;
 
   @ApiPropertyOptional({ description: 'Optional label for this profile' })
   @IsOptional()

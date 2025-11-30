@@ -1,58 +1,71 @@
 import { Body, Controller, HttpCode, Post } from '@nestjs/common';
 import { SeedService } from './seed.service';
-import { ApiOperation, ApiOkResponse, ApiTags, ApiProperty, ApiBody, getSchemaPath, ApiExtraModels } from '@nestjs/swagger';
+import { ApiOperation, ApiOkResponse, ApiTags, ApiProperty, ApiBody, getSchemaPath, ApiExtraModels, ApiPropertyOptional } from '@nestjs/swagger';
 
 class SeedCountsDto {
   // number of upserted/created rows per category
-  @ApiProperty({ required: false, nullable: true, description: 'Number of country rows upserted', example: { affected: 46 } })
-  countries?: { affected: number } | null;
+  
+  @ApiPropertyOptional({ required: false, nullable: true, description: 'Number of country rows upserted', example: { affected: 46 } })
+    countries?: { affected: number } | null;
 
-  @ApiProperty({ required: false, nullable: true, description: 'Number of job title rows upserted', example: { affected: 51 } })
-  job_titles?: { affected: number } | null;
+  
+  @ApiPropertyOptional({ required: false, nullable: true, description: 'Number of job title rows upserted', example: { affected: 51 } })
+    job_titles?: { affected: number } | null;
 
-  @ApiProperty({ required: false, nullable: true, description: 'Number of document types upserted', example: { affected: 7 } })
-  document_types?: { affected: number } | null;
+  
+  @ApiPropertyOptional({ required: false, nullable: true, description: 'Number of document types upserted', example: { affected: 7 } })
+    document_types?: { affected: number } | null;
 
-  @ApiProperty({ required: false, nullable: true, description: 'Number of agencies created (skips existing by license)', example: { created: 10 } })
-  agencies?: { created: number } | null;
+  
+  @ApiPropertyOptional({ required: false, nullable: true, description: 'Number of agencies created (skips existing by license)', example: { created: 10 } })
+    agencies?: { created: number } | null;
 
-  @ApiProperty({ required: false, nullable: true, description: 'Number of agency owners created', example: { created: 5 } })
-  agency_owners?: { created: number } | null;
+  
+  @ApiPropertyOptional({ required: false, nullable: true, description: 'Number of agency owners created', example: { created: 5 } })
+    agency_owners?: { created: number } | null;
 
-  @ApiProperty({ required: false, nullable: true, description: 'Number of sample postings created', example: { created: 1 } })
-  sample_postings?: { created: number } | null;
+  
+  @ApiPropertyOptional({ required: false, nullable: true, description: 'Number of sample postings created', example: { created: 1 } })
+    sample_postings?: { created: number } | null;
 
-  @ApiProperty({
-    required: false,
-    nullable: true,
-    description: 'Dev: Number of postings created and tagged across seeded agencies',
-    example: { created: 10, tagged: 10 },
-  })
-  dev_agency_postings_with_tags?: { created: number; tagged: number } | null;
+  
+  @ApiPropertyOptional({
+        required: false,
+        nullable: true,
+        description: 'Dev: Number of postings created and tagged across seeded agencies',
+        example: { created: 10, tagged: 10 },
+      })
+    dev_agency_postings_with_tags?: { created: number; tagged: number } | null;
 }
 
 class SeedRequestDto {
-  @ApiProperty({ description: 'Seed countries (primary). Default: true', required: false, default: true })
-  countries?: boolean;
+  
+  @ApiPropertyOptional({ description: 'Seed countries (primary). Default: true', required: false, default: true })
+    countries?: boolean;
 
-  @ApiProperty({ description: 'Seed job titles (primary). Default: true', required: false, default: true })
-  job_titles?: boolean;
+  
+  @ApiPropertyOptional({ description: 'Seed job titles (primary). Default: true', required: false, default: true })
+    job_titles?: boolean;
 
-  @ApiProperty({ description: 'Seed document types (primary). Default: true', required: false, default: true })
-  document_types?: boolean;
+  
+  @ApiPropertyOptional({ description: 'Seed document types (primary). Default: true', required: false, default: true })
+    document_types?: boolean;
 
-  @ApiProperty({ description: 'Seed agencies (secondary). Default: false', required: false, default: false })
-  agencies?: boolean;
+  
+  @ApiPropertyOptional({ description: 'Seed agencies (secondary). Default: false', required: false, default: false })
+    agencies?: boolean;
 
-  @ApiProperty({ description: 'Seed sample job postings (secondary). Default: false', required: false, default: false })
-  sample_postings?: boolean;
+  
+  @ApiPropertyOptional({ description: 'Seed sample job postings (secondary). Default: false', required: false, default: false })
+    sample_postings?: boolean;
 
-  @ApiProperty({
-    description: 'Dev: create at least one posting per seeded agency and tag them for frontend testing. Default: false',
-    required: false,
-    default: false,
-  })
-  dev_agency_postings_with_tags?: boolean;
+  
+  @ApiPropertyOptional({
+        description: 'Dev: create at least one posting per seeded agency and tag them for frontend testing. Default: false',
+        required: false,
+        default: false,
+      })
+    dev_agency_postings_with_tags?: boolean;
 }
 
 @ApiTags('Seed')

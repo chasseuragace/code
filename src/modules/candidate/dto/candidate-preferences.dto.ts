@@ -1,11 +1,13 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class PreferenceDto {
-  @ApiProperty({ format: 'uuid' })
-  id!: string;
+  
+  @ApiProperty({ description: 'Id', format: 'uuid' })
+    id!: string;
 
-  @ApiProperty()
-  title!: string;
+  
+  @ApiProperty({ description: 'Title', example: 'example' })
+    title!: string;
 
   @ApiProperty({ description: '1-based priority; lower means higher priority', example: 1 })
   priority!: number;
@@ -25,22 +27,24 @@ export class RemovePreferenceDto {
 }
 
 export class ReorderPreferencesDto {
-  @ApiProperty({
-    required: false,
-    type: [String],
-    description: 'Ordered list of preference row IDs. Preferred for drag-and-drop.',
-    example: [
-      '3f0e3a82-6c8b-4c42-9b22-9d9f7c8aec01',
-      'f6d09772-b0a2-4a54-9e8c-0f1b9d49c3d2',
-    ],
-  })
-  orderedIds?: string[];
+  
+  @ApiPropertyOptional({
+        required: false,
+        type: [String],
+        description: 'Ordered list of preference row IDs. Preferred for drag-and-drop.',
+        example: [
+          '3f0e3a82-6c8b-4c42-9b22-9d9f7c8aec01',
+          'f6d09772-b0a2-4a54-9e8c-0f1b9d49c3d2',
+        ],
+      })
+    orderedIds?: string[];
 
-  @ApiProperty({
-    required: false,
-    type: [String],
-    description: 'Fallback: ordered list of titles (must be a permutation of existing titles).',
-    example: ['Electrician', 'Welder', 'Plumber'],
-  })
-  orderedTitles?: string[];
+  
+  @ApiPropertyOptional({
+        required: false,
+        type: [String],
+        description: 'Fallback: ordered list of titles (must be a permutation of existing titles).',
+        example: ['Electrician', 'Welder', 'Plumber'],
+      })
+    orderedTitles?: string[];
 }

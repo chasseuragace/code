@@ -141,6 +141,61 @@ class DtoFixer {
       this.ensureImport(property.getSourceFile(), decoratorName, '@nestjs/swagger');
     }
 
+    // Add description to existing Swagger decorator if missing
+    if (hasSwaggerDecorator && addDescriptions) {
+      const swaggerDecorator = decorators.find(
+        (d) => d.getName() === 'ApiProperty' || d.getName() === 'ApiPropertyOptional'
+      );
+      
+      if (swaggerDecorator) {
+        const args = swaggerDecorator.getArguments();
+        const description = this.generateDescription(propertyName);
+        const example = this.generateExample(property);
+        
+        // Check if description is missing
+        let needsDescription = false;
+        let newArgText = '';
+        
+        if (args.length === 0) {
+          // No arguments at all - add description and example
+          needsDescription = true;
+          newArgText = `{ description: '${description}', example: ${example} }`;
+        } else {
+          const argText = args[0].getText();
+          if (!argText.includes('description:')) {
+            needsDescription = true;
+            // Parse existing options and add description
+            if (argText === '{}') {
+              newArgText = `{ description: '${description}', example: ${example} }`;
+            } else {
+              // Add description as first property
+              newArgText = argText.replace(/^\{/, `{ description: '${description}',`);
+            }
+          }
+        }
+        
+        if (needsDescription) {
+          // Get decorator name BEFORE removing
+          const decoratorName = swaggerDecorator.getName();
+          swaggerDecorator.remove();
+          property.addDecorator({
+            name: decoratorName,
+            arguments: [newArgText],
+          });
+          
+          this.addFix({
+            file: property.getSourceFile().getFilePath(),
+            line: property.getStartLineNumber(),
+            originalCode,
+            fixedCode: property.getText(),
+            decoratorAdded: `Added description to ${decoratorName}`,
+          });
+          
+          modified = true;
+        }
+      }
+    }
+
     // Fix wrong decorator for optional property
     if (isOptional && hasApiProperty && !hasApiPropertyOptional) {
       const apiPropertyDecorator = decorators.find((d) => d.getName() === 'ApiProperty');

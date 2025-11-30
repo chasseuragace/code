@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsUUID, IsOptional, IsString } from 'class-validator';
 
 export class ApplyJobDto {
@@ -26,22 +26,24 @@ export class ApplyJobDto {
   @IsUUID(4)
   position_id: string;
 
-  @ApiProperty({
-    description: 'Optional note or cover letter from the candidate',
-    example: 'I am very interested in this electrical position and have 5 years of experience.',
-    required: false,
-  })
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({
+        description: 'Optional note or cover letter from the candidate',
+        example: 'I am very interested in this electrical position and have 5 years of experience.',
+        required: false,
+      })
   note?: string;
 
-  @ApiProperty({
-    description: 'Optional field to track who created this application (for audit purposes)',
-    example: 'candidate-mobile-app',
-    required: false,
-  })
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({
+        description: 'Optional field to track who created this application (for audit purposes)',
+        example: 'candidate-mobile-app',
+        required: false,
+      })
   updatedBy?: string;
 }
 

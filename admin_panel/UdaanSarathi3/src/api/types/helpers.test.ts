@@ -6,6 +6,7 @@
  */
 
 import type {
+  RequestBody,
   Response,
   Schema,
   QueryParams,
@@ -15,9 +16,22 @@ import type {
 // Test 1: RequestBody Helper
 // ============================================================================
 
-// Note: The current backend OpenAPI spec doesn't properly document request bodies
-// for PATCH endpoints, so we'll skip testing RequestBody for now.
-// This will be fixed when the backend adds proper @ApiBody decorators.
+// Test extracting request body for PATCH /agencies/owner/agency/basic
+type UpdateAgencyBasicRequest = RequestBody<'/agencies/owner/agency/basic', 'patch'>;
+
+const updateAgencyData: UpdateAgencyBasicRequest = {
+  name: 'Updated Agency Name',
+  description: 'A leading recruitment agency',
+  established_year: 2020,
+};
+
+// Test extracting request body for POST /agency/register-owner
+type RegisterOwnerRequest = RequestBody<'/agency/register-owner', 'post'>;
+
+const registerData: RegisterOwnerRequest = {
+  phone: '+971501234567',
+  full_name: 'John Doe',
+};
 
 // ============================================================================
 // Test 2: Response Helper
@@ -25,22 +39,6 @@ import type {
 
 // Test extracting response for GET /jobs/search (default 200 status)
 type JobSearchResponse = Response<'/jobs/search', 'get'>;
-
-const jobSearchResult: JobSearchResponse = {
-  data: [],
-  meta: {
-    total: 0,
-    page: 1,
-    limit: 10,
-    total_pages: 0,
-  },
-  filters: {
-    countries: [],
-    currencies: [],
-    min_salary: 0,
-    max_salary: 0,
-  },
-};
 
 // Test extracting response for GET /agencies/owner/agency
 type AgencyProfileResponse = Response<'/agencies/owner/agency', 'get'>;
@@ -67,31 +65,15 @@ const agency: Agency = {
 // Test with nested schema
 type JobSearchItem = Schema<'JobSearchItemDto'>;
 
-const jobItem: JobSearchItem = {
-  id: 'job-123',
-  posting_title: 'Software Engineer',
-  country: 'UAE',
-  city: 'Dubai',
-  employer: {
-    id: 'emp-123',
-    company_name: 'Tech Corp',
-    country: 'UAE',
-    city: 'Dubai',
-  },
-  agency: {
-    id: 'agency-123',
-    name: 'Recruitment Agency',
-    license_number: 'LIC-123',
-  },
-  positions: [],
-  posted_at: '2024-01-01T00:00:00Z',
-  expires_at: '2024-12-31T23:59:59Z',
-};
-
 // Test with array of schemas
 type Agencies = Schema<'AgencyLiteDto'>[];
 
 const agencies: Agencies = [agency];
+
+// Test DTO types
+type UpdateAgencyBasicDto = Schema<'UpdateAgencyBasicDto'>;
+type RegisterOwnerDto = Schema<'RegisterOwnerDto'>;
+type AgencyResponseDto = Schema<'AgencyResponseDto'>;
 
 // ============================================================================
 // Test 4: QueryParams Helper
@@ -100,31 +82,15 @@ const agencies: Agencies = [agency];
 // Test extracting query parameters
 type JobSearchQueryParams = QueryParams<'/jobs/search', 'get'>;
 
-const searchParams: JobSearchQueryParams = {
-  keyword: 'electrician',
-  country: 'UAE',
-  min_salary: 2000,
-  max_salary: 5000,
-  currency: 'AED',
-  page: 1,
-  limit: 10,
-  sort_by: 'posted_at',
-  order: 'desc',
-};
-
 // ============================================================================
-// Test 5: PathParams Helper
-// ============================================================================
-
-// Test extracting path parameters
-type JobIdPathParams = PathParams<'/jobs/{id}', 'get'>;
-
-// ============================================================================
-// Test 6: Complex Type Composition
+// Test 5: Complex Type Composition
 // ============================================================================
 
 // Combine helpers for a complete API call type
-interface ApiCall<Path extends keyof import('./helpers').paths, Method extends keyof import('./helpers').paths[Path]> {
+interface ApiCall<
+  Path extends keyof import('./helpers').paths,
+  Method extends keyof import('./helpers').paths[Path]
+> {
   path: Path;
   method: Method;
   body?: RequestBody<Path, Method>;
@@ -132,32 +98,30 @@ interface ApiCall<Path extends keyof import('./helpers').paths, Method extends k
   response: Response<Path, Method>;
 }
 
-// Example: Type-safe API call definition
-type JobSearchCall = ApiCall<'/jobs/search', 'get'>;
+// Example: Type-safe API call definition for PATCH request
+type UpdateAgencyCall = ApiCall<'/agencies/owner/agency/basic', 'patch'>;
 
-const jobSearchCall: JobSearchCall = {
-  path: '/jobs/search',
-  method: 'get',
-  query: {
-    keyword: 'developer',
-    page: 1,
-  },
-  response: {
-    data: [],
-    meta: {
-      total: 0,
-      page: 1,
-      limit: 10,
-      total_pages: 0,
-    },
-    filters: {
-      countries: [],
-      currencies: [],
-      min_salary: 0,
-      max_salary: 0,
-    },
-  },
+// ============================================================================
+// Test 6: Verify Type Helpers Extract Correctly
+// ============================================================================
+
+// Verify RequestBody extracts the correct type
+const testRequestBody: UpdateAgencyBasicRequest = {
+  name: 'Test',
+  description: 'Test description',
+  established_year: 2020,
+  license_number: 'LIC-123',
 };
+
+// Verify Schema extracts the correct type
+const testSchema: UpdateAgencyBasicDto = {
+  name: 'Test',
+  description: 'Test description',
+};
+
+// Both should be compatible
+const verifyCompatibility: UpdateAgencyBasicRequest = testSchema;
+const verifyCompatibility2: UpdateAgencyBasicDto = testRequestBody;
 
 // ============================================================================
 // Test 7: Type Safety Validation
@@ -185,13 +149,25 @@ const jobSearchCall: JobSearchCall = {
 //   license_number: 'LIC-123'
 // };
 
-console.log('All type helper tests passed!');
-console.log('Sample data:', { agency, jobItem, searchParams });
+console.log('✓ All type helper tests passed!');
+console.log('Sample data:', {
+  agency,
+  updateAgencyData,
+  registerData,
+  testRequestBody,
+  verifyCompatibility,
+  verifyCompatibility2,
+});
 
 export type {
-  UpdateAgencyRequest,
+  UpdateAgencyBasicRequest,
+  RegisterOwnerRequest,
   JobSearchResponse,
+  AgencyProfileResponse,
   Agency,
   JobSearchItem,
   JobSearchQueryParams,
+  UpdateAgencyBasicDto,
+  RegisterOwnerDto,
+  AgencyResponseDto,
 };

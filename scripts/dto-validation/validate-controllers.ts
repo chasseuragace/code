@@ -167,7 +167,13 @@ class ControllerValidator {
     }
 
     // Check for @ApiResponse decorator
-    const hasApiResponse = decorators.some((d) => d.includes('@ApiResponse'));
+    const hasApiResponse = decorators.some((d) => 
+      d.includes('@ApiResponse') || 
+      d.includes('@ApiOkResponse') || 
+      d.includes('@ApiCreatedResponse') ||
+      d.includes('@ApiBadRequestResponse') ||
+      d.includes('@ApiNotFoundResponse')
+    );
     
     if (!hasApiResponse) {
       this.addViolation({

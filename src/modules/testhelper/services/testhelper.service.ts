@@ -6,7 +6,6 @@ import { JobApplication } from '../../application/job-application.entity';
 import { JobPosting, JobContract } from '../../domain/domain.entity';
 import { PostingAgency } from '../../domain/PostingAgency';
 import { User } from '../../user/user.entity';
-import { DraftJob } from '../../draft-job/draft-job.entity';
 
 @Injectable()
 export class TesthelperService {
@@ -23,8 +22,6 @@ export class TesthelperService {
     private readonly postingAgencyRepository: Repository<PostingAgency>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-    @InjectRepository(DraftJob)
-    private readonly draftJobRepository: Repository<DraftJob>,
   ) {}
 
   async findTestSuiteWorkflowPrerequisites() {
@@ -120,11 +117,6 @@ export class TesthelperService {
         order: { created_at: 'DESC' },
       });
 
-      // Count drafts
-      const draftCount = await this.draftJobRepository.count({
-        where: { posting_agency_id: agency.id },
-      });
-
       // Count job postings
       const jobCount = await this.jobContractRepository
         .createQueryBuilder('contract')
@@ -145,7 +137,6 @@ export class TesthelperService {
         owner_phone: owner?.phone || null,
         owner_id: owner?.id || null,
         analytics: {
-          draft_count: draftCount,
           job_count: jobCount,
           application_count: applicationCount,
         },

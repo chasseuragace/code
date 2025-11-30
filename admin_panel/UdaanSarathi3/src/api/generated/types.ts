@@ -1859,70 +1859,6 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
-    "/agencies/{license}/draft-jobs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["DraftJobController_findAll"];
-        put?: never;
-        post: operations["DraftJobController_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/agencies/{license}/draft-jobs/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["DraftJobController_findOne"];
-        put?: never;
-        post?: never;
-        delete: operations["DraftJobController_remove"];
-        options?: never;
-        head?: never;
-        patch: operations["DraftJobController_update"];
-        trace?: never;
-    };
-    "/agencies/{license}/draft-jobs/{id}/publish": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["DraftJobController_publish"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/agencies/{license}/draft-jobs/{id}/validate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["DraftJobController_validate"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/admin/jobs/health": {
         parameters: {
             query?: never;
@@ -1985,47 +1921,93 @@ export type webhooks = Record<string, never>;
 export type components = {
     schemas: {
         EmployerLiteDto: {
+            /** @description Id */
             id: string;
+            /** @description Company name */
             company_name: string;
+            /** @description Country */
             country: string;
-            /** @example Dubai */
+            /**
+             * @description City
+             * @example Dubai
+             */
             city?: string | null;
         };
         AgencyLiteDto: {
+            /** @description Id */
             id: string;
+            /** @description Name */
             name: string;
+            /** @description License number */
             license_number: string;
+            /** @description Phones */
             phones?: string[] | null;
+            /** @description Emails */
             emails?: string[] | null;
+            /** @description Website */
             website?: string | null;
         };
         VacancyDto: {
+            /** @description Male */
             male?: Record<string, never> | null;
+            /** @description Female */
             female?: Record<string, never> | null;
+            /** @description Total */
             total?: Record<string, never> | null;
         };
         SalaryConvDto: {
+            /**
+             * @description Amount
+             * @example 0
+             */
             amount: number;
+            /**
+             * @description Currency
+             * @example example
+             */
             currency: string;
         };
         PositionSalaryDto: {
+            /**
+             * @description Monthly amount
+             * @example 0
+             */
             monthly_amount: number;
+            /**
+             * @description Currency
+             * @example example
+             */
             currency: string;
+            /** @description Converted */
             converted?: components["schemas"]["SalaryConvDto"][];
         };
         PositionOverridesDto: {
+            /** @description Hours per day */
             hours_per_day?: Record<string, never> | null;
+            /** @description Days per week */
             days_per_week?: Record<string, never> | null;
+            /** @description Overtime policy */
             overtime_policy?: Record<string, never> | null;
+            /** @description Weekly off days */
             weekly_off_days?: Record<string, never> | null;
+            /** @description Food */
             food?: Record<string, never> | null;
+            /** @description Accommodation */
             accommodation?: Record<string, never> | null;
+            /** @description Transport */
             transport?: Record<string, never> | null;
         };
         PositionDto: {
+            /**
+             * @description Title
+             * @example example
+             */
             title: string;
+            /** @description Vacancies */
             vacancies: components["schemas"]["VacancyDto"];
+            /** @description Salary */
             salary: components["schemas"]["PositionSalaryDto"];
+            /** @description Overrides */
             overrides: components["schemas"]["PositionOverridesDto"];
         };
         JobSearchItemDto: {
@@ -2054,7 +2036,9 @@ export type components = {
              * @example 2024-01-15T10:30:00Z
              */
             posting_date_ad?: Record<string, never> | null;
+            /** @description Employer */
             employer?: components["schemas"]["EmployerLiteDto"] | null;
+            /** @description Agency */
             agency?: components["schemas"]["AgencyLiteDto"] | null;
             /** @description Available positions with salary and vacancy information */
             positions: components["schemas"]["PositionDto"][];
@@ -2097,43 +2081,86 @@ export type components = {
             search: components["schemas"]["JobSearchMetaDto"];
         };
         ContractDto: {
+            /** @description Period years */
             period_years?: Record<string, never> | null;
+            /** @description Renewable */
             renewable?: Record<string, never> | null;
+            /** @description Hours per day */
             hours_per_day?: Record<string, never> | null;
+            /** @description Days per week */
             days_per_week?: Record<string, never> | null;
+            /** @description Overtime policy */
             overtime_policy?: Record<string, never> | null;
+            /** @description Weekly off days */
             weekly_off_days?: Record<string, never> | null;
+            /** @description Food */
             food?: Record<string, never> | null;
+            /** @description Accommodation */
             accommodation?: Record<string, never> | null;
+            /** @description Transport */
             transport?: Record<string, never> | null;
+            /** @description Annual leave days */
             annual_leave_days?: Record<string, never> | null;
         };
         ExpensesDto: {
+            /** @description Medical */
             medical?: Record<string, never>[];
+            /** @description Insurance */
             insurance?: Record<string, never>[];
+            /** @description Travel */
             travel?: Record<string, never>[];
+            /** @description Visa permit */
             visa_permit?: Record<string, never>[];
+            /** @description Training */
             training?: Record<string, never>[];
+            /** @description Welfare service */
             welfare_service?: Record<string, never>[];
         };
         JobDetailsDto: {
+            /**
+             * @description Id
+             * @example example
+             */
             id: string;
+            /**
+             * @description Posting title
+             * @example example
+             */
             posting_title: string;
+            /**
+             * @description Country
+             * @example example
+             */
             country: string;
+            /** @description City */
             city?: Record<string, never> | null;
+            /** @description Announcement type */
             announcement_type?: Record<string, never> | null;
+            /** @description Posting date ad */
             posting_date_ad?: Record<string, never> | null;
+            /** @description Notes */
             notes?: Record<string, never> | null;
+            /** @description Agency */
             agency?: components["schemas"]["AgencyLiteDto"] | null;
+            /** @description Employer */
             employer?: components["schemas"]["EmployerLiteDto"] | null;
+            /** @description Contract */
             contract?: components["schemas"]["ContractDto"] | null;
+            /** @description Positions */
             positions: components["schemas"]["PositionDto"][];
+            /** @description Skills */
             skills?: string[];
+            /** @description Education requirements */
             education_requirements?: string[];
+            /** @description Experience requirements */
             experience_requirements?: Record<string, never> | null;
+            /** @description Canonical titles */
             canonical_titles?: string[];
+            /** @description Expenses */
             expenses?: components["schemas"]["ExpensesDto"];
+            /** @description Interview */
             interview?: Record<string, never> | null;
+            /** @description Cutout url */
             cutout_url?: Record<string, never> | null;
         };
         InterviewScheduleDto: {
@@ -2148,59 +2175,133 @@ export type components = {
             time?: string | null;
         };
         ApplicationLiteDto: {
+            /** @description Id */
             id: string;
+            /** @description Status */
             status: string;
         };
         PostingLiteDto: {
+            /** @description Id */
             id: string;
+            /** @description Posting title */
             posting_title: string;
+            /** @description Country */
             country: string;
-            /** @example Kathmandu */
+            /**
+             * @description City
+             * @example Kathmandu
+             */
             city?: string | null;
         };
         InterviewExpenseDto: {
+            /**
+             * @description Expense type
+             * @example example
+             */
             expense_type: string;
+            /**
+             * @description Who pays
+             * @example example
+             */
             who_pays: string;
+            /**
+             * @description Is free
+             * @example true
+             */
             is_free: boolean;
+            /** @description Amount */
             amount?: number;
+            /** @description Currency */
             currency?: string;
+            /**
+             * @description Refundable
+             * @example true
+             */
             refundable: boolean;
+            /** @description Notes */
             notes?: string;
         };
         InterviewEnrichedDto: {
+            /** @description Id */
             id: string;
+            /** @description Schedule */
             schedule: components["schemas"]["InterviewScheduleDto"];
+            /** @description Location */
             location?: string | null;
+            /** @description Contact person */
             contact_person?: string | null;
+            /** @description Required documents */
             required_documents?: string[] | null;
+            /** @description Notes */
             notes?: string | null;
+            /** @description Application */
             application?: components["schemas"]["ApplicationLiteDto"] | null;
+            /** @description Posting */
             posting: components["schemas"]["PostingLiteDto"];
+            /** @description Agency */
             agency: components["schemas"]["AgencyLiteDto"];
+            /** @description Employer */
             employer: components["schemas"]["EmployerLiteDto"];
+            /** @description Expenses */
             expenses: components["schemas"]["InterviewExpenseDto"][];
         };
         PaginatedInterviewsDto: {
+            /** @description Page */
             page: number;
+            /** @description Limit */
             limit: number;
+            /** @description Total */
             total: number;
+            /** @description Items */
             items: components["schemas"]["InterviewEnrichedDto"][];
         };
         JobTitleDto: {
+            /**
+             * @description Id
+             * @example example
+             */
             id: string;
+            /**
+             * @description Title
+             * @example example
+             */
             title: string;
+            /**
+             * @description Rank
+             * @example 0
+             */
             rank: number;
+            /**
+             * @description Is active
+             * @example true
+             */
             is_active: boolean;
+            /** @description Difficulty */
             difficulty?: Record<string, never> | null;
+            /** @description Skills summary */
             skills_summary?: Record<string, never> | null;
+            /** @description Description */
             description?: Record<string, never> | null;
         };
         JobTitleListResponseDto: {
+            /** @description Data */
             data: components["schemas"]["JobTitleDto"][];
+            /**
+             * @description Total
+             * @example 10
+             */
             total: number;
         };
         JobTitleSeedResponseDto: {
+            /**
+             * @description Source
+             * @example example
+             */
             source: string;
+            /**
+             * @description Upserted
+             * @example 0
+             */
             upserted: number;
         };
         ApplyJobDto: {
@@ -2802,8 +2903,20 @@ export type components = {
             };
         };
         CertificationDto: {
+            /**
+             * @description Name
+             * @example Example Name
+             */
             name?: string;
+            /**
+             * @description Number
+             * @example example
+             */
             number?: string;
+            /**
+             * @description Issued by
+             * @example example
+             */
             issued_by?: string;
             /** @description ISO date string (YYYY-MM-DD) */
             issued_date?: string;
@@ -2811,69 +2924,211 @@ export type components = {
             expiry_date?: string;
         };
         SocialMediaDto: {
+            /**
+             * @description Facebook
+             * @example example
+             */
             facebook?: string;
+            /**
+             * @description Instagram
+             * @example example
+             */
             instagram?: string;
+            /**
+             * @description Linkedin
+             * @example https://example.com
+             */
             linkedin?: string;
+            /**
+             * @description Twitter
+             * @example example
+             */
             twitter?: string;
         };
         BankDetailsDto: {
+            /**
+             * @description Bank name
+             * @example Example Name
+             */
             bank_name?: string;
+            /**
+             * @description Account name
+             * @example Example Name
+             */
             account_name?: string;
+            /**
+             * @description Account number
+             * @example example
+             */
             account_number?: string;
+            /**
+             * @description Swift code
+             * @example example
+             */
             swift_code?: string;
         };
         ContactPersonDto: {
+            /**
+             * @description Name
+             * @example Example Name
+             */
             name?: string;
+            /**
+             * @description Position
+             * @example example
+             */
             position?: string;
+            /**
+             * @description Phone
+             * @example +1234567890
+             */
             phone?: string;
+            /**
+             * @description Email
+             * @example user@example.com
+             */
             email?: string;
         };
         OperatingHoursDto: {
+            /**
+             * @description Weekdays
+             * @example example
+             */
             weekdays?: string;
+            /**
+             * @description Saturday
+             * @example example
+             */
             saturday?: string;
+            /**
+             * @description Sunday
+             * @example example
+             */
             sunday?: string;
         };
         StatisticsDto: {
+            /**
+             * @description Total placements
+             * @example 10
+             */
             total_placements?: number;
             /** @description ISO date string (YYYY-MM-DD) */
             active_since?: string;
+            /**
+             * @description Success rate
+             * @example 0
+             */
             success_rate?: number;
+            /**
+             * @description Countries served
+             * @example 10
+             */
             countries_served?: number;
+            /**
+             * @description Partner companies
+             * @example 0
+             */
             partner_companies?: number;
+            /**
+             * @description Active recruiters
+             * @example 0
+             */
             active_recruiters?: number;
         };
         SettingsDto: {
+            /**
+             * @description Currency
+             * @example example
+             */
             currency?: string;
+            /**
+             * @description Timezone
+             * @example example
+             */
             timezone?: string;
+            /**
+             * @description Language
+             * @example example
+             */
             language?: string;
+            /**
+             * @description Date format
+             * @example example
+             */
             date_format?: string;
+            /** @description Notifications */
             notifications?: Record<string, never>;
+            /** @description Features */
             features?: Record<string, never>;
         };
         AgencyResponseDto: {
+            /**
+             * @description Id
+             * @example example
+             */
             id: string;
+            /**
+             * @description Name
+             * @example Example Name
+             */
             name: string;
+            /**
+             * @description License number
+             * @example example
+             */
             license_number: string;
+            /**
+             * @description Address
+             * @example example
+             */
             address?: string;
+            /** @description Latitude */
             latitude?: number | null;
+            /** @description Longitude */
             longitude?: number | null;
+            /** @description Phones */
             phones?: string[];
+            /** @description Emails */
             emails?: string[];
+            /**
+             * @description Website
+             * @example example
+             */
             website?: string;
+            /**
+             * @description Description
+             * @example example
+             */
             description?: string;
+            /**
+             * @description Logo url
+             * @example https://example.com
+             */
             logo_url?: string;
+            /** @description Banner url */
             banner_url?: string | null;
+            /** @description Established year */
             established_year?: number | null;
+            /** @description Services */
             services?: string[];
+            /** @description Certifications */
             certifications?: components["schemas"]["CertificationDto"][];
+            /** @description Social media */
             social_media?: components["schemas"]["SocialMediaDto"];
+            /** @description Bank details */
             bank_details?: components["schemas"]["BankDetailsDto"];
+            /** @description Contact persons */
             contact_persons?: components["schemas"]["ContactPersonDto"][];
+            /** @description Operating hours */
             operating_hours?: components["schemas"]["OperatingHoursDto"];
+            /** @description Target countries */
             target_countries?: string[];
+            /** @description Specializations */
             specializations?: string[];
+            /** @description Statistics */
             statistics?: components["schemas"]["StatisticsDto"];
             /**
+             * @description Settings
              * @example {
              *       "currency": "USD",
              *       "timezone": "UTC",
@@ -2892,34 +3147,98 @@ export type components = {
             settings?: components["schemas"]["SettingsDto"] | null;
         };
         CreateAgencyDto: {
+            /**
+             * @description Name
+             * @example Example Name
+             */
             name: string;
             /** @description Unique license number for the agency */
             license_number: string;
+            /**
+             * @description Country
+             * @example example
+             */
             country?: string;
+            /**
+             * @description City
+             * @example example
+             */
             city?: string;
+            /**
+             * @description Address
+             * @example example
+             */
             address?: string;
+            /**
+             * @description Latitude
+             * @example 0
+             */
             latitude?: number;
+            /**
+             * @description Longitude
+             * @example 0
+             */
             longitude?: number;
+            /** @description Phones */
             phones?: string[];
+            /** @description Emails */
             emails?: string[];
+            /**
+             * @description Contact email
+             * @example user@example.com
+             */
             contact_email?: string;
+            /**
+             * @description Contact phone
+             * @example +1234567890
+             */
             contact_phone?: string;
+            /**
+             * @description Website
+             * @example example
+             */
             website?: string;
+            /**
+             * @description Description
+             * @example example
+             */
             description?: string;
+            /**
+             * @description Logo url
+             * @example https://example.com
+             */
             logo_url?: string;
+            /**
+             * @description Banner url
+             * @example https://example.com
+             */
             banner_url?: string;
+            /**
+             * @description Established year
+             * @example 2024
+             */
             established_year?: number;
             /** @description ISO date string (YYYY-MM-DD) */
             license_valid_till?: string;
+            /** @description Services */
             services?: string[];
+            /** @description Certifications */
             certifications?: components["schemas"]["CertificationDto"][];
+            /** @description Social media */
             social_media?: components["schemas"]["SocialMediaDto"];
+            /** @description Bank details */
             bank_details?: components["schemas"]["BankDetailsDto"];
+            /** @description Contact persons */
             contact_persons?: components["schemas"]["ContactPersonDto"][];
+            /** @description Operating hours */
             operating_hours?: components["schemas"]["OperatingHoursDto"];
+            /** @description Target countries */
             target_countries?: string[];
+            /** @description Specializations */
             specializations?: string[];
+            /** @description Statistics */
             statistics?: components["schemas"]["StatisticsDto"];
+            /** @description Settings */
             settings?: components["schemas"]["SettingsDto"];
             /** @description Single phone value; will be merged into phones[] */
             phone?: string;
@@ -2929,22 +3248,232 @@ export type components = {
             email?: string;
         };
         AgencyCreatedDto: {
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description Id
+             */
             id: string;
+            /**
+             * @description License number
+             * @example example
+             */
             license_number: string;
         };
-        UpdateJobTagsDto: Record<string, never>;
+        UpdateAgencyBasicDto: {
+            /**
+             * @description Agency name
+             * @example Example Agency
+             */
+            name?: string;
+            /**
+             * @description Agency description
+             * @example Leading recruitment agency
+             */
+            description?: string;
+            /**
+             * @description Year the agency was established
+             * @example 2020
+             */
+            established_year?: number;
+            /**
+             * @description License number
+             * @example LIC-12345
+             */
+            license_number?: string;
+        };
+        UpdateAgencyContactDto: {
+            /**
+             * @description Primary phone number
+             * @example +977-1-4123456
+             */
+            phone?: string;
+            /**
+             * @description Mobile phone number
+             * @example +977-9841234567
+             */
+            mobile?: string;
+            /**
+             * @description Email address
+             * @example contact@agency.com
+             */
+            email?: string;
+            /**
+             * @description Website URL
+             * @example https://agency.com
+             */
+            website?: string;
+            /**
+             * @description Contact persons
+             * @example [
+             *       {
+             *         "name": "John Doe",
+             *         "position": "Manager",
+             *         "phone": "+977-9841234567",
+             *         "email": "john@agency.com"
+             *       }
+             *     ]
+             */
+            contact_persons?: components["schemas"]["ContactPersonDto"][];
+        };
+        UpdateAgencyLocationDto: {
+            /**
+             * @description Street address
+             * @example 123 Main St, Kathmandu
+             */
+            address?: string;
+            /**
+             * @description Latitude coordinate
+             * @example 27.7172
+             */
+            latitude?: number;
+            /**
+             * @description Longitude coordinate
+             * @example 85.324
+             */
+            longitude?: number;
+        };
+        UpdateAgencySocialMediaDto: {
+            /**
+             * @description Facebook URL
+             * @example https://facebook.com/agency
+             */
+            facebook?: string;
+            /**
+             * @description Instagram URL
+             * @example https://instagram.com/agency
+             */
+            instagram?: string;
+            /**
+             * @description LinkedIn URL
+             * @example https://linkedin.com/company/agency
+             */
+            linkedin?: string;
+            /**
+             * @description Twitter URL
+             * @example https://twitter.com/agency
+             */
+            twitter?: string;
+        };
+        UpdateAgencyServicesDto: {
+            /**
+             * @description Services offered
+             * @example [
+             *       "Recruitment",
+             *       "Visa Processing",
+             *       "Training"
+             *     ]
+             */
+            services?: string[];
+            /**
+             * @description Specializations
+             * @example [
+             *       "Healthcare",
+             *       "IT",
+             *       "Construction"
+             *     ]
+             */
+            specializations?: string[];
+            /**
+             * @description Target countries
+             * @example [
+             *       "UAE",
+             *       "Saudi Arabia",
+             *       "Qatar"
+             *     ]
+             */
+            target_countries?: string[];
+        };
+        UpdateAgencySettingsDto: {
+            /**
+             * @description Preferred currency
+             * @example USD
+             */
+            currency?: string;
+            /**
+             * @description Timezone
+             * @example Asia/Kathmandu
+             */
+            timezone?: string;
+            /**
+             * @description Language
+             * @example en
+             */
+            language?: string;
+            /**
+             * @description Date format
+             * @example YYYY-MM-DD
+             */
+            date_format?: string;
+            /**
+             * @description Notification preferences
+             * @example {
+             *       "email": true,
+             *       "push": true,
+             *       "sms": false
+             *     }
+             */
+            notifications?: Record<string, never>;
+        };
+        ExperienceRequirementsDto: {
+            /**
+             * @description Min years
+             * @example 2024
+             */
+            min_years?: number;
+            /**
+             * @description Max years
+             * @example 2024
+             */
+            max_years?: number;
+            /**
+             * @description Level
+             * @example null
+             */
+            level?: string;
+        };
+        UpdateJobTagsDto: {
+            /**
+             * @description Skills
+             * @example example
+             */
+            skills?: string[];
+            /**
+             * @description Education requirements
+             * @example example
+             */
+            education_requirements?: string[];
+            /**
+             * @description Experience requirements
+             * @example null
+             */
+            experience_requirements?: components["schemas"]["ExperienceRequirementsDto"];
+            /**
+             * @description Canonical title ids
+             * @example example
+             */
+            canonical_title_ids?: string[];
+        };
         AgencyJobPostingListItemDto: {
             /**
              * Format: uuid
+             * @description Id
              * @example d841e933-1a14-4602-97e2-c51c9e5d8cf2
              */
             id: string;
-            /** @example Skilled Workers for ACME Co. */
+            /**
+             * @description Posting title
+             * @example Skilled Workers for ACME Co.
+             */
             posting_title: string;
-            /** @example Dubai */
+            /**
+             * @description City
+             * @example Dubai
+             */
             city: Record<string, never> | null;
-            /** @example UAE */
+            /**
+             * @description Country
+             * @example UAE
+             */
             country: string;
             /**
              * @description Employer company name
@@ -2983,9 +3512,22 @@ export type components = {
             posted_at: Record<string, never> | null;
         };
         PaginatedAgencyJobPostingsDto: {
+            /** @description Data */
             data: components["schemas"]["AgencyJobPostingListItemDto"][];
+            /**
+             * @description Total
+             * @example 10
+             */
             total: number;
+            /**
+             * @description Page
+             * @example 25
+             */
             page: number;
+            /**
+             * @description Limit
+             * @example 0
+             */
             limit: number;
         };
         UploadResponseDto: {
@@ -3396,82 +3938,282 @@ export type components = {
             updatedBy?: string;
         };
         CandidateBasicDto: {
+            /**
+             * @description Id
+             * @example example
+             */
             id: string;
+            /**
+             * @description Name
+             * @example Example Name
+             */
             name: string;
+            /**
+             * @description Phone
+             * @example +1234567890
+             */
             phone: string;
+            /**
+             * @description Email
+             * @example user@example.com
+             */
             email?: Record<string, never>;
+            /**
+             * @description Gender
+             * @example example
+             */
             gender?: Record<string, never>;
+            /**
+             * @description Age
+             * @example 25
+             */
             age?: Record<string, never>;
+            /**
+             * @description Address
+             * @example example
+             */
             address?: Record<string, never>;
+            /**
+             * @description Passport number
+             * @example example
+             */
             passport_number?: Record<string, never>;
+            /**
+             * @description Profile image
+             * @example example
+             */
             profile_image?: Record<string, never>;
+            /**
+             * @description Is active
+             * @example true
+             */
             is_active: boolean;
         };
         EducationItemDto: {
+            /**
+             * @description Degree
+             * @example example
+             */
             degree: string;
+            /**
+             * @description Institution
+             * @example example
+             */
             institution?: string;
+            /**
+             * @description Year completed
+             * @example 2024
+             */
             year_completed?: number;
         };
         TrainingItemDto: {
+            /**
+             * @description Title
+             * @example example
+             */
             title: string;
+            /**
+             * @description Provider
+             * @example example
+             */
             provider?: string;
+            /**
+             * @description Hours
+             * @example 0
+             */
             hours?: number;
+            /**
+             * @description Certificate
+             * @example true
+             */
             certificate?: boolean;
         };
         ExperienceItemDto: {
+            /**
+             * @description Title
+             * @example example
+             */
             title: string;
+            /**
+             * @description Employer
+             * @example example
+             */
             employer?: string;
+            /**
+             * @description Start date ad
+             * @example example
+             */
             start_date_ad?: string;
+            /**
+             * @description End date ad
+             * @example example
+             */
             end_date_ad?: string;
+            /**
+             * @description Months
+             * @example 0
+             */
             months?: number;
+            /**
+             * @description Description
+             * @example example
+             */
             description?: string;
         };
         JobProfileDto: {
+            /**
+             * @description Summary
+             * @example example
+             */
             summary?: Record<string, never>;
+            /** @description Skills */
             skills: string[];
+            /** @description Education */
             education: components["schemas"]["EducationItemDto"][];
+            /** @description Trainings */
             trainings: components["schemas"]["TrainingItemDto"][];
+            /** @description Experience */
             experience: components["schemas"]["ExperienceItemDto"][];
         };
         JobContextDto: {
+            /**
+             * @description Job id
+             * @example example
+             */
             job_id: string;
+            /**
+             * @description Job title
+             * @example example
+             */
             job_title: string;
+            /**
+             * @description Job company
+             * @example example
+             */
             job_company?: Record<string, never>;
+            /**
+             * @description Job location
+             * @example example
+             */
             job_location: Record<string, never>;
         };
         ApplicationHistoryEntryDto: {
+            /**
+             * @description Prev status
+             * @example example
+             */
             prev_status?: Record<string, never>;
+            /**
+             * @description Next status
+             * @example example
+             */
             next_status: string;
+            /**
+             * @description Updated at
+             * @example example
+             */
             updated_at: string;
+            /**
+             * @description Updated by
+             * @example example
+             */
             updated_by?: Record<string, never>;
+            /**
+             * @description Note
+             * @example example
+             */
             note?: Record<string, never>;
+            /**
+             * @description Corrected
+             * @example true
+             */
             corrected?: boolean;
         };
         ApplicationDto: {
+            /**
+             * @description Id
+             * @example example
+             */
             id: string;
+            /**
+             * @description Position id
+             * @example example
+             */
             position_id: string;
+            /**
+             * @description Position title
+             * @example example
+             */
             position_title?: Record<string, never>;
+            /**
+             * @description Status
+             * @example example
+             */
             status: string;
+            /**
+             * @description Created at
+             * @example example
+             */
             created_at: string;
+            /**
+             * @description Updated at
+             * @example example
+             */
             updated_at: string;
+            /** @description History blob */
             history_blob: components["schemas"]["ApplicationHistoryEntryDto"][];
         };
         InterviewDto: {
+            /**
+             * @description Id
+             * @example example
+             */
             id: string;
+            /**
+             * @description Interview date ad
+             * @example example
+             */
             interview_date_ad?: Record<string, never>;
+            /**
+             * @description Interview date bs
+             * @example example
+             */
             interview_date_bs?: Record<string, never>;
+            /**
+             * @description Interview time
+             * @example example
+             */
             interview_time?: Record<string, never>;
+            /**
+             * @description Location
+             * @example example
+             */
             location?: Record<string, never>;
+            /**
+             * @description Contact person
+             * @example example
+             */
             contact_person?: Record<string, never>;
+            /** @description Required documents */
             required_documents?: string[];
+            /**
+             * @description Notes
+             * @example example
+             */
             notes?: Record<string, never>;
+            /** @description Expenses */
             expenses: components["schemas"]["InterviewExpenseDto"][];
         };
         CandidateFullDetailsDto: {
+            /** @description Candidate */
             candidate: components["schemas"]["CandidateBasicDto"];
+            /** @description Job profile */
             job_profile: components["schemas"]["JobProfileDto"];
+            /** @description Job context */
             job_context: components["schemas"]["JobContextDto"];
+            /** @description Application */
             application: components["schemas"]["ApplicationDto"];
+            /** @description Interview */
             interview?: components["schemas"]["InterviewDto"];
         };
         InterviewStatsDto: {
@@ -3666,36 +4408,127 @@ export type components = {
             by_country: Record<string, never>;
         };
         RegisterCandidateDto: {
-            /** @example Ram Bahadur */
+            /**
+             * @description Full name
+             * @example Ram Bahadur
+             */
             full_name: string;
-            /** @example +9779812345678 */
+            /**
+             * @description Phone
+             * @example +9779812345678
+             */
             phone: string;
         };
         VerifyOtpDto: {
-            /** @example +9779812345678 */
+            /**
+             * @description Phone
+             * @example +9779812345678
+             */
             phone: string;
-            /** @example 123456 */
+            /**
+             * @description Otp
+             * @example 123456
+             */
+            otp: string;
+        };
+        LoginStartDto: {
+            /**
+             * @description Phone number in E.164 format
+             * @example +9779812345678
+             */
+            phone: string;
+        };
+        RegisterOwnerDto: {
+            /**
+             * @description Phone number in E.164 format
+             * @example +9779812345678
+             */
+            phone: string;
+            /**
+             * @description Full name of the agency owner
+             * @example Ram Bahadur
+             */
+            full_name: string;
+        };
+        MemberLoginDto: {
+            /**
+             * @description Phone number in E.164 format
+             * @example +9779812345678
+             */
+            phone: string;
+            /**
+             * @description Password
+             * @example SecurePass123!
+             */
+            password: string;
+        };
+        RequestPhoneChangeDto: {
+            /**
+             * @description Candidate ID
+             * @example 123e4567-e89b-12d3-a456-426614174000
+             */
+            candidateId: string;
+            /**
+             * @description New phone number in E.164 format
+             * @example +9779812345678
+             */
+            newPhone: string;
+        };
+        VerifyPhoneChangeDto: {
+            /**
+             * @description Candidate ID
+             * @example 123e4567-e89b-12d3-a456-426614174000
+             */
+            candidateId: string;
+            /**
+             * @description New phone number in E.164 format
+             * @example +9779812345678
+             */
+            newPhone: string;
+            /**
+             * @description OTP code
+             * @example 123456
+             */
             otp: string;
         };
         CoordinatesDto: {
+            /** @description Lat */
             lat: number;
+            /** @description Lng */
             lng: number;
         };
         AddressDto: {
+            /** @description Name */
             name?: string | null;
+            /** @description Coordinates */
             coordinates?: components["schemas"]["CoordinatesDto"];
+            /** @description Province */
             province?: string | null;
+            /** @description District */
             district?: string | null;
+            /** @description Municipality */
             municipality?: string | null;
+            /** @description Ward */
             ward?: string | null;
         };
         CandidateProfileDto: {
+            /**
+             * @description Id
+             * @example example
+             */
             id: string;
+            /**
+             * @description Full name
+             * @example Example Name
+             */
             full_name: string;
             /** @description E.164 normalized */
             phone: string;
+            /** @description Address */
             address?: components["schemas"]["AddressDto"] | null;
+            /** @description Passport number */
             passport_number?: Record<string, never> | null;
+            /** @description Email */
             email?: string | null;
             /**
              * @description Gender of the candidate
@@ -3704,42 +4537,77 @@ export type components = {
             gender?: "Male" | "Female" | null;
             /** @description Age of the candidate */
             age?: number | null;
+            /**
+             * @description Is active
+             * @example true
+             */
             is_active: boolean;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description Created at
+             * @example 2024-01-01T00:00:00.000Z
+             */
             created_at: string;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description Updated at
+             * @example 2024-01-01T00:00:00.000Z
+             */
             updated_at: string;
         };
         MobileJobPositionDto: {
+            /** @description Id */
             id: string;
+            /** @description Title */
             title: string;
+            /** @description Base salary */
             baseSalary?: string;
+            /** @description Converted salary */
             convertedSalary?: string;
+            /** @description Currency */
             currency?: string;
+            /** @description Requirements */
             requirements?: string[];
             /** @description Whether the candidate has applied to this position */
             hasApplied?: boolean;
         };
         MobileContractTermsDto: {
+            /** @description Type */
             type: string;
+            /** @description Duration */
             duration: string;
+            /** @description Salary */
             salary?: string;
+            /** @description Is renewable */
             isRenewable?: boolean;
+            /** @description Notice period */
             noticePeriod?: string;
+            /** @description Working hours */
             workingHours?: string;
+            /** @description Probation period */
             probationPeriod?: string;
+            /** @description Benefits */
             benefits?: string;
         };
         MobileJobPostingDto: {
+            /** @description Id */
             id: string;
+            /** @description Posting title */
             postingTitle: string;
+            /** @description Country */
             country: string;
+            /** @description City */
             city?: string | null;
+            /** @description Agency */
             agency?: string;
+            /** @description Employer */
             employer?: string;
+            /** @description Positions */
             positions: components["schemas"]["MobileJobPositionDto"][];
+            /** @description Description */
             description?: string;
             /**
+             * @description Contract terms
              * @example {
              *       "type": "Full-time",
              *       "duration": "2 years",
@@ -3752,28 +4620,50 @@ export type components = {
              *     }
              */
             contractTerms?: components["schemas"]["MobileContractTermsDto"] | null;
+            /** @description Is active */
             isActive: boolean;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description Posted date
+             */
             postedDate?: string;
+            /** @description Preference priority */
             preferencePriority?: string;
+            /** @description Preference text */
             preferenceText?: string;
+            /** @description Location */
             location?: string;
+            /** @description Experience */
             experience?: string;
+            /** @description Salary */
             salary?: string;
+            /** @description Type */
             type?: string;
+            /** @description Is remote */
             isRemote: boolean;
+            /** @description Is featured */
             isFeatured: boolean;
+            /** @description Company logo */
             companyLogo?: string;
+            /** @description Match percentage */
             matchPercentage?: string;
+            /** @description Converted salary */
             convertedSalary?: string;
+            /** @description Applications */
             applications?: number;
+            /** @description Policy */
             policy?: string;
         };
         CandidateUpdateDto: {
+            /** @description Full name */
             full_name?: string;
+            /** @description Is active */
             is_active?: boolean;
+            /** @description Address */
             address?: components["schemas"]["AddressDto"] | null;
+            /** @description Passport number */
             passport_number?: string | null;
+            /** @description Email */
             email?: string | null;
             /**
              * @description Gender of the candidate
@@ -3784,48 +4674,100 @@ export type components = {
             age?: number | null;
         };
         SkillDto: {
+            /**
+             * @description Title
+             * @example example
+             */
             title: string;
+            /** @description Duration months */
             duration_months?: number | null;
+            /** @description Years */
             years?: number | null;
+            /** @description Documents */
             documents?: string[];
         };
         EducationDto: {
+            /**
+             * @description Title
+             * @example example
+             */
             title: string;
+            /** @description Institute */
             institute?: string | null;
+            /** @description Degree */
             degree?: string | null;
+            /** @description Document */
             document?: string | null;
         };
         CandidateCreateDto: {
+            /**
+             * @description Full name
+             * @example Example Name
+             */
             full_name: string;
             /** @description E.164 preferred */
             phone: string;
+            /** @description Address */
             address?: components["schemas"]["AddressDto"];
+            /** @description Passport number */
             passport_number?: string | null;
+            /** @description Skills */
             skills?: components["schemas"]["SkillDto"][];
+            /** @description Education */
             education?: components["schemas"]["EducationDto"][];
         };
         CandidateCreatedResponseDto: {
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description Id
+             */
             id: string;
         };
         CandidateJobDetailsDto: {
+            /**
+             * @description Id
+             * @example example
+             */
             id: string;
+            /**
+             * @description Posting title
+             * @example example
+             */
             posting_title: string;
+            /**
+             * @description Country
+             * @example example
+             */
             country: string;
+            /** @description City */
             city?: Record<string, never> | null;
+            /** @description Announcement type */
             announcement_type?: Record<string, never> | null;
+            /** @description Posting date ad */
             posting_date_ad?: Record<string, never> | null;
+            /** @description Notes */
             notes?: Record<string, never> | null;
+            /** @description Agency */
             agency?: components["schemas"]["AgencyLiteDto"] | null;
+            /** @description Employer */
             employer?: components["schemas"]["EmployerLiteDto"] | null;
+            /** @description Contract */
             contract?: components["schemas"]["ContractDto"] | null;
+            /** @description Positions */
             positions: components["schemas"]["PositionDto"][];
+            /** @description Skills */
             skills?: string[];
+            /** @description Education requirements */
             education_requirements?: string[];
+            /** @description Experience requirements */
             experience_requirements?: Record<string, never> | null;
+            /** @description Canonical titles */
             canonical_titles?: string[];
+            /** @description Expenses */
             expenses?: components["schemas"]["ExpensesDto"];
+            /** @description Interview */
             interview?: Record<string, never> | null;
+            /** @description Cutout url */
             cutout_url?: Record<string, never> | null;
             /** @description 0–100 */
             fitness_score?: number;
@@ -3873,14 +4815,24 @@ export type components = {
             label?: string;
         };
         AddJobProfileResponseDto: {
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description Id
+             */
             id: string;
         };
         CandidateJobProfileDto: {
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description Id
+             */
             id: string;
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description Candidate id
+             */
             candidate_id: string;
+            /** @description Profile blob */
             profile_blob: components["schemas"]["JobProfileBlobDto"];
             /** @description Optional label for this profile */
             label?: Record<string, never>;
@@ -3890,22 +4842,33 @@ export type components = {
             updated_at: string;
         };
         SalaryConvertedDto: {
+            /** @description Amount */
             amount: number;
+            /** @description Currency */
             currency: string;
         };
         SalarySummaryDto: {
+            /** @description Monthly min */
             monthly_min?: number | null;
+            /** @description Monthly max */
             monthly_max?: number | null;
+            /** @description Currency */
             currency?: string | null;
+            /** @description Converted */
             converted?: components["schemas"]["SalaryConvertedDto"][];
         };
         CardAgencyLiteDto: {
+            /** @description Name */
             name: string;
+            /** @description License number */
             license_number: string;
         };
         CardEmployerLiteDto: {
+            /** @description Company name */
             company_name: string;
+            /** @description Country */
             country: string;
+            /** @description City */
             city?: string | null;
         };
         PositionSummaryDto: {
@@ -3968,15 +4931,25 @@ export type components = {
             has_applied?: boolean;
         };
         CandidateJobCardDto: {
+            /** @description Id */
             id: string;
+            /** @description Posting title */
             posting_title: string;
+            /** @description Country */
             country: string;
+            /** @description City */
             city?: string | null;
+            /** @description Primary titles */
             primary_titles?: string[];
+            /** @description Salary */
             salary?: components["schemas"]["SalarySummaryDto"];
+            /** @description Agency */
             agency?: components["schemas"]["CardAgencyLiteDto"];
+            /** @description Employer */
             employer?: components["schemas"]["CardEmployerLiteDto"];
+            /** @description Posting date ad */
             posting_date_ad?: string | null;
+            /** @description Cutout url */
             cutout_url?: string | null;
             /** @description 0–100 */
             fitness_score?: number;
@@ -3984,21 +4957,38 @@ export type components = {
             positions?: components["schemas"]["PositionSummaryDto"][];
         };
         PaginatedJobsResponseDto: {
+            /** @description Page */
             page: number;
+            /** @description Limit */
             limit: number;
+            /** @description Total */
             total: number;
+            /** @description Data */
             data: components["schemas"]["CandidateJobCardDto"][];
         };
         GroupedJobsGroupDto: {
+            /**
+             * @description Title
+             * @example example
+             */
             title: string;
+            /** @description Jobs */
             jobs: components["schemas"]["CandidateJobCardDto"][];
         };
         GroupedJobsResponseDto: {
+            /** @description Groups */
             groups: components["schemas"]["GroupedJobsGroupDto"][];
         };
         PreferenceDto: {
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description Id
+             */
             id: string;
+            /**
+             * @description Title
+             * @example example
+             */
             title: string;
             /**
              * @description 1-based priority; lower means higher priority
@@ -4341,8 +5331,6 @@ export type components = {
              */
             dev_agency_postings_with_tags?: boolean;
         };
-        CreateDraftJobDto: Record<string, never>;
-        UpdateDraftJobDto: Record<string, never>;
         AdminJobAgencyDto: {
             /** @description Agency ID */
             id: string;
@@ -4412,6 +5400,7 @@ export type components = {
             visa_status?: string;
             /** @description Contract duration */
             contract_duration?: string;
+            /** @description Agency */
             agency?: components["schemas"]["AdminJobAgencyDto"];
         };
         AdminJobListResponseDto: {
@@ -5141,7 +6130,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAgencyBasicDto"];
+            };
+        };
         responses: {
             /** @description Updated agency profile */
             200: {
@@ -5161,7 +6154,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAgencyContactDto"];
+            };
+        };
         responses: {
             /** @description Updated agency profile */
             200: {
@@ -5181,7 +6178,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAgencyLocationDto"];
+            };
+        };
         responses: {
             /** @description Updated agency profile */
             200: {
@@ -5201,7 +6202,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAgencySocialMediaDto"];
+            };
+        };
         responses: {
             /** @description Updated agency profile */
             200: {
@@ -5221,7 +6226,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAgencyServicesDto"];
+            };
+        };
         responses: {
             /** @description Updated agency profile */
             200: {
@@ -5241,7 +6250,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAgencySettingsDto"];
+            };
+        };
         responses: {
             /** @description Updated agency profile */
             200: {
@@ -5590,9 +6603,13 @@ export interface operations {
                 country?: string;
                 /** @description Filter by position title within posting positions (ILIKE) */
                 position_title?: string;
+                /** @description Sort by */
                 sort_by?: "interviews_today" | "shortlisted" | "applicants" | "posted_at";
+                /** @description Order */
                 order?: "asc" | "desc";
+                /** @description Page */
                 page?: number;
+                /** @description Limit */
                 limit?: number;
             };
             header?: never;
@@ -6762,9 +7779,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    phone: string;
-                };
+                "application/json": components["schemas"]["LoginStartDto"];
             };
         };
         responses: {
@@ -6821,10 +7836,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    phone: string;
-                    full_name: string;
-                };
+                "application/json": components["schemas"]["RegisterOwnerDto"];
             };
         };
         responses: {
@@ -6850,10 +7862,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    phone: string;
-                    otp: string;
-                };
+                "application/json": components["schemas"]["VerifyOtpDto"];
             };
         };
         responses: {
@@ -6881,9 +7890,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    phone: string;
-                };
+                "application/json": components["schemas"]["LoginStartDto"];
             };
         };
         responses: {
@@ -6909,10 +7916,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    phone: string;
-                    otp: string;
-                };
+                "application/json": components["schemas"]["VerifyOtpDto"];
             };
         };
         responses: {
@@ -6940,10 +7944,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    phone: string;
-                    password: string;
-                };
+                "application/json": components["schemas"]["MemberLoginDto"];
             };
         };
         responses: {
@@ -6973,9 +7974,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    phone: string;
-                };
+                "application/json": components["schemas"]["LoginStartDto"];
             };
         };
         responses: {
@@ -7001,10 +8000,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    phone: string;
-                    otp: string;
-                };
+                "application/json": components["schemas"]["VerifyOtpDto"];
             };
         };
         responses: {
@@ -7035,9 +8031,14 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestPhoneChangeDto"];
+            };
+        };
         responses: {
-            201: {
+            /** @description OTP sent to new phone number */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7052,9 +8053,14 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyPhoneChangeDto"];
+            };
+        };
         responses: {
-            201: {
+            /** @description Phone number changed successfully */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7877,152 +8883,6 @@ export interface operations {
                         limit?: number;
                     };
                 };
-            };
-        };
-    };
-    DraftJobController_findAll: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                license: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    DraftJobController_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                license: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateDraftJobDto"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    DraftJobController_findOne: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                license: string;
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    DraftJobController_remove: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                license: string;
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    DraftJobController_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                license: string;
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateDraftJobDto"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    DraftJobController_publish: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                license: string;
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    DraftJobController_validate: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                license: string;
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };

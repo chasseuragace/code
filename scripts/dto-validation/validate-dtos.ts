@@ -315,7 +315,10 @@ class DtoValidator {
       }
 
       // Check for @ValidateNested on object properties
-      if (this.isObjectType(property) && !decorators.some((d) => d.includes('ValidateNested'))) {
+      // Skip if @IsObject is present (for inline/flexible object types) or @IsEnum (for enums)
+      const hasIsObject = decorators.some((d) => d.includes('IsObject'));
+      const hasIsEnum = decorators.some((d) => d.includes('IsEnum'));
+      if (this.isObjectType(property) && !decorators.some((d) => d.includes('ValidateNested')) && !hasIsObject && !hasIsEnum) {
         this.addError({
           severity: 'error',
           file: filePath,
@@ -325,7 +328,7 @@ class DtoValidator {
           propertyName,
           code: 'DTO009',
           message: `Nested object property "${propertyName}" must have @ValidateNested and @Type decorators`,
-          suggestion: 'Add @ValidateNested() and @Type(() => NestedDto) decorators',
+          suggestion: 'Add @ValidateNested() and @Type(() => NestedDto) decorators, or @IsObject() for flexible schemas',
           autoFixable: false,
         });
         isValid = false;
@@ -374,7 +377,8 @@ class DtoValidator {
     if (!property.type) return false;
     if (ts.isTypeReferenceNode(property.type)) {
       const typeName = property.type.typeName.getText();
-      return typeName !== 'Date' && typeName !== 'String' && typeName !== 'Number' && typeName !== 'Boolean';
+      // Exclude primitives and arrays
+      return typeName !== 'Date' && typeName !== 'String' && typeName !== 'Number' && typeName !== 'Boolean' && typeName !== 'Array';
     }
     return false;
   }

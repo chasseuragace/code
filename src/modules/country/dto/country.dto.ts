@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, IsNumberString, IsOptional } from 'class-validator';
 
 export class CountryResponseDto {
@@ -52,12 +52,13 @@ export class SeedCountriesResponseDto {
 }
 
 export class CountryQueryParamsDto {
-  @ApiProperty({
-    required: false,
-    description: 'Search by country name or code',
-    example: 'united',
-  })
+  
   @IsString()
   @IsOptional()
+    @ApiPropertyOptional({
+        required: false,
+        description: 'Search by country name or code',
+        example: 'united',
+      })
   search?: string;
 }

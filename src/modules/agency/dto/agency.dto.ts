@@ -1,21 +1,24 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsBoolean, IsDateString, IsEmail, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, IsUrl, MaxLength, ValidateNested, ArrayNotEmpty, IsObject } from 'class-validator';
+import { IsArray, IsBoolean, IsDateString, IsEmail, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, IsUrl, MaxLength, ValidateNested, ArrayNotEmpty, IsObject, IsNumber } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CertificationDto {
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Name', example: 'Example Name' })
   name?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Number', example: 'example' })
   number?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Issued by', example: 'example' })
   issued_by?: string;
 
   @ApiPropertyOptional({ description: 'ISO date string (YYYY-MM-DD)' })
@@ -30,92 +33,108 @@ export class CertificationDto {
 }
 
 export class SocialMediaDto {
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsUrl({ require_protocol: true }, { message: 'facebook must be a URL with protocol' })
+    @ApiPropertyOptional({ description: 'Facebook', example: 'example' })
   facebook?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsUrl({ require_protocol: true })
+    @ApiPropertyOptional({ description: 'Instagram', example: 'example' })
   instagram?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsUrl({ require_protocol: true })
+    @ApiPropertyOptional({ description: 'Linkedin', example: 'https://example.com' })
   linkedin?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsUrl({ require_protocol: true })
+    @ApiPropertyOptional({ description: 'Twitter', example: 'example' })
   twitter?: string;
 }
 
 export class BankDetailsDto {
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Bank name', example: 'Example Name' })
   bank_name?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Account name', example: 'Example Name' })
   account_name?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Account number', example: 'example' })
   account_number?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Swift code', example: 'example' })
   swift_code?: string;
 }
 
 export class ContactPersonDto {
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Name', example: 'Example Name' })
   name?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Position', example: 'example' })
   position?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Phone', example: '+1234567890' })
   phone?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsEmail()
+    @ApiPropertyOptional({ description: 'Email', example: 'user@example.com' })
   email?: string;
 }
 
 export class OperatingHoursDto {
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Weekdays', example: 'example' })
   weekdays?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Saturday', example: 'example' })
   saturday?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Sunday', example: 'example' })
   sunday?: string;
 }
 
 export class StatisticsDto {
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsInt()
+    @ApiPropertyOptional({ description: 'Total placements', example: 10 })
   total_placements?: number;
 
   @ApiPropertyOptional({ description: 'ISO date string (YYYY-MM-DD)' })
@@ -123,64 +142,75 @@ export class StatisticsDto {
   @IsDateString()
   active_since?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsInt()
+    @ApiPropertyOptional({ description: 'Success rate', example: 0 })
   success_rate?: number;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsInt()
+    @ApiPropertyOptional({ description: 'Countries served', example: 10 })
   countries_served?: number;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsInt()
+    @ApiPropertyOptional({ description: 'Partner companies', example: 0 })
   partner_companies?: number;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsInt()
+    @ApiPropertyOptional({ description: 'Active recruiters', example: 0 })
   active_recruiters?: number;
 }
 
 export class SettingsDto {
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Currency', example: 'example' })
   currency?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Timezone', example: 'example' })
   timezone?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Language', example: 'example' })
   language?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Date format', example: 'example' })
   date_format?: string;
 
-  @ApiPropertyOptional({ type: Object })
+  
   @IsOptional()
   @IsObject()
+    @ApiPropertyOptional({ description: 'Notifications', type: Object })
   notifications?: Record<string, any>;
 
-  @ApiPropertyOptional({ type: Object })
+  
   @IsOptional()
   @IsObject()
+    @ApiPropertyOptional({ description: 'Features', type: Object })
   features?: Record<string, any>;
 }
 
 export class CreateAgencyDto {
-  @ApiProperty()
+  
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
+    @ApiProperty({ description: 'Name', example: 'Example Name' })
   name!: string;
 
   @ApiProperty({ description: 'Unique license number for the agency' })
@@ -189,138 +219,166 @@ export class CreateAgencyDto {
   @MaxLength(100)
   license_number!: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Country', example: 'example' })
   country?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'City', example: 'example' })
   city?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Address', example: 'example' })
   address?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsInt()
+    @IsNumber()
+    @ApiPropertyOptional({ description: 'Latitude', example: 0 })
   latitude?: number;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsInt()
+    @IsNumber()
+    @ApiPropertyOptional({ description: 'Longitude', example: 0 })
   longitude?: number;
 
-  @ApiPropertyOptional({ type: [String] })
+  
   @IsOptional()
   @IsArray()
+    @ApiPropertyOptional({ description: 'Phones', type: [String] })
   phones?: string[];
 
-  @ApiPropertyOptional({ type: [String] })
+  
   @IsOptional()
   @IsArray()
+    @ApiPropertyOptional({ description: 'Emails', type: [String] })
   emails?: string[];
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsEmail()
+    @ApiPropertyOptional({ description: 'Contact email', example: 'user@example.com' })
   contact_email?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Contact phone', example: '+1234567890' })
   contact_phone?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Website', example: 'example' })
   website?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Description', example: 'example' })
   description?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Logo url', example: 'https://example.com' })
   logo_url?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Banner url', example: 'https://example.com' })
   banner_url?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsInt()
+    @IsNumber()
+    @ApiPropertyOptional({ description: 'Established year', example: 2024 })
   established_year?: number;
 
   @ApiPropertyOptional({ description: 'ISO date string (YYYY-MM-DD)' })
   @IsOptional()
   @IsDateString()
+    @IsString()
   license_valid_till?: string;
 
-  @ApiPropertyOptional({ type: [String] })
+  
   @IsOptional()
   @IsArray()
+    @ApiPropertyOptional({ description: 'Services', type: [String] })
   services?: string[];
 
-  @ApiPropertyOptional({ type: [CertificationDto] })
+  
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CertificationDto)
+    @ApiPropertyOptional({ description: 'Certifications', type: [CertificationDto] })
   certifications?: CertificationDto[];
 
-  @ApiPropertyOptional({ type: SocialMediaDto })
+  
   @IsOptional()
   @ValidateNested()
   @Type(() => SocialMediaDto)
+    @ApiPropertyOptional({ description: 'Social media', type: SocialMediaDto })
   social_media?: SocialMediaDto;
 
-  @ApiPropertyOptional({ type: BankDetailsDto })
+  
   @IsOptional()
   @ValidateNested()
   @Type(() => BankDetailsDto)
+    @ApiPropertyOptional({ description: 'Bank details', type: BankDetailsDto })
   bank_details?: BankDetailsDto;
 
-  @ApiPropertyOptional({ type: [ContactPersonDto] })
+  
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ContactPersonDto)
+    @ApiPropertyOptional({ description: 'Contact persons', type: [ContactPersonDto] })
   contact_persons?: ContactPersonDto[];
 
-  @ApiPropertyOptional({ type: OperatingHoursDto })
+  
   @IsOptional()
   @ValidateNested()
   @Type(() => OperatingHoursDto)
+    @ApiPropertyOptional({ description: 'Operating hours', type: OperatingHoursDto })
   operating_hours?: OperatingHoursDto;
 
-  @ApiPropertyOptional({ type: [String] })
+  
   @IsOptional()
   @IsArray()
+    @ApiPropertyOptional({ description: 'Target countries', type: [String] })
   target_countries?: string[];
 
-  @ApiPropertyOptional({ type: [String] })
+  
   @IsOptional()
   @IsArray()
+    @ApiPropertyOptional({ description: 'Specializations', type: [String] })
   specializations?: string[];
 
-  @ApiPropertyOptional({ type: StatisticsDto })
+  
   @IsOptional()
   @ValidateNested()
   @Type(() => StatisticsDto)
+    @ApiPropertyOptional({ description: 'Statistics', type: StatisticsDto })
   statistics?: StatisticsDto;
 
-  @ApiPropertyOptional({ type: SettingsDto })
+  
   @IsOptional()
   @ValidateNested()
   @Type(() => SettingsDto)
+    @ApiPropertyOptional({ description: 'Settings', type: SettingsDto })
   settings?: SettingsDto;
 
   // Single-value inputs that we will normalize into arrays in the service
@@ -341,227 +399,441 @@ export class CreateAgencyDto {
 }
 
 export class UpdateAgencyDto {
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Name', example: 'Example Name' })
   name?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Country', example: 'example' })
   country?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'City', example: 'example' })
   city?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Address', example: 'example' })
   address?: string;
 
-  @ApiPropertyOptional({ type: [String] })
+  
   @IsOptional()
   @IsArray()
+    @ApiPropertyOptional({ description: 'Phones', type: [String] })
   phones?: string[];
 
-  @ApiPropertyOptional({ type: [String] })
+  
   @IsOptional()
   @IsArray()
+    @ApiPropertyOptional({ description: 'Emails', type: [String] })
   emails?: string[];
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsEmail()
+    @ApiPropertyOptional({ description: 'Contact email', example: 'user@example.com' })
   contact_email?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Contact phone', example: '+1234567890' })
   contact_phone?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Website', example: 'example' })
   website?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Description', example: 'example' })
   description?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Logo url', example: 'https://example.com' })
   logo_url?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Banner url', example: 'https://example.com' })
   banner_url?: string;
 
-  @ApiPropertyOptional()
+  
   @IsOptional()
   @IsInt()
+    @IsNumber()
+    @ApiPropertyOptional({ description: 'Established year', example: 2024 })
   established_year?: number;
 
   @ApiPropertyOptional({ description: 'ISO date string (YYYY-MM-DD)' })
   @IsOptional()
   @IsDateString()
+    @IsString()
   license_valid_till?: string;
 
-  @ApiPropertyOptional({ type: [String] })
+  
   @IsOptional()
   @IsArray()
+    @ApiPropertyOptional({ description: 'Services', type: [String] })
   services?: string[];
 
-  @ApiPropertyOptional({ type: [CertificationDto] })
+  
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CertificationDto)
+    @ApiPropertyOptional({ description: 'Certifications', type: [CertificationDto] })
   certifications?: CertificationDto[];
 
-  @ApiPropertyOptional({ type: SocialMediaDto })
+  
   @IsOptional()
   @ValidateNested()
   @Type(() => SocialMediaDto)
+    @ApiPropertyOptional({ description: 'Social media', type: SocialMediaDto })
   social_media?: SocialMediaDto;
 
-  @ApiPropertyOptional({ type: BankDetailsDto })
+  
   @IsOptional()
   @ValidateNested()
   @Type(() => BankDetailsDto)
+    @ApiPropertyOptional({ description: 'Bank details', type: BankDetailsDto })
   bank_details?: BankDetailsDto;
 
-  @ApiPropertyOptional({ type: [ContactPersonDto] })
+  
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ContactPersonDto)
+    @ApiPropertyOptional({ description: 'Contact persons', type: [ContactPersonDto] })
+  contact_persons?: ContactPersonDto[];
+
+  
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => OperatingHoursDto)
+    @ApiPropertyOptional({ description: 'Operating hours', type: OperatingHoursDto })
+  operating_hours?: OperatingHoursDto;
+
+  
+  @IsOptional()
+  @IsArray()
+    @ApiPropertyOptional({ description: 'Target countries', type: [String] })
+  target_countries?: string[];
+
+  
+  @IsOptional()
+  @IsArray()
+    @ApiPropertyOptional({ description: 'Specializations', type: [String] })
+  specializations?: string[];
+
+  
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => StatisticsDto)
+    @ApiPropertyOptional({ description: 'Statistics', type: StatisticsDto })
+  statistics?: StatisticsDto;
+
+  
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => SettingsDto)
+    @ApiPropertyOptional({ description: 'Settings', type: SettingsDto })
+  settings?: SettingsDto;
+
+  
+  @IsOptional()
+  @IsBoolean()
+    @ApiPropertyOptional({ description: 'Is active', example: true })
+  is_active?: boolean;
+}
+
+export class AgencyResponseDto {
+  
+  @ApiProperty({ description: 'Id', example: 'example' })
+    id!: string;
+
+  
+  @ApiProperty({ description: 'Name', example: 'Example Name' })
+    name!: string;
+
+  
+  @ApiProperty({ description: 'License number', example: 'example' })
+    license_number!: string;
+
+  
+  @ApiPropertyOptional({ description: 'Address', example: 'example' })
+    address?: string;
+
+  
+  @ApiPropertyOptional({ description: 'Latitude', type: Number, nullable: true })
+    latitude?: number | null;
+
+  
+  @ApiPropertyOptional({ description: 'Longitude', type: Number, nullable: true })
+    longitude?: number | null;
+
+  
+  @ApiPropertyOptional({ description: 'Phones', type: [String] })
+    phones?: string[];
+
+  
+  @ApiPropertyOptional({ description: 'Emails', type: [String] })
+    emails?: string[];
+
+  
+  @ApiPropertyOptional({ description: 'Website', example: 'example' })
+    website?: string;
+
+  
+  @ApiPropertyOptional({ description: 'Description', example: 'example' })
+    description?: string;
+
+  
+  @ApiPropertyOptional({ description: 'Logo url', example: 'https://example.com' })
+    logo_url?: string;
+
+  
+  @ApiPropertyOptional({ description: 'Banner url', type: String, nullable: true })
+    banner_url?: string | null;
+
+  
+  @ApiPropertyOptional({ description: 'Established year', type: Number, nullable: true })
+    established_year?: number | null;
+
+  
+  @ApiPropertyOptional({ description: 'Services', type: [String] })
+    services?: string[] | null;
+
+  
+  @ApiPropertyOptional({ description: 'Certifications', type: [CertificationDto] })
+    certifications?: CertificationDto[] | null;
+
+  
+  @ApiPropertyOptional({ description: 'Social media', type: SocialMediaDto })
+    social_media?: SocialMediaDto | null;
+
+  
+  @ApiPropertyOptional({ description: 'Bank details', type: BankDetailsDto })
+    bank_details?: BankDetailsDto | null;
+
+  
+  @ApiPropertyOptional({ description: 'Contact persons', type: [ContactPersonDto] })
+    contact_persons?: ContactPersonDto[] | null;
+
+  
+  @ApiPropertyOptional({ description: 'Operating hours', type: OperatingHoursDto })
+    operating_hours?: OperatingHoursDto | null;
+
+  
+  @ApiPropertyOptional({ description: 'Target countries', type: [String] })
+    target_countries?: string[] | null;
+
+  
+  @ApiPropertyOptional({ description: 'Specializations', type: [String] })
+    specializations?: string[] | null;
+
+  
+  @ApiPropertyOptional({ description: 'Statistics', type: StatisticsDto })
+    statistics?: StatisticsDto | null;
+
+  
+  @ApiPropertyOptional({ description: 'Settings', 
+        type: SettingsDto,
+        example: {
+          currency: 'USD',
+          timezone: 'UTC',
+          language: 'en',
+          date_format: 'YYYY-MM-DD',
+          notifications: { email: true, push: true },
+          features: { darkMode: true, notifications: true }
+        },
+        nullable: true 
+      })
+    settings?: SettingsDto | null;
+}
+
+export class AgencyCreatedDto {
+  
+    @IsString()
+    @ApiProperty({ description: 'Id', format: 'uuid' })
+  id!: string;
+
+  
+    @IsString()
+    @ApiProperty({ description: 'License number', example: 'example' })
+  license_number!: string;
+}
+
+// ============================================
+// Update DTOs for specific agency sections
+// ============================================
+
+export class UpdateAgencyBasicDto {
+  @ApiPropertyOptional({ description: 'Agency name', example: 'Example Agency' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  name?: string;
+
+  @ApiPropertyOptional({ description: 'Agency description', example: 'Leading recruitment agency' })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiPropertyOptional({ description: 'Year the agency was established', example: 2020 })
+  @IsOptional()
+  @IsInt()
+  established_year?: number;
+
+  @ApiPropertyOptional({ description: 'License number', example: 'LIC-12345' })
+  @IsOptional()
+  @IsString()
+  license_number?: string;
+}
+
+export class UpdateAgencyContactDto {
+  @ApiPropertyOptional({ description: 'Primary phone number', example: '+977-1-4123456' })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiPropertyOptional({ description: 'Mobile phone number', example: '+977-9841234567' })
+  @IsOptional()
+  @IsString()
+  mobile?: string;
+
+  @ApiPropertyOptional({ description: 'Email address', example: 'contact@agency.com' })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @ApiPropertyOptional({ description: 'Website URL', example: 'https://agency.com' })
+  @IsOptional()
+  @IsUrl()
+  website?: string;
+
+  @ApiPropertyOptional({ 
+    description: 'Contact persons', 
+    type: [ContactPersonDto],
+    example: [{ name: 'John Doe', position: 'Manager', phone: '+977-9841234567', email: 'john@agency.com' }]
+  })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ContactPersonDto)
   contact_persons?: ContactPersonDto[];
-
-  @ApiPropertyOptional({ type: OperatingHoursDto })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => OperatingHoursDto)
-  operating_hours?: OperatingHoursDto;
-
-  @ApiPropertyOptional({ type: [String] })
-  @IsOptional()
-  @IsArray()
-  target_countries?: string[];
-
-  @ApiPropertyOptional({ type: [String] })
-  @IsOptional()
-  @IsArray()
-  specializations?: string[];
-
-  @ApiPropertyOptional({ type: StatisticsDto })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => StatisticsDto)
-  statistics?: StatisticsDto;
-
-  @ApiPropertyOptional({ type: SettingsDto })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => SettingsDto)
-  settings?: SettingsDto;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsBoolean()
-  is_active?: boolean;
 }
 
-export class AgencyResponseDto {
-  @ApiProperty()
-  id!: string;
-
-  @ApiProperty()
-  name!: string;
-
-  @ApiProperty()
-  license_number!: string;
-
-  @ApiPropertyOptional()
+export class UpdateAgencyLocationDto {
+  @ApiPropertyOptional({ description: 'Street address', example: '123 Main St, Kathmandu' })
+  @IsOptional()
+  @IsString()
   address?: string;
 
-  @ApiPropertyOptional({ type: Number, nullable: true })
-  latitude?: number | null;
+  @ApiPropertyOptional({ description: 'Latitude coordinate', example: 27.7172 })
+  @IsOptional()
+  @IsNumber()
+  latitude?: number;
 
-  @ApiPropertyOptional({ type: Number, nullable: true })
-  longitude?: number | null;
-
-  @ApiPropertyOptional({ type: [String] })
-  phones?: string[];
-
-  @ApiPropertyOptional({ type: [String] })
-  emails?: string[];
-
-  @ApiPropertyOptional()
-  website?: string;
-
-  @ApiPropertyOptional()
-  description?: string;
-
-  @ApiPropertyOptional()
-  logo_url?: string;
-
-  @ApiPropertyOptional({ type: String, nullable: true })
-  banner_url?: string | null;
-
-  @ApiPropertyOptional({ type: Number, nullable: true })
-  established_year?: number | null;
-
-  @ApiPropertyOptional({ type: [String] })
-  services?: string[] | null;
-
-  @ApiPropertyOptional({ type: [CertificationDto] })
-  certifications?: CertificationDto[] | null;
-
-  @ApiPropertyOptional({ type: SocialMediaDto })
-  social_media?: SocialMediaDto | null;
-
-  @ApiPropertyOptional({ type: BankDetailsDto })
-  bank_details?: BankDetailsDto | null;
-
-  @ApiPropertyOptional({ type: [ContactPersonDto] })
-  contact_persons?: ContactPersonDto[] | null;
-
-  @ApiPropertyOptional({ type: OperatingHoursDto })
-  operating_hours?: OperatingHoursDto | null;
-
-  @ApiPropertyOptional({ type: [String] })
-  target_countries?: string[] | null;
-
-  @ApiPropertyOptional({ type: [String] })
-  specializations?: string[] | null;
-
-  @ApiPropertyOptional({ type: StatisticsDto })
-  statistics?: StatisticsDto | null;
-
-  @ApiPropertyOptional({ 
-    type: SettingsDto,
-    example: {
-      currency: 'USD',
-      timezone: 'UTC',
-      language: 'en',
-      date_format: 'YYYY-MM-DD',
-      notifications: { email: true, push: true },
-      features: { darkMode: true, notifications: true }
-    },
-    nullable: true 
-  })
-  settings?: SettingsDto | null;
+  @ApiPropertyOptional({ description: 'Longitude coordinate', example: 85.3240 })
+  @IsOptional()
+  @IsNumber()
+  longitude?: number;
 }
 
-export class AgencyCreatedDto {
-  @ApiProperty({ format: 'uuid' })
-  id!: string;
+export class UpdateAgencySocialMediaDto {
+  @ApiPropertyOptional({ description: 'Facebook URL', example: 'https://facebook.com/agency' })
+  @IsOptional()
+  @IsUrl()
+  facebook?: string;
 
-  @ApiProperty()
-  license_number!: string;
+  @ApiPropertyOptional({ description: 'Instagram URL', example: 'https://instagram.com/agency' })
+  @IsOptional()
+  @IsUrl()
+  instagram?: string;
+
+  @ApiPropertyOptional({ description: 'LinkedIn URL', example: 'https://linkedin.com/company/agency' })
+  @IsOptional()
+  @IsUrl()
+  linkedin?: string;
+
+  @ApiPropertyOptional({ description: 'Twitter URL', example: 'https://twitter.com/agency' })
+  @IsOptional()
+  @IsUrl()
+  twitter?: string;
+}
+
+export class UpdateAgencyServicesDto {
+  @ApiPropertyOptional({ 
+    description: 'Services offered', 
+    type: [String],
+    example: ['Recruitment', 'Visa Processing', 'Training']
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  services?: string[];
+
+  @ApiPropertyOptional({ 
+    description: 'Specializations', 
+    type: [String],
+    example: ['Healthcare', 'IT', 'Construction']
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  specializations?: string[];
+
+  @ApiPropertyOptional({ 
+    description: 'Target countries', 
+    type: [String],
+    example: ['UAE', 'Saudi Arabia', 'Qatar']
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  target_countries?: string[];
+}
+
+export class UpdateAgencySettingsDto {
+  @ApiPropertyOptional({ description: 'Preferred currency', example: 'USD' })
+  @IsOptional()
+  @IsString()
+  currency?: string;
+
+  @ApiPropertyOptional({ description: 'Timezone', example: 'Asia/Kathmandu' })
+  @IsOptional()
+  @IsString()
+  timezone?: string;
+
+  @ApiPropertyOptional({ description: 'Language', example: 'en' })
+  @IsOptional()
+  @IsString()
+  language?: string;
+
+  @ApiPropertyOptional({ description: 'Date format', example: 'YYYY-MM-DD' })
+  @IsOptional()
+  @IsString()
+  date_format?: string;
+
+  @ApiPropertyOptional({ 
+    description: 'Notification preferences',
+    example: { email: true, push: true, sms: false }
+  })
+  @IsOptional()
+  @IsObject()
+  notifications?: Record<string, boolean>;
 }

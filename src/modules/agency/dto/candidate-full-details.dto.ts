@@ -2,13 +2,20 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 // Candidate basic info
 class CandidateBasicDto {
-  @ApiProperty() id!: string;
-  @ApiProperty() name!: string;
-  @ApiProperty() phone!: string;
-  @ApiPropertyOptional() email?: string | null;
-  @ApiPropertyOptional() gender?: string | null;
-  @ApiPropertyOptional() age?: number | null;
-  @ApiPropertyOptional() address?: {
+  @ApiProperty({ description: 'Id', example: 'example' })
+    id!: string;
+  @ApiProperty({ description: 'Name', example: 'Example Name' })
+    name!: string;
+  @ApiProperty({ description: 'Phone', example: '+1234567890' })
+    phone!: string;
+  @ApiPropertyOptional({ description: 'Email', example: 'user@example.com' })
+    email?: string | null;
+  @ApiPropertyOptional({ description: 'Gender', example: 'example' })
+    gender?: string | null;
+  @ApiPropertyOptional({ description: 'Age', example: 25 })
+    age?: number | null;
+  @ApiPropertyOptional({ description: 'Address', example: 'example' })
+    address?: {
     formatted?: string;
     name?: string;
     province?: string;
@@ -16,51 +23,76 @@ class CandidateBasicDto {
     municipality?: string;
     ward?: string;
   } | null;
-  @ApiPropertyOptional() passport_number?: string | null;
-  @ApiPropertyOptional() profile_image?: string | null;
-  @ApiProperty() is_active!: boolean;
+  @ApiPropertyOptional({ description: 'Passport number', example: 'example' })
+    passport_number?: string | null;
+  @ApiPropertyOptional({ description: 'Profile image', example: 'example' })
+    profile_image?: string | null;
+  @ApiProperty({ description: 'Is active', example: true })
+    is_active!: boolean;
 }
 
 // Education
 class EducationItemDto {
-  @ApiProperty() degree!: string;
-  @ApiPropertyOptional() institution?: string;
-  @ApiPropertyOptional() year_completed?: number;
+  @ApiProperty({ description: 'Degree', example: 'example' })
+    degree!: string;
+  @ApiPropertyOptional({ description: 'Institution', example: 'example' })
+    institution?: string;
+  @ApiPropertyOptional({ description: 'Year completed', example: 2024 })
+    year_completed?: number;
 }
 
 // Training
 class TrainingItemDto {
-  @ApiProperty() title!: string;
-  @ApiPropertyOptional() provider?: string;
-  @ApiPropertyOptional() hours?: number;
-  @ApiPropertyOptional() certificate?: boolean;
+  @ApiProperty({ description: 'Title', example: 'example' })
+    title!: string;
+  @ApiPropertyOptional({ description: 'Provider', example: 'example' })
+    provider?: string;
+  @ApiPropertyOptional({ description: 'Hours', example: 0 })
+    hours?: number;
+  @ApiPropertyOptional({ description: 'Certificate', example: true })
+    certificate?: boolean;
 }
 
 // Experience
 class ExperienceItemDto {
-  @ApiProperty() title!: string;
-  @ApiPropertyOptional() employer?: string;
-  @ApiPropertyOptional() start_date_ad?: string;
-  @ApiPropertyOptional() end_date_ad?: string;
-  @ApiPropertyOptional() months?: number;
-  @ApiPropertyOptional() description?: string;
+  @ApiProperty({ description: 'Title', example: 'example' })
+    title!: string;
+  @ApiPropertyOptional({ description: 'Employer', example: 'example' })
+    employer?: string;
+  @ApiPropertyOptional({ description: 'Start date ad', example: 'example' })
+    start_date_ad?: string;
+  @ApiPropertyOptional({ description: 'End date ad', example: 'example' })
+    end_date_ad?: string;
+  @ApiPropertyOptional({ description: 'Months', example: 0 })
+    months?: number;
+  @ApiPropertyOptional({ description: 'Description', example: 'example' })
+    description?: string;
 }
 
 // Job Profile
 class JobProfileDto {
-  @ApiPropertyOptional() summary?: string | null;
-  @ApiProperty({ type: [String] }) skills!: string[];
-  @ApiProperty({ type: [EducationItemDto] }) education!: EducationItemDto[];
-  @ApiProperty({ type: [TrainingItemDto] }) trainings!: TrainingItemDto[];
-  @ApiProperty({ type: [ExperienceItemDto] }) experience!: ExperienceItemDto[];
+  @ApiPropertyOptional({ description: 'Summary', example: 'example' })
+    summary?: string | null;
+  @ApiProperty({ description: 'Skills', type: [String] })
+    skills!: string[];
+  @ApiProperty({ description: 'Education', type: [EducationItemDto] })
+    education!: EducationItemDto[];
+  @ApiProperty({ description: 'Trainings', type: [TrainingItemDto] })
+    trainings!: TrainingItemDto[];
+  @ApiProperty({ description: 'Experience', type: [ExperienceItemDto] })
+    experience!: ExperienceItemDto[];
 }
 
 // Job Context
 class JobContextDto {
-  @ApiProperty() job_id!: string;
-  @ApiProperty() job_title!: string;
-  @ApiPropertyOptional() job_company?: string | null;
-  @ApiProperty() job_location!: {
+  @ApiProperty({ description: 'Job id', example: 'example' })
+    job_id!: string;
+  @ApiProperty({ description: 'Job title', example: 'example' })
+    job_title!: string;
+  @ApiPropertyOptional({ description: 'Job company', example: 'example' })
+    job_company?: string | null;
+  @ApiProperty({ description: 'Job location', example: 'example' })
+    job_location!: {
     city: string | null;
     country: string;
   };
@@ -68,54 +100,88 @@ class JobContextDto {
 
 // Application History Entry
 class ApplicationHistoryEntryDto {
-  @ApiPropertyOptional() prev_status?: string | null;
-  @ApiProperty() next_status!: string;
-  @ApiProperty() updated_at!: string;
-  @ApiPropertyOptional() updated_by?: string | null;
-  @ApiPropertyOptional() note?: string | null;
-  @ApiPropertyOptional() corrected?: boolean;
+  @ApiPropertyOptional({ description: 'Prev status', example: 'example' })
+    prev_status?: string | null;
+  @ApiProperty({ description: 'Next status', example: 'example' })
+    next_status!: string;
+  @ApiProperty({ description: 'Updated at', example: 'example' })
+    updated_at!: string;
+  @ApiPropertyOptional({ description: 'Updated by', example: 'example' })
+    updated_by?: string | null;
+  @ApiPropertyOptional({ description: 'Note', example: 'example' })
+    note?: string | null;
+  @ApiPropertyOptional({ description: 'Corrected', example: true })
+    corrected?: boolean;
 }
 
 // Application
 class ApplicationDto {
-  @ApiProperty() id!: string;
-  @ApiProperty() position_id!: string;
-  @ApiPropertyOptional() position_title?: string | null;
-  @ApiProperty() status!: string;
-  @ApiProperty() created_at!: string;
-  @ApiProperty() updated_at!: string;
-  @ApiProperty({ type: [ApplicationHistoryEntryDto] }) history_blob!: ApplicationHistoryEntryDto[];
+  @ApiProperty({ description: 'Id', example: 'example' })
+    id!: string;
+  @ApiProperty({ description: 'Position id', example: 'example' })
+    position_id!: string;
+  @ApiPropertyOptional({ description: 'Position title', example: 'example' })
+    position_title?: string | null;
+  @ApiProperty({ description: 'Status', example: 'example' })
+    status!: string;
+  @ApiProperty({ description: 'Created at', example: 'example' })
+    created_at!: string;
+  @ApiProperty({ description: 'Updated at', example: 'example' })
+    updated_at!: string;
+  @ApiProperty({ description: 'History blob', type: [ApplicationHistoryEntryDto] })
+    history_blob!: ApplicationHistoryEntryDto[];
 }
 
 // Interview Expense
 class InterviewExpenseDto {
-  @ApiProperty() expense_type!: string;
-  @ApiProperty() who_pays!: string;
-  @ApiProperty() is_free!: boolean;
-  @ApiPropertyOptional() amount?: number | null;
-  @ApiPropertyOptional() currency?: string | null;
-  @ApiPropertyOptional() refundable?: boolean;
-  @ApiPropertyOptional() notes?: string | null;
+  @ApiProperty({ description: 'Expense type', example: 'example' })
+    expense_type!: string;
+  @ApiProperty({ description: 'Who pays', example: 'example' })
+    who_pays!: string;
+  @ApiProperty({ description: 'Is free', example: true })
+    is_free!: boolean;
+  @ApiPropertyOptional({ description: 'Amount', example: 0 })
+    amount?: number | null;
+  @ApiPropertyOptional({ description: 'Currency', example: 'example' })
+    currency?: string | null;
+  @ApiPropertyOptional({ description: 'Refundable', example: true })
+    refundable?: boolean;
+  @ApiPropertyOptional({ description: 'Notes', example: 'example' })
+    notes?: string | null;
 }
 
 // Interview
 class InterviewDto {
-  @ApiProperty() id!: string;
-  @ApiPropertyOptional() interview_date_ad?: string | null;
-  @ApiPropertyOptional() interview_date_bs?: string | null;
-  @ApiPropertyOptional() interview_time?: string | null;
-  @ApiPropertyOptional() location?: string | null;
-  @ApiPropertyOptional() contact_person?: string | null;
-  @ApiPropertyOptional({ type: [String] }) required_documents?: string[] | null;
-  @ApiPropertyOptional() notes?: string | null;
-  @ApiProperty({ type: [InterviewExpenseDto] }) expenses!: InterviewExpenseDto[];
+  @ApiProperty({ description: 'Id', example: 'example' })
+    id!: string;
+  @ApiPropertyOptional({ description: 'Interview date ad', example: 'example' })
+    interview_date_ad?: string | null;
+  @ApiPropertyOptional({ description: 'Interview date bs', example: 'example' })
+    interview_date_bs?: string | null;
+  @ApiPropertyOptional({ description: 'Interview time', example: 'example' })
+    interview_time?: string | null;
+  @ApiPropertyOptional({ description: 'Location', example: 'example' })
+    location?: string | null;
+  @ApiPropertyOptional({ description: 'Contact person', example: 'example' })
+    contact_person?: string | null;
+  @ApiPropertyOptional({ description: 'Required documents', type: [String] })
+    required_documents?: string[] | null;
+  @ApiPropertyOptional({ description: 'Notes', example: 'example' })
+    notes?: string | null;
+  @ApiProperty({ description: 'Expenses', type: [InterviewExpenseDto] })
+    expenses!: InterviewExpenseDto[];
 }
 
 // Main Response DTO
 export class CandidateFullDetailsDto {
-  @ApiProperty({ type: CandidateBasicDto }) candidate!: CandidateBasicDto;
-  @ApiProperty({ type: JobProfileDto }) job_profile!: JobProfileDto;
-  @ApiProperty({ type: JobContextDto }) job_context!: JobContextDto;
-  @ApiProperty({ type: ApplicationDto }) application!: ApplicationDto;
-  @ApiPropertyOptional({ type: InterviewDto }) interview?: InterviewDto | null;
+  @ApiProperty({ description: 'Candidate', type: CandidateBasicDto })
+    candidate!: CandidateBasicDto;
+  @ApiProperty({ description: 'Job profile', type: JobProfileDto })
+    job_profile!: JobProfileDto;
+  @ApiProperty({ description: 'Job context', type: JobContextDto })
+    job_context!: JobContextDto;
+  @ApiProperty({ description: 'Application', type: ApplicationDto })
+    application!: ApplicationDto;
+  @ApiPropertyOptional({ description: 'Interview', type: InterviewDto })
+    interview?: InterviewDto | null;
 }

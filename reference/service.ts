@@ -69,257 +69,316 @@ export enum ExpenseType {
 export class MoneyAmountDto {
   @IsNumber()
   @Min(0)
+    @ApiProperty({ description: 'Amount', example: 0 })
   amount: number;
 
   @IsString()
+    @ApiProperty({ description: 'Currency', example: 'example' })
   currency: string;
 }
 
 export class VacanciesDto {
   @IsNumber()
   @Min(0)
+    @ApiProperty({ description: 'Male', example: 0 })
   male: number;
 
   @IsNumber()
   @Min(0)
+    @ApiProperty({ description: 'Female', example: 0 })
   female: number;
 }
 
 export class SalaryDto {
   @IsNumber()
   @Min(0)
+    @ApiProperty({ description: 'Monthly amount', example: 0 })
   monthly_amount: number;
 
   @IsString()
+    @ApiProperty({ description: 'Currency', example: 'example' })
   currency: string;
 
   @IsOptional()
   @ValidateNested({ each: true })
   @Type(() => MoneyAmountDto)
+    @ApiPropertyOptional({ description: 'Converted', example: [] })
   converted?: MoneyAmountDto[];
 }
 
 export class PositionDto {
   @IsString()
+    @ApiProperty({ description: 'Title', example: 'example' })
   title: string;
 
   @ValidateNested()
   @Type(() => VacanciesDto)
+    @ApiProperty({ description: 'Vacancies', example: null })
   vacancies: VacanciesDto;
 
   @ValidateNested()
   @Type(() => SalaryDto)
+    @ApiProperty({ description: 'Salary', example: null })
   salary: SalaryDto;
 
   @IsOptional()
   @IsNumber()
   @Min(1)
   @Max(16)
+    @ApiPropertyOptional({ description: 'Hours per day override', example: 0 })
   hours_per_day_override?: number;
 
   @IsOptional()
   @IsNumber()
   @Min(1)
   @Max(7)
+    @ApiPropertyOptional({ description: 'Days per week override', example: 0 })
   days_per_week_override?: number;
 
   @IsOptional()
   @IsEnum(OvertimePolicy)
+    @ApiPropertyOptional({ description: 'Overtime policy override', example: null })
   overtime_policy_override?: OvertimePolicy;
 
   @IsOptional()
   @IsNumber()
   @Min(0)
   @Max(7)
+    @ApiPropertyOptional({ description: 'Weekly off days override', example: 0 })
   weekly_off_days_override?: number;
 
   @IsOptional()
   @IsEnum(ProvisionType)
+    @ApiPropertyOptional({ description: 'Food override', example: null })
   food_override?: ProvisionType;
 
   @IsOptional()
   @IsEnum(ProvisionType)
+    @ApiPropertyOptional({ description: 'Accommodation override', example: null })
   accommodation_override?: ProvisionType;
 
   @IsOptional()
   @IsEnum(ProvisionType)
+    @ApiPropertyOptional({ description: 'Transport override', example: null })
   transport_override?: ProvisionType;
 
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Position notes', example: 'example' })
   position_notes?: string;
 }
 
 export class EmployerDto {
   @IsString()
+    @ApiProperty({ description: 'Company name', example: 'Example Name' })
   company_name: string;
 
   @IsString()
+    @ApiProperty({ description: 'Country', example: 'example' })
   country: string;
 
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'City', example: 'example' })
   city?: string;
 }
 
 export class PostingAgencyDto {
   @IsString()
+    @ApiProperty({ description: 'Name', example: 'Example Name' })
   name: string;
 
   @IsString()
+    @ApiProperty({ description: 'License number', example: 'example' })
   license_number: string;
 
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Address', example: 'example' })
   address?: string;
 
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+    @ApiPropertyOptional({ description: 'Phones', example: '+1234567890' })
   phones?: string[];
 
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+    @ApiPropertyOptional({ description: 'Emails', example: 'user@example.com' })
   emails?: string[];
 
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Website', example: 'example' })
   website?: string;
 }
 
 export class ContractDto {
   @IsNumber()
   @Min(1)
+    @ApiProperty({ description: 'Period years', example: 2024 })
   period_years: number;
 
   @IsOptional()
   @IsBoolean()
+    @ApiPropertyOptional({ description: 'Renewable', example: true })
   renewable?: boolean;
 
   @IsOptional()
   @IsNumber()
   @Min(1)
   @Max(16)
+    @ApiPropertyOptional({ description: 'Hours per day', example: 0 })
   hours_per_day?: number;
 
   @IsOptional()
   @IsNumber()
   @Min(1)
   @Max(7)
+    @ApiPropertyOptional({ description: 'Days per week', example: 0 })
   days_per_week?: number;
 
   @IsOptional()
   @IsEnum(OvertimePolicy)
+    @ApiPropertyOptional({ description: 'Overtime policy', example: null })
   overtime_policy?: OvertimePolicy;
 
   @IsOptional()
   @IsNumber()
   @Min(0)
   @Max(7)
+    @ApiPropertyOptional({ description: 'Weekly off days', example: 0 })
   weekly_off_days?: number;
 
   @IsOptional()
   @IsEnum(ProvisionType)
+    @ApiPropertyOptional({ description: 'Food', example: null })
   food?: ProvisionType;
 
   @IsOptional()
   @IsEnum(ProvisionType)
+    @ApiPropertyOptional({ description: 'Accommodation', example: null })
   accommodation?: ProvisionType;
 
   @IsOptional()
   @IsEnum(ProvisionType)
+    @ApiPropertyOptional({ description: 'Transport', example: null })
   transport?: ProvisionType;
 
   @IsOptional()
   @IsNumber()
   @Min(0)
+    @ApiPropertyOptional({ description: 'Annual leave days', example: 0 })
   annual_leave_days?: number;
 }
 
 export class ExpenseDto {
   @IsEnum(ExpensePayer)
+    @ApiProperty({ description: 'Who pays', example: null })
   who_pays: ExpensePayer;
 
   @IsOptional()
   @IsBoolean()
+    @ApiPropertyOptional({ description: 'Is free', example: true })
   is_free?: boolean;
 
   @IsOptional()
   @IsNumber()
   @Min(0)
+    @ApiPropertyOptional({ description: 'Amount', example: 0 })
   amount?: number;
 
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Currency', example: 'example' })
   currency?: string;
 
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Notes', example: 'example' })
   notes?: string;
 }
 
 export class CreateJobPostingDto {
   // Meta information
   @IsString()
+    @ApiProperty({ description: 'Posting title', example: 'example' })
   posting_title: string;
 
   @IsString()
+    @ApiProperty({ description: 'Country', example: 'example' })
   country: string;
 
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'City', example: 'example' })
   city?: string;
 
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Lt number', example: 'example' })
   lt_number?: string;
 
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Chalani number', example: 'example' })
   chalani_number?: string;
 
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Approval date bs', example: 'example' })
   approval_date_bs?: string;
 
   @IsOptional()
   @IsDateString()
+    @ApiPropertyOptional({ description: 'Approval date ad', example: 'example' })
+    @IsString()
   approval_date_ad?: string;
 
   @IsOptional()
   @IsDateString()
+    @ApiPropertyOptional({ description: 'Posting date ad', example: 'example' })
+    @IsString()
   posting_date_ad?: string;
 
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Posting date bs', example: 'example' })
   posting_date_bs?: string;
 
   @IsOptional()
   @IsEnum(AnnouncementType)
+    @ApiPropertyOptional({ description: 'Announcement type', example: null })
   announcement_type?: AnnouncementType;
 
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Notes', example: 'example' })
   notes?: string;
 
   // Posting Agency
   @ValidateNested()
   @Type(() => PostingAgencyDto)
+    @ApiProperty({ description: 'Posting agency', example: null })
   posting_agency: PostingAgencyDto;
 
   // Employer and Jobs
   @ValidateNested()
   @Type(() => EmployerDto)
+    @ApiProperty({ description: 'Employer', example: null })
   employer: EmployerDto;
 
   @ValidateNested()
   @Type(() => ContractDto)
+    @ApiProperty({ description: 'Contract', example: null })
   contract: ContractDto;
 
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => PositionDto)
+    @ApiProperty({ description: 'Positions', example: [] })
   positions: PositionDto[];
 }
 
@@ -327,6 +386,7 @@ export class CreateJobPostingDto {
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 @Injectable()
 export class JobPostingService {

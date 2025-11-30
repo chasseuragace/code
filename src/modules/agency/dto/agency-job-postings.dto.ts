@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, Max, Min, IsNumber } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class ListAgencyJobPostingsQueryDto {
@@ -38,44 +38,54 @@ export class ListAgencyJobPostingsQueryDto {
   @IsString()
   position_title?: string;
 
-  @ApiPropertyOptional({ enum: ['interviews_today', 'shortlisted', 'applicants', 'posted_at'], default: 'posted_at', example: 'posted_at' })
+  
   @IsOptional()
   @IsEnum(['interviews_today', 'shortlisted', 'applicants', 'posted_at'])
+    @ApiPropertyOptional({ description: 'Sort by', enum: ['interviews_today', 'shortlisted', 'applicants', 'posted_at'], default: 'posted_at', example: 'posted_at' })
   sort_by?: 'interviews_today' | 'shortlisted' | 'applicants' | 'posted_at';
 
-  @ApiPropertyOptional({ enum: ['asc', 'desc'], default: 'desc', example: 'desc' })
+  
   @IsOptional()
   @IsEnum(['asc', 'desc'])
+    @ApiPropertyOptional({ description: 'Order', enum: ['asc', 'desc'], default: 'desc', example: 'desc' })
   order?: 'asc' | 'desc';
 
-  @ApiPropertyOptional({ default: 1, minimum: 1, example: 1 })
+  
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
+    @IsNumber()
+    @ApiPropertyOptional({ description: 'Page', default: 1, minimum: 1, example: 1 })
   page?: number = 1;
 
-  @ApiPropertyOptional({ default: 10, minimum: 1, maximum: 100, example: 10 })
+  
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(100)
+    @IsNumber()
+    @ApiPropertyOptional({ description: 'Limit', default: 10, minimum: 1, maximum: 100, example: 10 })
   limit?: number = 10;
 }
 
 export class AgencyJobPostingListItemDto {
-  @ApiProperty({ format: 'uuid', example: 'd841e933-1a14-4602-97e2-c51c9e5d8cf2' })
-  id!: string;
+  
+  @ApiProperty({ description: 'Id', format: 'uuid', example: 'd841e933-1a14-4602-97e2-c51c9e5d8cf2' })
+    id!: string;
 
-  @ApiProperty({ example: 'Skilled Workers for ACME Co.' })
-  posting_title!: string;
+  
+  @ApiProperty({ description: 'Posting title', example: 'Skilled Workers for ACME Co.' })
+    posting_title!: string;
 
-  @ApiProperty({ nullable: true, example: 'Dubai' })
-  city!: string | null;
+  
+  @ApiProperty({ description: 'City', nullable: true, example: 'Dubai' })
+    city!: string | null;
 
-  @ApiProperty({ example: 'UAE' })
-  country!: string;
+  
+  @ApiProperty({ description: 'Country', example: 'UAE' })
+    country!: string;
 
   @ApiProperty({ description: 'Employer company name', example: 'ACME Co.' })
   employer_name!: string | null;
@@ -100,15 +110,19 @@ export class AgencyJobPostingListItemDto {
 }
 
 export class PaginatedAgencyJobPostingsDto {
-  @ApiProperty({ type: [AgencyJobPostingListItemDto] })
-  data!: AgencyJobPostingListItemDto[];
+  
+  @ApiProperty({ description: 'Data', type: [AgencyJobPostingListItemDto] })
+    data!: AgencyJobPostingListItemDto[];
 
-  @ApiProperty()
-  total!: number;
+  
+  @ApiProperty({ description: 'Total', example: 10 })
+    total!: number;
 
-  @ApiProperty()
-  page!: number;
+  
+  @ApiProperty({ description: 'Page', example: 25 })
+    page!: number;
 
-  @ApiProperty()
-  limit!: number;
+  
+  @ApiProperty({ description: 'Limit', example: 0 })
+    limit!: number;
 }

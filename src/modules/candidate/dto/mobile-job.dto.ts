@@ -1,12 +1,18 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class MobileJobPositionDto {
-  @ApiProperty({ type: String }) id!: string;
-  @ApiProperty({ type: String }) title!: string;
-  @ApiPropertyOptional({ type: String }) baseSalary?: string;
-  @ApiPropertyOptional({ type: String }) convertedSalary?: string;
-  @ApiPropertyOptional({ type: String }) currency?: string;
-  @ApiPropertyOptional({ type: [String] }) requirements?: string[];
+  @ApiProperty({ description: 'Id', type: String })
+    id!: string;
+  @ApiProperty({ description: 'Title', type: String })
+    title!: string;
+  @ApiPropertyOptional({ description: 'Base salary', type: String })
+    baseSalary?: string;
+  @ApiPropertyOptional({ description: 'Converted salary', type: String })
+    convertedSalary?: string;
+  @ApiPropertyOptional({ description: 'Currency', type: String })
+    currency?: string;
+  @ApiPropertyOptional({ description: 'Requirements', type: [String] })
+    requirements?: string[];
   @ApiPropertyOptional({ 
     type: Boolean,
     description: 'Whether the candidate has applied to this position'
@@ -15,58 +21,90 @@ export class MobileJobPositionDto {
 }
 
 export class MobileContractTermsDto {
-  @ApiProperty({ type: String }) type!: string;
-  @ApiProperty({ type: String }) duration!: string;
-  @ApiPropertyOptional({ type: String }) salary?: string; 
-  @ApiPropertyOptional({ type: Boolean }) isRenewable?: boolean;
-  @ApiPropertyOptional({ type: String }) noticePeriod?: string;
-  @ApiPropertyOptional({ type: String }) workingHours?: string;
-  @ApiPropertyOptional({ type: String }) probationPeriod?: string;
-  @ApiPropertyOptional({ type: String }) benefits?: string;
+  @ApiProperty({ description: 'Type', type: String })
+    type!: string;
+  @ApiProperty({ description: 'Duration', type: String })
+    duration!: string;
+  @ApiPropertyOptional({ description: 'Salary', type: String })
+    salary?: string; 
+  @ApiPropertyOptional({ description: 'Is renewable', type: Boolean })
+    isRenewable?: boolean;
+  @ApiPropertyOptional({ description: 'Notice period', type: String })
+    noticePeriod?: string;
+  @ApiPropertyOptional({ description: 'Working hours', type: String })
+    workingHours?: string;
+  @ApiPropertyOptional({ description: 'Probation period', type: String })
+    probationPeriod?: string;
+  @ApiPropertyOptional({ description: 'Benefits', type: String })
+    benefits?: string;
 }
 
 export class MobileJobPostingDto {
-  @ApiProperty({ type: String }) id!: string;
-  @ApiProperty({ type: String }) postingTitle!: string;
-  @ApiProperty({ type: String }) country!: string;
-  @ApiPropertyOptional({ type: String, nullable: true }) city?: string | null;
-  @ApiPropertyOptional({ type: String }) agency?: string;
-  @ApiPropertyOptional({ type: String }) employer?: string;
+  @ApiProperty({ description: 'Id', type: String })
+    id!: string;
+  @ApiProperty({ description: 'Posting title', type: String })
+    postingTitle!: string;
+  @ApiProperty({ description: 'Country', type: String })
+    country!: string;
+  @ApiPropertyOptional({ description: 'City', type: String, nullable: true })
+    city?: string | null;
+  @ApiPropertyOptional({ description: 'Agency', type: String })
+    agency?: string;
+  @ApiPropertyOptional({ description: 'Employer', type: String })
+    employer?: string;
 
-  @ApiProperty({ type: [MobileJobPositionDto] }) 
-  positions!: MobileJobPositionDto[];
+  
+  @ApiProperty({ description: 'Positions', type: [MobileJobPositionDto] })
+    positions!: MobileJobPositionDto[];
 
-  @ApiPropertyOptional({ type: String }) description?: string;
+  @ApiPropertyOptional({ description: 'Description', type: String })
+    description?: string;
 
-  @ApiPropertyOptional({ 
-    type: MobileContractTermsDto, 
-    nullable: true, 
-    example: { 
-      type: 'Full-time', 
-      duration: '2 years', 
-      salary: '50000-70000',
-      isRenewable: true,
-      noticePeriod: '1 month',
-      workingHours: '40 hours/week',
-      probationPeriod: '3 months',
-      benefits: 'Health insurance, Paid leave'
-    } 
-  })
-  contractTerms?: MobileContractTermsDto | null;
+  
+  @ApiPropertyOptional({ description: 'Contract terms', 
+        type: MobileContractTermsDto, 
+        nullable: true, 
+        example: { 
+          type: 'Full-time', 
+          duration: '2 years', 
+          salary: '50000-70000',
+          isRenewable: true,
+          noticePeriod: '1 month',
+          workingHours: '40 hours/week',
+          probationPeriod: '3 months',
+          benefits: 'Health insurance, Paid leave'
+        } 
+      })
+    contractTerms?: MobileContractTermsDto | null;
 
-  @ApiProperty({ type: Boolean }) isActive!: boolean;
-  @ApiPropertyOptional({ type: String, format: 'date-time' }) postedDate?: string;
-  @ApiPropertyOptional({ type: String }) preferencePriority?: string;
-  @ApiPropertyOptional({ type: String }) preferenceText?: string;
-  @ApiPropertyOptional({ type: String }) location?: string;
-  @ApiPropertyOptional({ type: String }) experience?: string;
-  @ApiPropertyOptional({ type: String }) salary?: string;
-  @ApiPropertyOptional({ type: String }) type?: string;
-  @ApiProperty({ type: Boolean }) isRemote!: boolean;
-  @ApiProperty({ type: Boolean }) isFeatured!: boolean;
-  @ApiPropertyOptional({ type: String }) companyLogo?: string;
-  @ApiPropertyOptional({ type: String }) matchPercentage?: string;
-  @ApiPropertyOptional({ type: String }) convertedSalary?: string;
-  @ApiPropertyOptional({ type: Number }) applications?: number;
-  @ApiPropertyOptional({ type: String }) policy?: string;
+  @ApiProperty({ description: 'Is active', type: Boolean })
+    isActive!: boolean;
+  @ApiPropertyOptional({ description: 'Posted date', type: String, format: 'date-time' })
+    postedDate?: string;
+  @ApiPropertyOptional({ description: 'Preference priority', type: String })
+    preferencePriority?: string;
+  @ApiPropertyOptional({ description: 'Preference text', type: String })
+    preferenceText?: string;
+  @ApiPropertyOptional({ description: 'Location', type: String })
+    location?: string;
+  @ApiPropertyOptional({ description: 'Experience', type: String })
+    experience?: string;
+  @ApiPropertyOptional({ description: 'Salary', type: String })
+    salary?: string;
+  @ApiPropertyOptional({ description: 'Type', type: String })
+    type?: string;
+  @ApiProperty({ description: 'Is remote', type: Boolean })
+    isRemote!: boolean;
+  @ApiProperty({ description: 'Is featured', type: Boolean })
+    isFeatured!: boolean;
+  @ApiPropertyOptional({ description: 'Company logo', type: String })
+    companyLogo?: string;
+  @ApiPropertyOptional({ description: 'Match percentage', type: String })
+    matchPercentage?: string;
+  @ApiPropertyOptional({ description: 'Converted salary', type: String })
+    convertedSalary?: string;
+  @ApiPropertyOptional({ description: 'Applications', type: Number })
+    applications?: number;
+  @ApiPropertyOptional({ description: 'Policy', type: String })
+    policy?: string;
 }

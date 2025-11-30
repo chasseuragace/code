@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { AdminJobFiltersDto } from './admin-job-filters.dto';
 
 export class AdminJobAgencyDto {
@@ -25,14 +25,16 @@ export class AdminJobItemDto {
   @ApiProperty({ description: 'Country' })
   country!: string;
 
-  @ApiProperty({ description: 'City', required: false })
-  city?: string;
+  
+  @ApiPropertyOptional({ description: 'City', required: false })
+    city?: string;
 
   @ApiProperty({ description: 'Created date' })
   created_at!: Date;
 
-  @ApiProperty({ description: 'Published date', required: false })
-  published_at?: Date;
+  
+  @ApiPropertyOptional({ description: 'Published date', required: false })
+    published_at?: Date;
 
   @ApiProperty({ description: 'Formatted salary string', example: '1200 AED' })
   salary!: string;
@@ -67,26 +69,34 @@ export class AdminJobItemDto {
   @ApiProperty({ description: 'Education requirements', type: [String] })
   requirements!: string[];
 
-  @ApiProperty({ description: 'Job description', required: false })
-  description?: string;
+  
+  @ApiPropertyOptional({ description: 'Job description', required: false })
+    description?: string;
 
-  @ApiProperty({ description: 'Working hours', required: false })
-  working_hours?: string;
+  
+  @ApiPropertyOptional({ description: 'Working hours', required: false })
+    working_hours?: string;
 
-  @ApiProperty({ description: 'Accommodation provision', required: false })
-  accommodation?: string;
+  
+  @ApiPropertyOptional({ description: 'Accommodation provision', required: false })
+    accommodation?: string;
 
-  @ApiProperty({ description: 'Food provision', required: false })
-  food?: string;
+  
+  @ApiPropertyOptional({ description: 'Food provision', required: false })
+    food?: string;
 
-  @ApiProperty({ description: 'Visa status', required: false })
-  visa_status?: string;
+  
+  @ApiPropertyOptional({ description: 'Visa status', required: false })
+    visa_status?: string;
 
-  @ApiProperty({ description: 'Contract duration', required: false })
-  contract_duration?: string;
+  
+  @ApiPropertyOptional({ description: 'Contract duration', required: false })
+    contract_duration?: string;
 
-  @ApiProperty({ type: AdminJobAgencyDto, required: false })
-  agency?: AdminJobAgencyDto;
+  
+  
+    @ApiPropertyOptional({ description: 'Agency', type: AdminJobAgencyDto, required: false })
+    agency?: AdminJobAgencyDto;
 }
 
 export class AdminJobListResponseDto {

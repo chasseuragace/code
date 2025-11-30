@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class PositionDetailsDto {
   @ApiProperty({ 
@@ -20,25 +20,28 @@ export class PositionDetailsDto {
   })
   vacancies: number;
 
-  @ApiProperty({
-    description: 'Salary range for this position',
-    example: '3000-4000 USD',
-    required: false
-  })
-  salary_range?: string;
+  
+  @ApiPropertyOptional({
+        description: 'Salary range for this position',
+        example: '3000-4000 USD',
+        required: false
+      })
+    salary_range?: string;
 
-  @ApiProperty({
-    description: 'Experience required for this position',
-    example: '5+ years',
-    required: false
-  })
-  experience_required?: string;
+  
+  @ApiPropertyOptional({
+        description: 'Experience required for this position',
+        example: '5+ years',
+        required: false
+      })
+    experience_required?: string;
 
-  @ApiProperty({
-    description: 'Skills required for this position',
-    type: [String],
-    example: ['Electrical Wiring', 'Maintenance', 'Troubleshooting'],
-    required: false
-  })
-  skills_required?: string[];
+  
+  @ApiPropertyOptional({
+        description: 'Skills required for this position',
+        type: [String],
+        example: ['Electrical Wiring', 'Maintenance', 'Troubleshooting'],
+        required: false
+      })
+    skills_required?: string[];
 }

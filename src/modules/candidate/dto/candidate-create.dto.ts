@@ -1,38 +1,90 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsOptional, IsArray, ValidateNested } from "class-validator";
+import { Type } from 'class-transformer';
 
 class CoordinatesDto {
-  @ApiProperty({ required: true }) lat!: number;
-  @ApiProperty({ required: true }) lng!: number;
+  @ApiProperty({ description: 'Lat', required: true })
+    lat!: number;
+  @ApiProperty({ description: 'Lng', required: true })
+    lng!: number;
 }
 
 class AddressDto {
-  @ApiProperty({ required: false, nullable: true }) name?: string;
-  @ApiProperty({ type: CoordinatesDto, required: false }) coordinates?: CoordinatesDto;
-  @ApiProperty({ required: false, nullable: true }) province?: string;
-  @ApiProperty({ required: false, nullable: true }) district?: string;
-  @ApiProperty({ required: false, nullable: true }) municipality?: string;
-  @ApiProperty({ required: false, nullable: true }) ward?: string;
+  
+    @ApiPropertyOptional({ description: 'Name', required: false, nullable: true })
+    name?: string;
+  
+    @ApiPropertyOptional({ description: 'Coordinates', type: CoordinatesDto, required: false })
+    coordinates?: CoordinatesDto;
+  
+    @ApiPropertyOptional({ description: 'Province', required: false, nullable: true })
+    province?: string;
+  
+    @ApiPropertyOptional({ description: 'District', required: false, nullable: true })
+    district?: string;
+  
+    @ApiPropertyOptional({ description: 'Municipality', required: false, nullable: true })
+    municipality?: string;
+  
+    @ApiPropertyOptional({ description: 'Ward', required: false, nullable: true })
+    ward?: string;
 }
 
 class SkillDto {
-  @ApiProperty() title!: string;
-  @ApiProperty({ required: false, nullable: true }) duration_months?: number;
-  @ApiProperty({ required: false, nullable: true }) years?: number;
-  @ApiProperty({ type: [String], required: false }) documents?: string[];
+  @ApiProperty({ description: 'Title', example: 'example' })
+    title!: string;
+  
+    @ApiPropertyOptional({ description: 'Duration months', required: false, nullable: true })
+    duration_months?: number;
+  
+    @ApiPropertyOptional({ description: 'Years', required: false, nullable: true })
+    years?: number;
+  
+    @ApiPropertyOptional({ description: 'Documents', type: [String], required: false })
+    documents?: string[];
 }
 
 class EducationDto {
-  @ApiProperty() title!: string;
-  @ApiProperty({ required: false, nullable: true }) institute?: string;
-  @ApiProperty({ required: false, nullable: true }) degree?: string;
-  @ApiProperty({ required: false, nullable: true }) document?: string;
+  @ApiProperty({ description: 'Title', example: 'example' })
+    title!: string;
+  
+    @ApiPropertyOptional({ description: 'Institute', required: false, nullable: true })
+    institute?: string;
+  
+    @ApiPropertyOptional({ description: 'Degree', required: false, nullable: true })
+    degree?: string;
+  
+    @ApiPropertyOptional({ description: 'Document', required: false, nullable: true })
+    document?: string;
 }
 
 export class CandidateCreateDto {
-  @ApiProperty() full_name!: string;
-  @ApiProperty({ description: 'E.164 preferred' }) phone!: string;
-  @ApiProperty({ type: AddressDto, required: false }) address?: AddressDto;
-  @ApiProperty({ required: false, nullable: true }) passport_number?: string;
-  @ApiProperty({ type: [SkillDto], required: false }) skills?: SkillDto[];
-  @ApiProperty({ type: [EducationDto], required: false }) education?: EducationDto[];
+  
+    @IsString()
+    @ApiProperty({ description: 'Full name', example: 'Example Name' }) full_name!: string;
+  @ApiProperty({ description: 'E.164 preferred' })
+    @IsString() phone!: string;
+  
+    @IsOptional()
+    @ValidateNested()
+    @Type(() => AddressDto)
+    @ApiPropertyOptional({ description: 'Address', type: AddressDto, required: false })
+    address?: AddressDto;
+  
+    @IsOptional()
+    @IsString()
+    @ApiPropertyOptional({ description: 'Passport number', required: false, nullable: true })
+    passport_number?: string;
+  
+    @IsOptional()
+    @IsArray()
+    @IsArray()
+    @ApiPropertyOptional({ description: 'Skills', type: [SkillDto], required: false })
+    skills?: SkillDto[];
+  
+    @IsOptional()
+    @IsArray()
+    @IsArray()
+    @ApiPropertyOptional({ description: 'Education', type: [EducationDto], required: false })
+    education?: EducationDto[];
 }

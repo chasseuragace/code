@@ -20,7 +20,17 @@ import { User } from '../user/user.entity';
 import { AgencyUser } from './agency-user.entity';
 import { DevSmsService } from './dev-sms.service';
 import * as bcrypt from 'bcryptjs';
-import { CreateAgencyDto, AgencyCreatedDto, AgencyResponseDto } from './dto/agency.dto';
+import { 
+  CreateAgencyDto, 
+  AgencyCreatedDto, 
+  AgencyResponseDto,
+  UpdateAgencyBasicDto,
+  UpdateAgencyContactDto,
+  UpdateAgencyLocationDto,
+  UpdateAgencySocialMediaDto,
+  UpdateAgencyServicesDto,
+  UpdateAgencySettingsDto
+} from './dto/agency.dto';
 import { ListAgencyJobPostingsQueryDto, PaginatedAgencyJobPostingsDto } from './dto/agency-job-postings.dto';
 import { AgencySearchDto, PaginatedAgencyResponseDto } from './dto/agency-search.dto';
 import { ImageUploadService, UploadType } from '../shared/image-upload.service';
@@ -234,7 +244,7 @@ export class AgencyController {
   @HttpCode(200)
   @ApiOperation({ summary: 'Update basic profile information for the authenticated owner agency' })
   @ApiOkResponse({ description: 'Updated agency profile', type: AgencyResponseDto })
-  async updateMyAgencyBasic(@Req() req: any, @Body() body: any): Promise<AgencyResponseDto> {
+  async updateMyAgencyBasic(@Req() req: any, @Body() body: UpdateAgencyBasicDto): Promise<AgencyResponseDto> {
     const user = req.user as any;
     if (!user?.is_agency_owner || !user?.agency_id) {
       throw new ForbiddenException('User is not an agency owner or has no agency');
@@ -254,7 +264,7 @@ export class AgencyController {
   @HttpCode(200)
   @ApiOperation({ summary: 'Update contact information for the authenticated owner agency' })
   @ApiOkResponse({ description: 'Updated agency profile', type: AgencyResponseDto })
-  async updateMyAgencyContact(@Req() req: any, @Body() body: any): Promise<AgencyResponseDto> {
+  async updateMyAgencyContact(@Req() req: any, @Body() body: UpdateAgencyContactDto): Promise<AgencyResponseDto> {
     const user = req.user as any;
     if (!user?.is_agency_owner || !user?.agency_id) {
       throw new ForbiddenException('User is not an agency owner or has no agency');
@@ -275,7 +285,7 @@ export class AgencyController {
   @HttpCode(200)
   @ApiOperation({ summary: 'Update location information for the authenticated owner agency' })
   @ApiOkResponse({ description: 'Updated agency profile', type: AgencyResponseDto })
-  async updateMyAgencyLocation(@Req() req: any, @Body() body: any): Promise<AgencyResponseDto> {
+  async updateMyAgencyLocation(@Req() req: any, @Body() body: UpdateAgencyLocationDto): Promise<AgencyResponseDto> {
     const user = req.user as any;
     if (!user?.is_agency_owner || !user?.agency_id) {
       throw new ForbiddenException('User is not an agency owner or has no agency');
@@ -294,7 +304,7 @@ export class AgencyController {
   @HttpCode(200)
   @ApiOperation({ summary: 'Update social media links for the authenticated owner agency' })
   @ApiOkResponse({ description: 'Updated agency profile', type: AgencyResponseDto })
-  async updateMyAgencySocialMedia(@Req() req: any, @Body() body: any): Promise<AgencyResponseDto> {
+  async updateMyAgencySocialMedia(@Req() req: any, @Body() body: UpdateAgencySocialMediaDto): Promise<AgencyResponseDto> {
     const user = req.user as any;
     if (!user?.is_agency_owner || !user?.agency_id) {
       throw new ForbiddenException('User is not an agency owner or has no agency');
@@ -309,7 +319,7 @@ export class AgencyController {
   @HttpCode(200)
   @ApiOperation({ summary: 'Update services, specializations, and target countries for the authenticated owner agency' })
   @ApiOkResponse({ description: 'Updated agency profile', type: AgencyResponseDto })
-  async updateMyAgencyServices(@Req() req: any, @Body() body: any): Promise<AgencyResponseDto> {
+  async updateMyAgencyServices(@Req() req: any, @Body() body: UpdateAgencyServicesDto): Promise<AgencyResponseDto> {
     const user = req.user as any;
     if (!user?.is_agency_owner || !user?.agency_id) {
       throw new ForbiddenException('User is not an agency owner or has no agency');
@@ -328,7 +338,7 @@ export class AgencyController {
   @HttpCode(200)
   @ApiOperation({ summary: 'Update settings for the authenticated owner agency' })
   @ApiOkResponse({ description: 'Updated agency profile', type: AgencyResponseDto })
-  async updateMyAgencySettings(@Req() req: any, @Body() body: any): Promise<AgencyResponseDto> {
+  async updateMyAgencySettings(@Req() req: any, @Body() body: UpdateAgencySettingsDto): Promise<AgencyResponseDto> {
     const user = req.user as any;
     if (!user?.is_agency_owner || !user?.agency_id) {
       throw new ForbiddenException('User is not an agency owner or has no agency');

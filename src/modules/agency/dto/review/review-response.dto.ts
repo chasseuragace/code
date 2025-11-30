@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ReviewResponseDto {
   @ApiProperty({
@@ -54,11 +54,12 @@ export class ReviewResponseDto {
   })
   updated_at: string;
 
-  @ApiProperty({
-    description: 'Candidate full name (optional, for display)',
-    example: 'Ramesh Kumar',
-    type: String,
-    required: false,
-  })
-  candidate_name?: string;
+  
+  @ApiPropertyOptional({
+        description: 'Candidate full name (optional, for display)',
+        example: 'Ramesh Kumar',
+        type: String,
+        required: false,
+      })
+    candidate_name?: string;
 }

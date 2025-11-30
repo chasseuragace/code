@@ -1,29 +1,56 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 class CoordinatesDto {
-  @ApiProperty({ required: true }) lat!: number;
-  @ApiProperty({ required: true }) lng!: number;
+  @ApiProperty({ description: 'Lat', required: true })
+    lat!: number;
+  @ApiProperty({ description: 'Lng', required: true })
+    lng!: number;
 }
 
 class AddressDto {
-  @ApiProperty({ required: false, nullable: true }) name?: string;
-  @ApiProperty({ type: CoordinatesDto, required: false }) coordinates?: CoordinatesDto;
-  @ApiProperty({ required: false, nullable: true }) province?: string;
-  @ApiProperty({ required: false, nullable: true }) district?: string;
-  @ApiProperty({ required: false, nullable: true }) municipality?: string;
-  @ApiProperty({ required: false, nullable: true }) ward?: string;
+  
+    @ApiPropertyOptional({ description: 'Name', required: false, nullable: true })
+    name?: string;
+  
+    @ApiPropertyOptional({ description: 'Coordinates', type: CoordinatesDto, required: false })
+    coordinates?: CoordinatesDto;
+  
+    @ApiPropertyOptional({ description: 'Province', required: false, nullable: true })
+    province?: string;
+  
+    @ApiPropertyOptional({ description: 'District', required: false, nullable: true })
+    district?: string;
+  
+    @ApiPropertyOptional({ description: 'Municipality', required: false, nullable: true })
+    municipality?: string;
+  
+    @ApiPropertyOptional({ description: 'Ward', required: false, nullable: true })
+    ward?: string;
 }
 
 export class CandidateProfileDto {
-  @ApiProperty() id!: string;
-  @ApiProperty() full_name!: string;
+  @ApiProperty({ description: 'Id', example: 'example' })
+    id!: string;
+  @ApiProperty({ description: 'Full name', example: 'Example Name' })
+    full_name!: string;
   @ApiProperty({ description: 'E.164 normalized' }) phone!: string;
-  @ApiProperty({ type: AddressDto, required: false, nullable: true }) address?: AddressDto | null;
-  @ApiProperty({ required: false, nullable: true }) passport_number?: string | null;
-  @ApiProperty({ required: false, nullable: true, type: String }) email?: string | null;
-  @ApiProperty({ required: false, nullable: true, enum: ['Male', 'Female'], description: 'Gender of the candidate' }) gender?: string | null;
-  @ApiProperty({ required: false, nullable: true, type: Number, description: 'Age of the candidate' }) age?: number | null;
-  @ApiProperty() is_active!: boolean;
-  @ApiProperty() created_at!: Date;
-  @ApiProperty() updated_at!: Date;
+  
+    @ApiPropertyOptional({ description: 'Address', type: AddressDto, required: false, nullable: true })
+    address?: AddressDto | null;
+  
+    @ApiPropertyOptional({ description: 'Passport number', required: false, nullable: true })
+    passport_number?: string | null;
+  
+    @ApiPropertyOptional({ description: 'Email', required: false, nullable: true, type: String })
+    email?: string | null;
+  @ApiPropertyOptional({ required: false, nullable: true, enum: ['Male', 'Female'], description: 'Gender of the candidate' })
+    gender?: string | null;
+  @ApiPropertyOptional({ required: false, nullable: true, type: Number, description: 'Age of the candidate' })
+    age?: number | null;
+  @ApiProperty({ description: 'Is active', example: true })
+    is_active!: boolean;
+  @ApiProperty({ description: 'Created at', example: new Date('2024-01-01') })
+    created_at!: Date;
+  @ApiProperty({ description: 'Updated at', example: new Date('2024-01-01') })
+    updated_at!: Date;
 }

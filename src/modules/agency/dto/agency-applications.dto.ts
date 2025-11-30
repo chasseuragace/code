@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsInt, Min, Max, IsEnum, IsUUID } from 'class-validator';
+import { IsOptional, IsString, IsInt, Min, Max, IsEnum, IsUUID, IsNumber } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class GetAgencyApplicationsQueryDto {
@@ -54,6 +54,7 @@ export class GetAgencyApplicationsQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
+    @IsNumber()
   page?: number;
 
   @ApiPropertyOptional({
@@ -68,6 +69,7 @@ export class GetAgencyApplicationsQueryDto {
   @IsInt()
   @Min(1)
   @Max(100)
+    @IsNumber()
   limit?: number;
 
   @ApiPropertyOptional({

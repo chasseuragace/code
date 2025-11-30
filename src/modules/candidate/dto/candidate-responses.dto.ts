@@ -1,25 +1,32 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { CandidateJobCardDto } from './candidate-job-card.dto';
+import { IsString } from "class-validator";
 
 export class CandidateCreatedResponseDto {
-  @ApiProperty({ format: 'uuid' })
+  
+    @IsString()
+    @ApiProperty({ description: 'Id', format: 'uuid' })
   id!: string;
 }
 
 export class AddJobProfileResponseDto {
-  @ApiProperty({ format: 'uuid' })
-  id!: string;
+  
+  @ApiProperty({ description: 'Id', format: 'uuid' })
+    id!: string;
 }
 
 export class GroupedJobsGroupDto {
-  @ApiProperty()
-  title!: string;
+  
+  @ApiProperty({ description: 'Title', example: 'example' })
+    title!: string;
 
-  @ApiProperty({ type: [CandidateJobCardDto] })
-  jobs!: CandidateJobCardDto[];
+  
+  @ApiProperty({ description: 'Jobs', type: [CandidateJobCardDto] })
+    jobs!: CandidateJobCardDto[];
 }
 
 export class GroupedJobsResponseDto {
-  @ApiProperty({ type: [GroupedJobsGroupDto] })
-  groups!: GroupedJobsGroupDto[];
+  
+  @ApiProperty({ description: 'Groups', type: [GroupedJobsGroupDto] })
+    groups!: GroupedJobsGroupDto[];
 }

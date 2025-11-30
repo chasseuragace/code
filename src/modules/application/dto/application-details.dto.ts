@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 class JobDetailsDto {
   @ApiProperty({ description: 'Job title', example: 'AC Technician' })
@@ -39,8 +39,9 @@ class InterviewDetailsDto {
   @ApiProperty({ description: 'Interview mode', example: 'Online via Zoom' })
   mode: string;
 
-  @ApiProperty({ description: 'Interview link', example: 'https://zoom.us/12345', required: false })
-  link?: string;
+  
+  @ApiPropertyOptional({ description: 'Interview link', example: 'https://zoom.us/12345', required: false })
+    link?: string;
 
   @ApiProperty({ description: 'Required documents', type: [String], example: ['Passport Copy', 'Experience Certificate'] })
   documents: string[];
@@ -115,8 +116,9 @@ export class ApplicationDetailsDto {
   @ApiProperty({ description: 'Job details', type: JobDetailsDto })
   job: JobDetailsDto;
 
-  @ApiProperty({ description: 'Interview details', type: InterviewDetailsDto, required: false })
-  interview?: InterviewDetailsDto;
+  
+  @ApiPropertyOptional({ description: 'Interview details', type: InterviewDetailsDto, required: false })
+    interview?: InterviewDetailsDto;
 
   @ApiProperty({ description: 'Employer details', type: EmployerDetailsDto })
   employer: EmployerDetailsDto;

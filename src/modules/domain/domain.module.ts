@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DomainController } from './domain.controller';
 import { PublicJobsController } from './public-jobs.controller';
@@ -24,6 +24,9 @@ import { PostingAgency } from './PostingAgency';
 import { ExpenseService, InterviewService, JobPostingService } from './domain.service';
 import { InterviewHelperService } from './interview-helper.service';
 import { CurrencyConversionService } from '../currency/currency-conversion.service';
+import { AuthModule } from '../auth/auth.module';
+import { User } from '../user/user.entity';
+import { AgencyAuthGuard } from '../auth/agency-auth.guard';
 
 @Module({
   imports: [
@@ -44,9 +47,11 @@ import { CurrencyConversionService } from '../currency/currency-conversion.servi
       InterviewDetail,
       InterviewExpense,
       Country,
+      User,
     ]),
+    forwardRef(() => AuthModule),
   ],
-  providers: [JobPostingService, ExpenseService, InterviewService, InterviewHelperService, CurrencyConversionService],
+  providers: [JobPostingService, ExpenseService, InterviewService, InterviewHelperService, CurrencyConversionService, AgencyAuthGuard],
   controllers: [DomainController, PublicJobsController, InterviewsController],
   exports: [TypeOrmModule, JobPostingService, ExpenseService, InterviewService, InterviewHelperService, CurrencyConversionService],
 })

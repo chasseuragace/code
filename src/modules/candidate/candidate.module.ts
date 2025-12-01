@@ -19,8 +19,8 @@ import { ImageUploadModule } from '../shared/image-upload.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Candidate, CandidateJobProfile, CandidatePreference, CandidateDocument, DocumentType, JobTitle, JobPosting]), 
-    DomainModule,
-    ApplicationModule,
+    forwardRef(() => DomainModule),
+    forwardRef(() => ApplicationModule),
     ImageUploadModule,
     forwardRef(() => AuthModule),
   ],

@@ -7,6 +7,7 @@ import { AgencyReviewController } from './agency-review.controller';
 import { AgencyProfileService } from './agency-profile.service';
 import { AgencyApplicationsService } from './agency-applications.service';
 import { AgencyApplicationsController } from './agency-applications.controller';
+import { AgencyDashboardService } from './agency-dashboard.service';
 import { JobCandidatesController } from './job-candidates.controller';
 import { AgencyInterviewsController } from './agency-interviews.controller';
 import { DomainModule } from '../domain/domain.module';
@@ -45,8 +46,8 @@ import { ImageUploadModule } from '../shared/image-upload.module';
       AgencyReview,
     ]),
   ],
-  providers: [AgencyService, AgencyReviewService, DevSmsService, AgencyProfileService, AgencyApplicationsService],
+  providers: [AgencyService, AgencyReviewService, DevSmsService, AgencyProfileService, AgencyApplicationsService, AgencyDashboardService],
   controllers: [AgencyController, AgencyReviewController, JobCandidatesController, AgencyApplicationsController, AgencyInterviewsController],
-  exports: [TypeOrmModule, AgencyService, AgencyReviewService, AgencyProfileService, AgencyApplicationsService],
+  exports: [TypeOrmModule, AgencyService, AgencyReviewService, AgencyProfileService, AgencyApplicationsService, AgencyDashboardService],
 })
 export class AgencyModule { }

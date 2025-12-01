@@ -1,11 +1,12 @@
-import { Controller, Get, Post, Body, Param, ParseUUIDPipe, Query, HttpCode, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, ParseUUIDPipe, Query, HttpCode, NotFoundException, UseGuards } from '@nestjs/common';
 import { ApplicationService } from './application.service';
-import { ApiOperation, ApiParam, ApiTags, ApiOkResponse, ApiQuery, ApiBody, ApiCreatedResponse, ApiBadRequestResponse, ApiNotFoundResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiTags, ApiOkResponse, ApiQuery, ApiBody, ApiCreatedResponse, ApiBadRequestResponse, ApiNotFoundResponse, ApiBearerAuth, ApiForbiddenResponse, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { ApplyJobDto, ApplyJobResponseDto } from './dto/apply-job.dto';
 import { ApplicationAnalyticsDto } from './dto/application-analytics.dto';
 import { PaginatedJobApplicationsDto } from './dto/paginated-job-applications.dto';
 import { ApplicationDetailDto } from './dto/application-detail.dto';
 import { ApplicationDetailsDto } from './dto/application-details.dto';
+import { AgencyAuthGuard } from '../auth/agency-auth.guard';
 
 @ApiTags('applications')
 @Controller('applications')
@@ -214,6 +215,80 @@ export class ApplicationController {
     }
     const saved = await this.apps.withdraw(app.candidate_id, app.job_posting_id, { note: body?.note, updatedBy: body?.updatedBy });
     return { id: saved.id, status: saved.status };
+  }
+
+  // Reject an application with reason
+  @Post(':id/reject')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Reject an application',
+    description: 'Rejects an application with a required reason. Application status will be set to interview_failed.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Application UUID (v4)',
+    example: '075ce7d9-fcdb-4f7e-b794-4190f49d729f',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['reason'],
+      properties: {
+        reason: { type: 'string', description: 'Rejection reason (required)', example: 'Does not meet experience requirements' },
+        updatedBy: { type: 'string', nullable: true, description: 'User who performed the rejection' }
+      }
+    }
+  })
+  async rejectApplication(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() body: { reason: string; updatedBy?: string | null },
+  ) {
+    if (!body.reason || body.reason.trim().length === 0) {
+      throw new Error('Rejection reason is required');
+    }
+    const saved = await this.apps.rejectApplication(id, body.reason, { updatedBy: body.updatedBy });
+    return { id: saved.id, status: saved.status };
+  }
+
+  // Bulk reject applications for a job posting
+  @UseGuards(AgencyAuthGuard)
+  @Post('job-postings/:jobPostingId/bulk-reject')
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Bulk reject applications',
+    description: 'Rejects all applications with status "applied" for a specific job posting. Used when closing a job posting. Requires authentication and agency ownership.',
+  })
+  @ApiParam({
+    name: 'jobPostingId',
+    description: 'Job Posting UUID (v4)',
+    example: '075ce7d9-fcdb-4f7e-b794-4190f49d729f',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['reason'],
+      properties: {
+        reason: { type: 'string', description: 'Rejection reason (required)', example: 'Job posting closed - no longer accepting applications' },
+        updatedBy: { type: 'string', nullable: true, description: 'User who performed the bulk rejection' }
+      }
+    }
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid authentication token',
+  })
+  @ApiForbiddenResponse({
+    description: 'User does not have permission to modify applications for this job posting',
+  })
+  async bulkRejectApplications(
+    @Param('jobPostingId', new ParseUUIDPipe({ version: '4' })) jobPostingId: string,
+    @Body() body: { reason: string; updatedBy?: string | null },
+  ) {
+    if (!body.reason || body.reason.trim().length === 0) {
+      throw new Error('Rejection reason is required');
+    }
+    const result = await this.apps.bulkRejectApplicationsForJobPosting(jobPostingId, body.reason, { updatedBy: body.updatedBy });
+    return result;
   }
 
   // Get comprehensive application details for frontend

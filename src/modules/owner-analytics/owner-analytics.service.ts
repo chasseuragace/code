@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JobPosting, InterviewDetail, JobPosition } from 'src/modules/domain/domain.entity';
 import { PostingAgency } from '../domain/PostingAgency';
+import { JobApplication } from '../application/job-application.entity';
 
 export interface PortalOverview {
   generated_at: string;
@@ -11,6 +12,7 @@ export interface PortalOverview {
     postings: { total: number; active: number; inactive: number };
     interviews: number;
     countries: number;
+    successful_placements: number;
   };
   recent_activity: {
     new_postings_7d: number;
@@ -27,21 +29,24 @@ export class OwnerAnalyticsService {
     @InjectRepository(JobPosting) private postingRepo: Repository<JobPosting>,
     @InjectRepository(InterviewDetail) private interviewRepo: Repository<InterviewDetail>,
     @InjectRepository(JobPosition) private positionRepo: Repository<JobPosition>,
+    @InjectRepository(JobApplication) private applicationRepo: Repository<JobApplication>,
   ) {}
 
   async getPortalOverview(topCountriesLimit = 5): Promise<PortalOverview> {
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    const [agencies, totalPostings, activePostings, interviewsTotal, countriesRow] = await Promise.all([
+    const [agencies, totalPostings, activePostings, interviewsTotal, citiesRow, successfulPlacements] = await Promise.all([
       this.agencyRepo.count(),
       this.postingRepo.count(),
       this.postingRepo.count({ where: { is_active: true } }),
       this.interviewRepo.count(),
-      this.postingRepo
-        .createQueryBuilder('jp')
-        .select('COUNT(DISTINCT jp.country)', 'cnt')
+      this.agencyRepo
+        .createQueryBuilder('pa')
+        .select('COUNT(DISTINCT pa.city)', 'cnt')
+        .where('pa.city IS NOT NULL')
         .getRawOne<{ cnt: string }>(),
+      this.applicationRepo.count({ where: { status: 'interview_passed' } }),
     ]);
 
     const inactivePostings = totalPostings - activePostings;
@@ -78,7 +83,8 @@ export class OwnerAnalyticsService {
         agencies,
         postings: { total: totalPostings, active: activePostings, inactive: inactivePostings },
         interviews: interviewsTotal,
-        countries: Number(countriesRow?.cnt || 0),
+        countries: Number(citiesRow?.cnt || 0),
+        successful_placements: successfulPlacements,
       },
       recent_activity: {
         new_postings_7d: newPostings7d,

@@ -303,6 +303,22 @@ export class AgencyService {
     return { data, total, page, limit };
   }
 
+  async getTopLocations(): Promise<string[]> {
+    const results = await this.agencyRepository
+      .createQueryBuilder('agency')
+      .select('agency.city', 'city')
+      .addSelect('COUNT(*)', 'count')
+      .where('agency.is_active = :isActive', { isActive: true })
+      .andWhere('agency.city IS NOT NULL')
+      .andWhere("agency.city != ''")
+      .groupBy('agency.city')
+      .orderBy('count', 'DESC')
+      .limit(10)
+      .getRawMany();
+    
+    return results.map(r => r.city);
+  }
+
   async searchAgencies(dto: AgencySearchDto): Promise<PaginatedAgencyResponseDto> {
     const { 
       keyword, 

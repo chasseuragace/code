@@ -3283,20 +3283,21 @@ export type components = {
         };
         UpdateAgencyContactDto: {
             /**
-             * @description Primary phone number
-             * @example +977-1-4123456
+             * @description Phone numbers
+             * @example [
+             *       "+977-1-4123456",
+             *       "+977-9841234567"
+             *     ]
              */
-            phone?: string;
+            phones?: string[];
             /**
-             * @description Mobile phone number
-             * @example +977-9841234567
+             * @description Email addresses
+             * @example [
+             *       "contact@agency.com",
+             *       "info@agency.com"
+             *     ]
              */
-            mobile?: string;
-            /**
-             * @description Email address
-             * @example contact@agency.com
-             */
-            email?: string;
+            emails?: string[];
             /**
              * @description Website URL
              * @example https://agency.com
@@ -3413,6 +3414,14 @@ export type components = {
              *     }
              */
             notifications?: Record<string, never>;
+            /**
+             * @description Feature flags
+             * @example {
+             *       "darkMode": true,
+             *       "autoSave": true
+             *     }
+             */
+            features?: Record<string, never>;
         };
         ExperienceRequirementsDto: {
             /**

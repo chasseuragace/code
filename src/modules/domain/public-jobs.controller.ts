@@ -143,6 +143,7 @@ export class PublicJobsController {
         }
 
         return {
+          id: p.id,
           title: p.title,
           vacancies: { 
             male: p.male_vacancies, 

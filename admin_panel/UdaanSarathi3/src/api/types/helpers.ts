@@ -78,6 +78,7 @@ export type Response<
   responses: {
     [K in Status]: {
       content: {
+        // @ts-expect-error - T is used in the conditional type below
         'application/json': infer T;
       };
     };
@@ -200,7 +201,7 @@ export type PathParams<
  */
 export function isSchema<Name extends keyof components['schemas']>(
   value: unknown,
-  schemaName: Name
+  _schemaName: Name // Prefix with underscore to indicate intentionally unused
 ): value is Schema<Name> {
   // Basic check - in production, you'd want more robust validation
   return value !== null && typeof value === 'object';

@@ -602,6 +602,86 @@ export class ApplicationService {
     return result;
   }
 
+  // Reject an application with reason
+  async rejectApplication(applicationId: string, reason: string, opts: UpdateOptions = {}): Promise<JobApplication> {
+    if (!reason || reason.trim().length === 0) {
+      throw new Error('Rejection reason is required');
+    }
+
+    const app = await this.getById(applicationId);
+    if (!app) throw new Error('Application not found');
+    if (TERMINAL_STATUSES.has(app.status)) throw new Error('Cannot reject a terminal application');
+
+    // Cancel any active interview
+    const interview = await this.interviewHelperSvc.findLatestInterviewForApplication(app.id);
+    if (interview && interview.status === 'scheduled') {
+      await this.interviewHelperSvc.cancelInterview(interview.id, {
+        rejection_reason: reason,
+        notes: reason,
+      });
+    }
+
+    const prev = app.status;
+    app.status = 'interview_failed'; // Use interview_failed as rejection status
+    
+    const entry: JobApplicationHistoryEntry = {
+      prev_status: prev,
+      next_status: app.status,
+      updated_at: nowIso(),
+      updated_by: opts.updatedBy ?? null,
+      note: `REJECTED: ${reason}`,
+    };
+    app.history_blob = [...(app.history_blob ?? []), entry];
+
+    const savedApp = await this.appRepo.save(app);
+
+    // Trigger notification for rejection
+    try {
+      await this.notificationService.createNotificationFromApplication(savedApp, 'interview_failed');
+    } catch (error) {
+      console.error('Failed to create notification for rejection:', error);
+    }
+
+    return savedApp;
+  }
+
+  // Bulk reject all "applied" applications for a job posting
+  async bulkRejectApplicationsForJobPosting(
+    jobPostingId: string, 
+    reason: string, 
+    opts: UpdateOptions = {}
+  ): Promise<{ rejected: number; applicationIds: string[] }> {
+    if (!reason || reason.trim().length === 0) {
+      throw new Error('Rejection reason is required');
+    }
+
+    // Find all applications with status "applied" for this job posting
+    const applications = await this.appRepo.find({
+      where: {
+        job_posting_id: jobPostingId,
+        status: 'applied'
+      }
+    });
+
+    const rejectedIds: string[] = [];
+
+    // Reject each application
+    for (const app of applications) {
+      try {
+        await this.rejectApplication(app.id, reason, opts);
+        rejectedIds.push(app.id);
+      } catch (error) {
+        console.error(`Failed to reject application ${app.id}:`, error);
+        // Continue with other applications even if one fails
+      }
+    }
+
+    return {
+      rejected: rejectedIds.length,
+      applicationIds: rejectedIds
+    };
+  }
+
   // Analytics for a candidate's applications
   async getAnalytics(candidateId: string): Promise<{
     total: number;

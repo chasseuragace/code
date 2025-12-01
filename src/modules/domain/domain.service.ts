@@ -208,6 +208,22 @@ export class JobPostingService {
     private currencyConversionService: CurrencyConversionService,
   ) {}
 
+  /**
+   * Update job posting status (close/reopen)
+   * @param jobPostingId - Job posting UUID
+   * @param isActive - Set to false to close, true to reopen
+   * @returns Updated job posting or null if not found
+   */
+  async updateJobPostingStatus(jobPostingId: string, isActive: boolean): Promise<JobPosting | null> {
+    const jobPosting = await this.jobPostingRepository.findOne({ where: { id: jobPostingId } });
+    if (!jobPosting) {
+      return null;
+    }
+
+    jobPosting.is_active = isActive;
+    return this.jobPostingRepository.save(jobPosting);
+  }
+
   async createJobPosting(dto: CreateJobPostingDto): Promise<JobPosting> {
     const qr = this.dataSource.createQueryRunner();
     await qr.connect();

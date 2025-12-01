@@ -705,20 +705,25 @@ export class UpdateAgencyBasicDto {
 }
 
 export class UpdateAgencyContactDto {
-  @ApiPropertyOptional({ description: 'Primary phone number', example: '+977-1-4123456' })
+  @ApiPropertyOptional({ 
+    description: 'Phone numbers', 
+    type: [String],
+    example: ['+977-1-4123456', '+977-9841234567']
+  })
   @IsOptional()
-  @IsString()
-  phone?: string;
+  @IsArray()
+  @IsString({ each: true })
+  phones?: string[];
 
-  @ApiPropertyOptional({ description: 'Mobile phone number', example: '+977-9841234567' })
+  @ApiPropertyOptional({ 
+    description: 'Email addresses', 
+    type: [String],
+    example: ['contact@agency.com', 'info@agency.com']
+  })
   @IsOptional()
-  @IsString()
-  mobile?: string;
-
-  @ApiPropertyOptional({ description: 'Email address', example: 'contact@agency.com' })
-  @IsOptional()
-  @IsEmail()
-  email?: string;
+  @IsArray()
+  @IsEmail({}, { each: true })
+  emails?: string[];
 
   @ApiPropertyOptional({ description: 'Website URL', example: 'https://agency.com' })
   @IsOptional()
@@ -836,4 +841,12 @@ export class UpdateAgencySettingsDto {
   @IsOptional()
   @IsObject()
   notifications?: Record<string, boolean>;
+
+  @ApiPropertyOptional({ 
+    description: 'Feature flags',
+    example: { darkMode: true, autoSave: true }
+  })
+  @IsOptional()
+  @IsObject()
+  features?: Record<string, any>;
 }

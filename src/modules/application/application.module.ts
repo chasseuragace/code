@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ApplicationController } from './application.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JobApplication } from './job-application.entity';
@@ -7,14 +7,18 @@ import { Candidate } from '../candidate/candidate.entity';
 import { DomainModule } from '../domain/domain.module';
 import { JobPosting } from '../domain/domain.entity';
 import { NotificationModule } from '../notification/notification.module';
+import { AuthModule } from '../auth/auth.module';
+import { User } from '../user/user.entity';
+import { AgencyAuthGuard } from '../auth/agency-auth.guard';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([JobApplication, Candidate, JobPosting]),
-    DomainModule,
+    TypeOrmModule.forFeature([JobApplication, Candidate, JobPosting, User]),
+    forwardRef(() => DomainModule),
     NotificationModule,
+    forwardRef(() => AuthModule),
   ],
-  providers: [ApplicationService],
+  providers: [ApplicationService, AgencyAuthGuard],
   controllers: [ApplicationController],
   exports: [ApplicationService],
 })

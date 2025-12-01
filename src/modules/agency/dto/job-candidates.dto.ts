@@ -281,6 +281,9 @@ export class JobDetailsWithAnalyticsDto {
   @ApiProperty({ description: 'Skills/tags', example: ['Cooking', 'Restaurant', 'Arabic Cuisine'], type: [String] })
   tags: string[];
 
+  @ApiProperty({ description: 'Job posting status - true if accepting applications, false if closed', example: true })
+  is_active: boolean;
+
   @ApiProperty({ description: 'Analytics summary' })
   analytics: {
     view_count: number;

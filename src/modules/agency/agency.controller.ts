@@ -35,6 +35,8 @@ import { ListAgencyJobPostingsQueryDto, PaginatedAgencyJobPostingsDto } from './
 import { AgencySearchDto, PaginatedAgencyResponseDto } from './dto/agency-search.dto';
 import { ImageUploadService, UploadType } from '../shared/image-upload.service';
 import { UploadResponseDto } from '../candidate/dto/candidate-document.dto';
+import { AgencyDashboardService } from './agency-dashboard.service';
+import { AgencyDashboardAnalyticsDto, AgencyDashboardQueryDto } from './dto/agency-dashboard-analytics.dto';
 
 function normalizePhone(phone: string): string {
   const digits = phone.replace(/\D/g, '');
@@ -57,6 +59,28 @@ function generatePassword(length = 10): string {
 @ApiTags('Agencies')
 @Controller('agencies')
 export class AgencyController {
+  @Get('search/config')
+  @HttpCode(200)
+  @ApiOperation({ 
+    summary: 'Get search configuration options',
+    description: 'Returns available filter options for agency search including top locations and sort options'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Search configuration retrieved successfully',
+    schema: {
+      properties: {
+        locations: { type: 'array', items: { type: 'string' }, description: 'Top 10 locations' },
+        sortOptions: { type: 'array', items: { type: 'string' }, description: 'Available sort options' }
+      }
+    }
+  })
+  async getSearchConfig() {
+    const locations = await this.agencyService.getTopLocations();
+    const sortOptions = ['name', 'country', 'city', 'created_at'];
+    return { locations, sortOptions };
+  }
+
   @Get('search')
   @ApiOperation({ 
     summary: 'Search agencies with keyword search',
@@ -168,6 +192,7 @@ export class AgencyController {
     private readonly sms: DevSmsService,
     private readonly imageUploadService: ImageUploadService,
     private readonly agencyProfileService: AgencyProfileService,
+    private readonly agencyDashboardService: AgencyDashboardService,
   ) {}
 
   // Owner creates their single agency and binds it to their user account
@@ -196,6 +221,29 @@ export class AgencyController {
   }
 
   // Get agency owned by the authenticated user
+  @Get('owner/dashboard/analytics')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Get dashboard analytics for the authenticated owner agency' })
+  @ApiOkResponse({ description: 'Dashboard analytics', type: AgencyDashboardAnalyticsDto })
+  @ApiQuery({ name: 'startDate', required: false, description: 'Start date for filtering (ISO 8601)' })
+  @ApiQuery({ name: 'endDate', required: false, description: 'End date for filtering (ISO 8601)' })
+  @ApiQuery({ name: 'country', required: false, description: 'Filter by country' })
+  @ApiQuery({ name: 'jobId', required: false, description: 'Filter by job ID' })
+  async getMyAgencyDashboardAnalytics(
+    @Req() req: any,
+    @Query() query: AgencyDashboardQueryDto,
+  ): Promise<AgencyDashboardAnalyticsDto> {
+    const user = req.user as any;
+    if (!user?.is_agency_owner || !user?.agency_id) {
+      throw new ForbiddenException('User is not an agency owner or has no agency');
+    }
+    
+    const agency = await this.agencyService.findAgencyById(user.agency_id);
+    return this.agencyDashboardService.getDashboardAnalytics(agency.license_number, query);
+  }
+
   @Get('owner/agency')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -270,9 +318,8 @@ export class AgencyController {
       throw new ForbiddenException('User is not an agency owner or has no agency');
     }
     const updated = await this.agencyProfileService.updateContact(user.agency_id, {
-      phone: body.phone,
-      mobile: body.mobile,
-      email: body.email,
+      phones: body.phones,
+      emails: body.emails,
       website: body.website,
       contact_persons: body.contact_persons,
     });
@@ -309,7 +356,7 @@ export class AgencyController {
     if (!user?.is_agency_owner || !user?.agency_id) {
       throw new ForbiddenException('User is not an agency owner or has no agency');
     }
-    const updated = await this.agencyProfileService.updateSocialMedia(user.agency_id, body.social_media ?? body);
+    const updated = await this.agencyProfileService.updateSocialMedia(user.agency_id, body);
     return this.mapAgencyToResponseDto(updated);
   }
 
@@ -327,7 +374,7 @@ export class AgencyController {
     const updated = await this.agencyProfileService.updateServices(user.agency_id, {
       services: body.services,
       specializations: body.specializations,
-      target_countries: body.target_countries ?? body.countries,
+      target_countries: body.target_countries,
     });
     return this.mapAgencyToResponseDto(updated);
   }
@@ -343,7 +390,7 @@ export class AgencyController {
     if (!user?.is_agency_owner || !user?.agency_id) {
       throw new ForbiddenException('User is not an agency owner or has no agency');
     }
-    const updated = await this.agencyProfileService.updateSettings(user.agency_id, body.settings ?? body);
+    const updated = await this.agencyProfileService.updateSettings(user.agency_id, body);
     return this.mapAgencyToResponseDto(updated);
   }
 

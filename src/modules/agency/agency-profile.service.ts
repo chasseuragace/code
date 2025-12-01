@@ -36,23 +36,12 @@ export class AgencyProfileService {
     return this.getAgencyOrThrow(agencyId);
   }
 
-  async updateContact(agencyId: string, payload: { phone?: string; mobile?: string; email?: string; website?: string; contact_persons?: any[]; }): Promise<PostingAgency> {
+  async updateContact(agencyId: string, payload: { phones?: string[]; emails?: string[]; website?: string; contact_persons?: any[]; }): Promise<PostingAgency> {
     const current = await this.getAgencyOrThrow(agencyId);
 
-    // Replace phones array with new values (don't append to existing)
-    const phones = Array.from(new Set([
-      ...(payload.phone ? [payload.phone] : []),
-      ...(payload.mobile ? [payload.mobile] : []),
-    ].filter(Boolean))) as string[] | undefined;
-
-    // Replace emails array with new value (don't append to existing)
-    const emails = Array.from(new Set([
-      ...(payload.email ? [payload.email] : []),
-    ].filter(Boolean))) as string[] | undefined;
-
     const dto: UpdateAgencyDto = {
-      phones,
-      emails,
+      phones: payload.phones,
+      emails: payload.emails,
       website: payload.website ?? current.website,
       contact_persons: payload.contact_persons ?? current.contact_persons,
     } as any;

@@ -5,6 +5,8 @@
  * with the generated OpenAPI types.
  */
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import type {
   RequestBody,
   Response,
@@ -45,6 +47,7 @@ type AgencyProfileResponse = Response<'/agencies/owner/agency', 'get'>;
 
 // Test with explicit status code
 type SuccessResponse = Response<'/jobs/search', 'get', 200>;
+void ({} as SuccessResponse);
 
 // ============================================================================
 // Test 3: Schema Helper
@@ -69,6 +72,7 @@ type JobSearchItem = Schema<'JobSearchItemDto'>;
 type Agencies = Schema<'AgencyLiteDto'>[];
 
 const agencies: Agencies = [agency];
+console.log('Agencies:', agencies);
 
 // Test DTO types
 type UpdateAgencyBasicDto = Schema<'UpdateAgencyBasicDto'>;
@@ -100,6 +104,7 @@ interface ApiCall<
 
 // Example: Type-safe API call definition for PATCH request
 type UpdateAgencyCall = ApiCall<'/agencies/owner/agency/basic', 'patch'>;
+void ({} as UpdateAgencyCall);
 
 // ============================================================================
 // Test 6: Verify Type Helpers Extract Correctly

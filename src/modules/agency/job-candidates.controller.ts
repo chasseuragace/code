@@ -164,6 +164,7 @@ export class JobCandidatesController {
       description: job.notes || '',
       requirements: job.education_requirements || [],
       tags: availableSkills, // CHANGED: Now returns candidate skills instead of job.skills
+      is_active: job.is_active, // Job posting status (active/closed)
       analytics: {
         view_count: (job as any).view_count || 0,
         total_applicants: parseInt(analytics.total_applicants) || 0,

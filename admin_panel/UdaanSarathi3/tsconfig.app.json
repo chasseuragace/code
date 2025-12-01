@@ -28,9 +28,14 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@api/*": ["./src/api/*"],
-      "@api/generated": ["./src/api/generated"],
-      "@api/types/*": ["./src/api/types/*"]
+      "@/api/*": ["./src/api/*"],
+      "@/stores/*": ["./src/stores/*"],
+      "@/usecases/*": ["./src/usecases/*"],
+      "@/routing/*": ["./src/routing/*"],
+      "@/pages/*": ["./src/pages/*"],
+      "@/components/*": ["./src/components/*"],
+      "@/utils/*": ["./src/utils/*"],
+      "@/types/*": ["./src/types/*"]
     }
   },
   "include": ["src"]

@@ -14,7 +14,7 @@ import { AgencyUser } from '../agency/agency-user.entity';
     forwardRef(() => CandidateModule),
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'secretKey',
-      signOptions: { expiresIn: '60m' },
+      signOptions: { expiresIn: '24h' },
     }),
   ],
   providers: [AuthService],

@@ -30,6 +30,7 @@ import {
   BulkShortlistDto,
   BulkRejectDto,
   BulkScheduleInterviewDto,
+  MultiBatchScheduleDto,
   BulkActionResponseDto,
   JobDetailsWithAnalyticsDto,
   JobCandidateDto,
@@ -209,12 +210,26 @@ export class JobCandidatesController {
     const skillsArray = skills ? skills.split(',').map(s => s.trim()).filter(Boolean) : [];
 
     // Fetch applications for this job and stage with interview details
-    let applications = await this.jobAppRepo
-      .createQueryBuilder('ja')
-      .leftJoinAndSelect('ja.interview_details', 'interview')
-      .where('ja.job_posting_id = :jobId', { jobId })
-      .andWhere('ja.status = :stage', { stage })
-      .getMany();
+    // When stage is 'interview_scheduled', also include 'interview_rescheduled' status
+    let applications: JobApplication[];
+    if (stage === 'interview_scheduled') {
+      applications = await this.jobAppRepo
+        .createQueryBuilder('ja')
+        .leftJoinAndSelect('ja.interview_details', 'interview')
+        .where('ja.job_posting_id = :jobId', { jobId })
+        .andWhere('(ja.status = :stage OR ja.status = :rescheduledStage)', { 
+          stage: 'interview_scheduled',
+          rescheduledStage: 'interview_rescheduled'
+        })
+        .getMany();
+    } else {
+      applications = await this.jobAppRepo
+        .createQueryBuilder('ja')
+        .leftJoinAndSelect('ja.interview_details', 'interview')
+        .where('ja.job_posting_id = :jobId', { jobId })
+        .andWhere('ja.status = :stage', { stage })
+        .getMany();
+    }
 
     // Apply interview filtering if requested (only for interview_scheduled stage)
     if (stage === 'interview_scheduled' && interview_filter && interview_filter !== 'all') {
@@ -932,6 +947,115 @@ export class JobCandidatesController {
   }
 
   /**
+   * Multi-batch schedule interviews
+   * POST /agencies/:license/jobs/:jobId/candidates/multi-batch-schedule
+   */
+  @Post(':jobId/candidates/multi-batch-schedule')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Schedule multiple batches of interviews in a single request',
+    description: 'Schedule interviews for multiple batches of candidates. Each batch can have different date/time. Only candidates in "shortlisted" stage can be scheduled.'
+  })
+  @ApiParam({ name: 'license', description: 'Agency license number', example: 'LIC-AG-0001' })
+  @ApiParam({ name: 'jobId', description: 'Job posting ID (UUID)', example: 'job-uuid' })
+  @ApiBody({ type: MultiBatchScheduleDto })
+  @ApiOkResponse({ 
+    description: 'Multi-batch schedule result',
+    type: BulkActionResponseDto 
+  })
+  @ApiBadRequestResponse({ description: 'Invalid request or candidates not in "shortlisted" stage' })
+  async multiBatchScheduleInterview(
+    @Param('license') license: string,
+    @Param('jobId', ParseUUIDPipe) jobId: string,
+    @Body() body: MultiBatchScheduleDto,
+  ): Promise<BulkActionResponseDto> {
+    // Verify agency owns this job
+    const job = await this.jobPostingService.findJobPostingById(jobId);
+    const belongs = job.contracts?.some(c => c.agency?.license_number === license);
+    if (!belongs) {
+      throw new ForbiddenException('Cannot access job posting of another agency');
+    }
+
+    const failed: string[] = [];
+    const errors: Record<string, string> = {};
+    let scheduled_count = 0;
+
+    // Process each batch
+    for (const batch of body.batches) {
+      // Parse the start time for this batch
+      const duration = batch.duration_minutes || 60;
+      let currentTimeOffset = 0; // Minutes to add to start time
+
+      // Process each candidate in the batch with incremented time
+      for (let i = 0; i < batch.candidate_ids.length; i++) {
+        const candidateId = batch.candidate_ids[i];
+        
+        try {
+          // Find application for this candidate and job
+          const application = await this.jobAppRepo.findOne({
+            where: {
+              candidate_id: candidateId,
+              job_posting_id: jobId,
+            },
+          });
+
+          if (!application) {
+            failed.push(candidateId);
+            errors[candidateId] = 'Application not found';
+            continue;
+          }
+
+          // Only schedule if currently in "shortlisted" stage
+          if (application.status !== 'shortlisted') {
+            failed.push(candidateId);
+            errors[candidateId] = `Cannot schedule from "${application.status}" stage`;
+            continue;
+          }
+
+          // Calculate incremented time for this candidate
+          const incrementedTime = this.addMinutesToTime(batch.interview_time, currentTimeOffset);
+
+          // Schedule interview with batch-specific data and incremented time
+          await this.applicationService.scheduleInterview(
+            application.id,
+            {
+              interview_date_ad: batch.interview_date_ad,
+              interview_date_bs: batch.interview_date_bs,
+              interview_time: incrementedTime,
+              duration_minutes: duration,
+              location: batch.location,
+              contact_person: batch.contact_person,
+              required_documents: batch.required_documents,
+              notes: batch.notes,
+            },
+            {
+              note: 'Multi-batch scheduled via agency workflow',
+              updatedBy: body.updatedBy || 'agency',
+            }
+          );
+
+          scheduled_count++;
+          
+          // Increment time offset for next candidate in this batch
+          currentTimeOffset += duration;
+        } catch (error) {
+          failed.push(candidateId);
+          errors[candidateId] = error.message || 'Unknown error';
+          // Still increment time even if this candidate failed, to maintain spacing
+          currentTimeOffset += duration;
+        }
+      }
+    }
+
+    return {
+      success: failed.length === 0,
+      updated_count: scheduled_count,
+      failed: failed.length > 0 ? failed : undefined,
+      errors: Object.keys(errors).length > 0 ? errors : undefined,
+    };
+  }
+
+  /**
    * Get complete candidate details for a job application (unified endpoint)
    * GET /agencies/:license/jobs/:jobId/candidates/:candidateId/details
    */
@@ -1163,5 +1287,56 @@ export class JobCandidatesController {
     const stats = await this.interviewHelperService.getInterviewStatsForJob(jobId, dateRange || 'all');
 
     return stats;
+  }
+
+  /**
+   * Helper method to add minutes to a time string
+   * @param timeStr - Time string in format "HH:MM AM/PM" or "HH:MM:SS"
+   * @param minutesToAdd - Number of minutes to add
+   * @returns New time string in same format
+   */
+  private addMinutesToTime(timeStr: string, minutesToAdd: number): string {
+    // Parse time string (supports "10:00 AM", "10:00:00", "14:30")
+    let hours = 0;
+    let minutes = 0;
+    let isPM = false;
+
+    // Check if time has AM/PM
+    const hasAMPM = /AM|PM/i.test(timeStr);
+    if (hasAMPM) {
+      isPM = /PM/i.test(timeStr);
+      const timePart = timeStr.replace(/\s*(AM|PM)/i, '').trim();
+      const parts = timePart.split(':');
+      hours = parseInt(parts[0], 10);
+      minutes = parseInt(parts[1] || '0', 10);
+      
+      // Convert to 24-hour format
+      if (isPM && hours !== 12) hours += 12;
+      if (!isPM && hours === 12) hours = 0;
+    } else {
+      // Already in 24-hour format
+      const parts = timeStr.split(':');
+      hours = parseInt(parts[0], 10);
+      minutes = parseInt(parts[1] || '0', 10);
+    }
+
+    // Add minutes
+    minutes += minutesToAdd;
+    
+    // Handle overflow
+    hours += Math.floor(minutes / 60);
+    minutes = minutes % 60;
+    hours = hours % 24; // Wrap around midnight
+
+    // Format back to original format
+    if (hasAMPM) {
+      // Convert back to 12-hour format
+      const period = hours >= 12 ? 'PM' : 'AM';
+      const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+      return `${displayHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${period}`;
+    } else {
+      // Keep 24-hour format
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
+    }
   }
 }

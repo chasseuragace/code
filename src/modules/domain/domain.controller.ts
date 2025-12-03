@@ -1,23 +1,28 @@
-import { Controller, Post, Patch, HttpCode, Param, Body, ParseUUIDPipe, NotFoundException, UseGuards } from '@nestjs/common';
+import { Controller, Post, Patch, HttpCode, Param, Body, ParseUUIDPipe, NotFoundException, UseGuards, Inject, forwardRef } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiTags, ApiBody, ApiOkResponse, ApiNotFoundResponse, ApiBearerAuth, ApiForbiddenResponse, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { JobPostingService, CreateJobPostingDto } from './domain.service';
 import { AgencyAuthGuard } from '../auth/agency-auth.guard';
+import { ApplicationService } from '../application/application.service';
 import * as fs from 'fs';
 import * as path from 'path';
 
 @ApiTags('jobs')
 @Controller('jobs')
 export class DomainController {
-  constructor(private readonly jobPostingService: JobPostingService) {}
+  constructor(
+    private readonly jobPostingService: JobPostingService,
+    @Inject(forwardRef(() => ApplicationService))
+    private readonly applicationService: ApplicationService
+  ) {}
 
-  // Update job posting status (close/reopen)
+  // Toggle job posting status (close with rejection or reopen)
   @UseGuards(AgencyAuthGuard)
-  @Patch(':id/status')
+  @Patch(':id/toggle')
   @HttpCode(200)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Update job posting status',
-    description: 'Update the is_active status of a job posting. Used to close or reopen job postings. Requires authentication and agency ownership.',
+    summary: 'Toggle job posting status (close with rejection or reopen)',
+    description: 'Atomically toggles job posting status. When closing (is_active=false), automatically rejects all candidates with "applied" status. When reopening (is_active=true), simply reactivates the posting. Requires authentication and agency ownership.',
   })
   @ApiParam({
     name: 'id',
@@ -31,19 +36,21 @@ export class DomainController {
       properties: {
         is_active: { 
           type: 'boolean', 
-          description: 'Set to false to close posting, true to reopen',
+          description: 'Set to false to close posting (with automatic rejection of applied candidates), true to reopen',
           example: false
         }
       }
     }
   })
   @ApiOkResponse({
-    description: 'Job posting status updated successfully',
+    description: 'Job posting status toggled successfully',
     schema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
-        is_active: { type: 'boolean' }
+        id: { type: 'string', description: 'Job posting ID' },
+        is_active: { type: 'boolean', description: 'Updated status' },
+        rejected_count: { type: 'number', description: 'Number of applications rejected (only when closing)' },
+        rejected_application_ids: { type: 'array', items: { type: 'string' }, description: 'IDs of rejected applications (only when closing)' }
       }
     }
   })
@@ -56,15 +63,15 @@ export class DomainController {
   @ApiNotFoundResponse({
     description: 'Job posting not found',
   })
-  async updateJobPostingStatus(
+  async toggleJobPostingStatus(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() body: { is_active: boolean },
   ) {
-    const updated = await this.jobPostingService.updateJobPostingStatus(id, body.is_active);
-    if (!updated) {
-      throw new NotFoundException('Job posting not found');
-    }
-    return { id: updated.id, is_active: updated.is_active };
+    return this.jobPostingService.toggleJobPostingStatus(
+      id, 
+      body.is_active,
+      this.applicationService
+    );
   }
 
   // SeedV1: create job postings (with agencies/employer/contract/positions)

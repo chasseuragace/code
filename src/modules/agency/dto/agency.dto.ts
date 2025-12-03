@@ -705,29 +705,24 @@ export class UpdateAgencyBasicDto {
 }
 
 export class UpdateAgencyContactDto {
-  @ApiPropertyOptional({ 
-    description: 'Phone numbers', 
-    type: [String],
-    example: ['+977-1-4123456', '+977-9841234567']
-  })
+  @ApiPropertyOptional({ description: 'Phone number', example: '+977-1-4123456' })
   @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  phones?: string[];
+  @IsString()
+  phone?: string;
 
-  @ApiPropertyOptional({ 
-    description: 'Email addresses', 
-    type: [String],
-    example: ['contact@agency.com', 'info@agency.com']
-  })
+  @ApiPropertyOptional({ description: 'Mobile number', example: '+977-9841234567' })
   @IsOptional()
-  @IsArray()
-  @IsEmail({}, { each: true })
-  emails?: string[];
+  @IsString()
+  mobile?: string;
+
+  @ApiPropertyOptional({ description: 'Email address', example: 'contact@agency.com' })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
 
   @ApiPropertyOptional({ description: 'Website URL', example: 'https://agency.com' })
   @IsOptional()
-  @IsUrl()
+  @IsString()
   website?: string;
 
   @ApiPropertyOptional({ 
@@ -760,25 +755,20 @@ export class UpdateAgencyLocationDto {
 }
 
 export class UpdateAgencySocialMediaDto {
-  @ApiPropertyOptional({ description: 'Facebook URL', example: 'https://facebook.com/agency' })
+  @ApiPropertyOptional({ 
+    description: 'Social media links',
+    type: SocialMediaDto,
+    example: {
+      facebook: 'https://facebook.com/agency',
+      instagram: 'https://instagram.com/agency',
+      linkedin: 'https://linkedin.com/company/agency',
+      twitter: 'https://twitter.com/agency'
+    }
+  })
   @IsOptional()
-  @IsUrl()
-  facebook?: string;
-
-  @ApiPropertyOptional({ description: 'Instagram URL', example: 'https://instagram.com/agency' })
-  @IsOptional()
-  @IsUrl()
-  instagram?: string;
-
-  @ApiPropertyOptional({ description: 'LinkedIn URL', example: 'https://linkedin.com/company/agency' })
-  @IsOptional()
-  @IsUrl()
-  linkedin?: string;
-
-  @ApiPropertyOptional({ description: 'Twitter URL', example: 'https://twitter.com/agency' })
-  @IsOptional()
-  @IsUrl()
-  twitter?: string;
+  @ValidateNested()
+  @Type(() => SocialMediaDto)
+  social_media?: SocialMediaDto;
 }
 
 export class UpdateAgencyServicesDto {
@@ -814,39 +804,20 @@ export class UpdateAgencyServicesDto {
 }
 
 export class UpdateAgencySettingsDto {
-  @ApiPropertyOptional({ description: 'Preferred currency', example: 'USD' })
-  @IsOptional()
-  @IsString()
-  currency?: string;
-
-  @ApiPropertyOptional({ description: 'Timezone', example: 'Asia/Kathmandu' })
-  @IsOptional()
-  @IsString()
-  timezone?: string;
-
-  @ApiPropertyOptional({ description: 'Language', example: 'en' })
-  @IsOptional()
-  @IsString()
-  language?: string;
-
-  @ApiPropertyOptional({ description: 'Date format', example: 'YYYY-MM-DD' })
-  @IsOptional()
-  @IsString()
-  date_format?: string;
-
   @ApiPropertyOptional({ 
-    description: 'Notification preferences',
-    example: { email: true, push: true, sms: false }
+    description: 'Agency settings',
+    type: SettingsDto,
+    example: {
+      currency: 'USD',
+      timezone: 'Asia/Kathmandu',
+      language: 'en',
+      date_format: 'YYYY-MM-DD',
+      notifications: { email: true, push: true },
+      features: { darkMode: true }
+    }
   })
   @IsOptional()
-  @IsObject()
-  notifications?: Record<string, boolean>;
-
-  @ApiPropertyOptional({ 
-    description: 'Feature flags',
-    example: { darkMode: true, autoSave: true }
-  })
-  @IsOptional()
-  @IsObject()
-  features?: Record<string, any>;
+  @ValidateNested()
+  @Type(() => SettingsDto)
+  settings?: SettingsDto;
 }

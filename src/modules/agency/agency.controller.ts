@@ -311,15 +311,25 @@ export class AgencyController {
   @ApiBearerAuth()
   @HttpCode(200)
   @ApiOperation({ summary: 'Update contact information for the authenticated owner agency' })
+  @ApiBody({ type: UpdateAgencyContactDto })
   @ApiOkResponse({ description: 'Updated agency profile', type: AgencyResponseDto })
   async updateMyAgencyContact(@Req() req: any, @Body() body: UpdateAgencyContactDto): Promise<AgencyResponseDto> {
     const user = req.user as any;
     if (!user?.is_agency_owner || !user?.agency_id) {
       throw new ForbiddenException('User is not an agency owner or has no agency');
     }
+
+    // Convert frontend format (phone, mobile, email) to database format (phones[], emails[])
+    const phones: string[] = [];
+    if (body.phone) phones.push(body.phone);
+    if (body.mobile) phones.push(body.mobile);
+
+    const emails: string[] = [];
+    if (body.email) emails.push(body.email);
+
     const updated = await this.agencyProfileService.updateContact(user.agency_id, {
-      phones: body.phones,
-      emails: body.emails,
+      phones: phones.length > 0 ? phones : undefined,
+      emails: emails.length > 0 ? emails : undefined,
       website: body.website,
       contact_persons: body.contact_persons,
     });
@@ -350,13 +360,17 @@ export class AgencyController {
   @ApiBearerAuth()
   @HttpCode(200)
   @ApiOperation({ summary: 'Update social media links for the authenticated owner agency' })
+  @ApiBody({ type: UpdateAgencySocialMediaDto })
   @ApiOkResponse({ description: 'Updated agency profile', type: AgencyResponseDto })
   async updateMyAgencySocialMedia(@Req() req: any, @Body() body: UpdateAgencySocialMediaDto): Promise<AgencyResponseDto> {
     const user = req.user as any;
     if (!user?.is_agency_owner || !user?.agency_id) {
       throw new ForbiddenException('User is not an agency owner or has no agency');
     }
-    const updated = await this.agencyProfileService.updateSocialMedia(user.agency_id, body);
+
+    // Frontend sends { social_media: { facebook, instagram, ... } }
+    // Extract the inner object for database storage
+    const updated = await this.agencyProfileService.updateSocialMedia(user.agency_id, body.social_media);
     return this.mapAgencyToResponseDto(updated);
   }
 
@@ -384,13 +398,17 @@ export class AgencyController {
   @ApiBearerAuth()
   @HttpCode(200)
   @ApiOperation({ summary: 'Update settings for the authenticated owner agency' })
+  @ApiBody({ type: UpdateAgencySettingsDto })
   @ApiOkResponse({ description: 'Updated agency profile', type: AgencyResponseDto })
   async updateMyAgencySettings(@Req() req: any, @Body() body: UpdateAgencySettingsDto): Promise<AgencyResponseDto> {
     const user = req.user as any;
     if (!user?.is_agency_owner || !user?.agency_id) {
       throw new ForbiddenException('User is not an agency owner or has no agency');
     }
-    const updated = await this.agencyProfileService.updateSettings(user.agency_id, body);
+
+    // Frontend sends { settings: { currency, timezone, ... } }
+    // Extract the inner object for database storage
+    const updated = await this.agencyProfileService.updateSettings(user.agency_id, body.settings);
     return this.mapAgencyToResponseDto(updated);
   }
 

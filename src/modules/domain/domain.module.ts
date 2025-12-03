@@ -25,6 +25,7 @@ import { ExpenseService, InterviewService, JobPostingService } from './domain.se
 import { InterviewHelperService } from './interview-helper.service';
 import { CurrencyConversionService } from '../currency/currency-conversion.service';
 import { AuthModule } from '../auth/auth.module';
+import { ApplicationModule } from '../application/application.module';
 import { User } from '../user/user.entity';
 import { AgencyAuthGuard } from '../auth/agency-auth.guard';
 
@@ -50,6 +51,7 @@ import { AgencyAuthGuard } from '../auth/agency-auth.guard';
       User,
     ]),
     forwardRef(() => AuthModule),
+    forwardRef(() => ApplicationModule),
   ],
   providers: [JobPostingService, ExpenseService, InterviewService, InterviewHelperService, CurrencyConversionService, AgencyAuthGuard],
   controllers: [DomainController, PublicJobsController, InterviewsController],

@@ -39,17 +39,32 @@ export class AgencyProfileService {
   async updateContact(agencyId: string, payload: { phones?: string[]; emails?: string[]; website?: string; contact_persons?: any[]; }): Promise<PostingAgency> {
     const current = await this.getAgencyOrThrow(agencyId);
 
-    const dto: UpdateAgencyDto = {
-      phones: payload.phones,
-      emails: payload.emails,
-      website: payload.website ?? current.website,
-      contact_persons: payload.contact_persons ?? current.contact_persons,
-    } as any;
-
-    await this.agencyRepository.update(agencyId, {
-      ...dto,
+    // Build update object with only provided fields
+    const updateData: any = {
       updated_at: new Date(),
-    } as any);
+    };
+
+    // Replace phones array if provided
+    if (payload.phones !== undefined) {
+      updateData.phones = payload.phones;
+    }
+
+    // Replace emails array if provided
+    if (payload.emails !== undefined) {
+      updateData.emails = payload.emails;
+    }
+
+    // Update website if provided
+    if (payload.website !== undefined) {
+      updateData.website = payload.website;
+    }
+
+    // Update contact_persons if provided
+    if (payload.contact_persons !== undefined) {
+      updateData.contact_persons = payload.contact_persons;
+    }
+
+    await this.agencyRepository.update(agencyId, updateData);
 
     return this.getAgencyOrThrow(agencyId);
   }
@@ -70,12 +85,9 @@ export class AgencyProfileService {
   }
 
   async updateSocialMedia(agencyId: string, social_media: any): Promise<PostingAgency> {
-    const dto: UpdateAgencyDto = {
-      social_media,
-    } as any;
-
+    // Replace the entire social_media object (don't merge with existing)
     await this.agencyRepository.update(agencyId, {
-      ...dto,
+      social_media,
       updated_at: new Date(),
     } as any);
 
@@ -98,12 +110,9 @@ export class AgencyProfileService {
   }
 
   async updateSettings(agencyId: string, settings: any): Promise<PostingAgency> {
-    const dto: UpdateAgencyDto = {
-      settings,
-    } as any;
-
+    // Replace the entire settings object (don't merge with existing)
     await this.agencyRepository.update(agencyId, {
-      ...dto,
+      settings,
       updated_at: new Date(),
     } as any);
 

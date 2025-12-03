@@ -209,19 +209,58 @@ export class JobPostingService {
   ) {}
 
   /**
-   * Update job posting status (close/reopen)
+   * Toggle job posting status (close with rejection or reopen)
+   * When closing: Atomically rejects all "applied" candidates and sets is_active to false
+   * When reopening: Simply sets is_active to true
+   * 
    * @param jobPostingId - Job posting UUID
-   * @param isActive - Set to false to close, true to reopen
-   * @returns Updated job posting or null if not found
+   * @param isActive - Set to false to close (with rejection), true to reopen
+   * @param applicationService - ApplicationService instance for bulk rejection
+   * @returns Object with updated status and rejection summary
    */
-  async updateJobPostingStatus(jobPostingId: string, isActive: boolean): Promise<JobPosting | null> {
+  async toggleJobPostingStatus(
+    jobPostingId: string, 
+    isActive: boolean,
+    applicationService: any
+  ): Promise<{ 
+    id: string; 
+    is_active: boolean; 
+    rejected_count?: number; 
+    rejected_application_ids?: string[] 
+  }> {
     const jobPosting = await this.jobPostingRepository.findOne({ where: { id: jobPostingId } });
     if (!jobPosting) {
-      return null;
+      throw new NotFoundException(`Job posting with ID ${jobPostingId} not found`);
     }
 
+    // If closing the job posting, reject all "applied" candidates first
+    let rejectionResult: { rejected: number; applicationIds: string[] } | null = null;
+    
+    if (!isActive && jobPosting.is_active) {
+      // Only reject if we're actually closing (transitioning from active to inactive)
+      try {
+        rejectionResult = await applicationService.bulkRejectApplicationsForJobPosting(
+          jobPostingId,
+          'Job posting closed by agency',
+          { updatedBy: 'system' }
+        );
+      } catch (error) {
+        console.error(`[toggleJobPostingStatus] Failed to reject applications for job ${jobPostingId}:`, error);
+        // Continue with status update even if rejection fails
+        rejectionResult = { rejected: 0, applicationIds: [] };
+      }
+    }
+
+    // Update job posting status
     jobPosting.is_active = isActive;
-    return this.jobPostingRepository.save(jobPosting);
+    const updated = await this.jobPostingRepository.save(jobPosting);
+
+    return {
+      id: updated.id,
+      is_active: updated.is_active,
+      rejected_count: rejectionResult?.rejected,
+      rejected_application_ids: rejectionResult?.applicationIds
+    };
   }
 
   async createJobPosting(dto: CreateJobPostingDto): Promise<JobPosting> {

@@ -1,7 +1,8 @@
-import { Controller, Get, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiOkResponse, ApiQuery } from '@nestjs/swagger';
+import { Controller, Get, Query, UseGuards, Req } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiOkResponse, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { AdminJobsService } from './admin-jobs.service';
 import { AdminJobFiltersDto, AdminJobListResponseDto } from './dto/admin-job-list.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @ApiTags('admin')
 @Controller('admin/jobs')
@@ -15,20 +16,21 @@ export class AdminJobsController {
   }
 
   @Get()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ 
-    summary: 'Get job listings for admin panel with statistics',
-    description: 'Returns paginated job listings with application statistics, shortlisted counts, and interview counts. Supports filtering by search term, country, and agency. Supports sorting by published date, applications, shortlisted, or interviews.'
+    summary: 'Get job listings for admin panel with statistics (Agency-scoped)',
+    description: 'Returns paginated job listings filtered by the authenticated user\'s agency. Includes application statistics, shortlisted counts, and interview counts. Supports filtering by search term, country. Supports sorting by published date, applications, shortlisted, or interviews.'
   })
   @ApiQuery({ name: 'search', required: false, description: 'Search across job title, company, ID' })
   @ApiQuery({ name: 'country', required: false, description: 'Filter by country' })
-  @ApiQuery({ name: 'agency_id', required: false, description: 'Filter by agency ID' })
   @ApiQuery({ name: 'sort_by', required: false, enum: ['published_date', 'applications', 'shortlisted', 'interviews'], description: 'Sort by field' })
   @ApiQuery({ name: 'order', required: false, enum: ['asc', 'desc'], description: 'Sort order' })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page' })
   @ApiOkResponse({ 
     status: 200, 
-    description: 'Job listings with statistics',
+    description: 'Job listings with statistics (filtered by user\'s agency)',
     type: AdminJobListResponseDto,
     schema: {
       example: {
@@ -76,9 +78,32 @@ export class AdminJobsController {
     }
   })
   async getAdminJobs(
+    @Req() req: any,
     @Query() filters: AdminJobFiltersDto
   ): Promise<AdminJobListResponseDto> {
     try {
+      // Extract agency ID from JWT (set by JwtStrategy)
+      const agencyId = req.user?.agency_id;
+      
+      if (!agencyId) {
+        console.warn('[AdminJobsController] No agency_id in JWT, user might not be an agency owner/member');
+        // Return empty result if user has no agency
+        return {
+          data: [],
+          total: 0,
+          page: filters.page || 1,
+          limit: filters.limit || 10,
+          filters: {
+            search: filters.search,
+            country: filters.country,
+            agency_id: undefined,
+          },
+        };
+      }
+
+      // Filter by user's agency
+      filters.agency_id = agencyId;
+
       return await this.adminJobsService.getAdminJobList(filters);
     } catch (error) {
       console.error('[AdminJobsController] Error:', error);

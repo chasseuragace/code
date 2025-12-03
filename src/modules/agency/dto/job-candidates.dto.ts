@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsNumber, IsArray, IsEnum, Min, Max } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsArray, IsEnum, Min, Max, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class GetJobCandidatesQueryDto {
@@ -352,6 +352,84 @@ export class BulkScheduleInterviewDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({ description: 'User ID who is scheduling' })
+  @IsOptional()
+  @IsString()
+  updatedBy?: string;
+}
+
+// Single Batch for Multi-Batch Scheduling
+export class InterviewBatchDto {
+  @ApiProperty({ 
+    description: 'Array of candidate IDs for this batch',
+    example: ['candidate-uuid-1', 'candidate-uuid-2'],
+    type: [String]
+  })
+  @IsArray()
+  @IsString({ each: true })
+  candidate_ids: string[];
+
+  @ApiProperty({ description: 'Interview date in AD format', example: '2025-12-01' })
+  @IsString()
+  interview_date_ad: string;
+
+  @ApiPropertyOptional({ description: 'Interview date in BS format', example: '2082-08-15' })
+  @IsOptional()
+  @IsString()
+  interview_date_bs?: string;
+
+  @ApiProperty({ description: 'Interview time', example: '10:00 AM' })
+  @IsString()
+  interview_time: string;
+
+  @ApiPropertyOptional({ 
+    description: 'Interview duration in minutes', 
+    example: 60,
+    default: 60,
+    minimum: 15,
+    maximum: 480
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(15)
+  @Max(480)
+  duration_minutes?: number;
+
+  @ApiProperty({ description: 'Interview location', example: 'Office' })
+  @IsString()
+  location: string;
+
+  @ApiProperty({ description: 'Contact person name', example: 'HR Manager' })
+  @IsString()
+  contact_person: string;
+
+  @ApiPropertyOptional({ 
+    description: 'Required documents', 
+    example: ['passport', 'cv'],
+    type: [String]
+  })
+  @IsOptional()
+  @IsArray()
+  required_documents?: string[];
+
+  @ApiPropertyOptional({ description: 'Additional notes' })
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
+
+// Multi-Batch Scheduling DTO
+export class MultiBatchScheduleDto {
+  @ApiProperty({ 
+    description: 'Array of interview batches to schedule',
+    type: [InterviewBatchDto]
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => InterviewBatchDto)
+  batches: InterviewBatchDto[];
 
   @ApiPropertyOptional({ description: 'User ID who is scheduling' })
   @IsOptional()

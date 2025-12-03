@@ -35,8 +35,7 @@ export class AdminJobsService {
       .leftJoinAndSelect('job.contracts', 'contract')
       .leftJoinAndSelect('contract.employer', 'employer')
       .leftJoinAndSelect('contract.agency', 'agency')
-      .leftJoinAndSelect('contract.positions', 'position')
-      .where('job.is_active = :active', { active: true });
+      .leftJoinAndSelect('contract.positions', 'position');
 
     // Apply search filter
     if (filters.search && filters.search.trim()) {

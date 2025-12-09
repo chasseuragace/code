@@ -2,6 +2,7 @@ import {
   Controller, 
   Get, 
   Post, 
+  Delete,
   Param, 
   Query, 
   Body, 
@@ -9,16 +10,26 @@ import {
   ParseUUIDPipe, 
   ForbiddenException,
   NotFoundException,
-  BadRequestException
+  BadRequestException,
+  UseInterceptors,
+  UploadedFile,
+  Req
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiParam, ApiQuery, ApiOkResponse, ApiBody, ApiBadRequestResponse } from '@nestjs/swagger';
+import { Request } from 'express';
+import { ApiTags, ApiOperation, ApiParam, ApiQuery, ApiOkResponse, ApiBody, ApiBadRequestResponse, ApiConsumes, ApiCreatedResponse } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 import { JobPostingService } from '../domain/domain.service';
 import { InterviewHelperService } from '../domain/interview-helper.service';
 import { ApplicationService } from '../application/application.service';
 import { CandidateService } from '../candidate/candidate.service';
+import { DocumentTypeService } from '../candidate/document-type.service';
+import { ImageUploadService, UploadType } from '../shared/image-upload.service';
+import { FitnessScoreService } from '../shared/fitness-score.service';
+import { AuditService } from '../audit/audit.service';
+import { AuditActions, AuditCategories } from '../audit/audit.entity';
 import { JobApplication } from '../application/job-application.entity';
 import { Candidate } from '../candidate/candidate.entity';
 import { CandidateJobProfile } from '../candidate/candidate-job-profile.entity';
@@ -37,6 +48,8 @@ import {
   InterviewStatsDto
 } from './dto/job-candidates.dto';
 import { CandidateFullDetailsDto } from './dto/candidate-full-details.dto';
+import { CandidateDocumentResponseDto, UploadResponseDto } from '../candidate/dto/candidate-document.dto';
+import { DocumentsWithSlotsResponseDto } from '../candidate/dto/document-type.dto';
 
 @ApiTags('Agency Job Candidates')
 @Controller('agencies/:license/jobs')
@@ -46,6 +59,10 @@ export class JobCandidatesController {
     private readonly interviewHelperService: InterviewHelperService,
     private readonly applicationService: ApplicationService,
     private readonly candidateService: CandidateService,
+    private readonly documentTypeService: DocumentTypeService,
+    private readonly imageUploadService: ImageUploadService,
+    private readonly fitnessScoreService: FitnessScoreService,
+    private readonly auditService: AuditService,
     @InjectRepository(JobApplication)
     private readonly jobAppRepo: Repository<JobApplication>,
     @InjectRepository(Candidate)
@@ -455,56 +472,11 @@ export class JobCandidatesController {
         }
       }
 
-      // Extract education from profile blob
-      const candidateEducation = Array.isArray(profileBlob.education)
-        ? profileBlob.education
-            .map((e: any) => (typeof e === 'string' ? e : (e?.degree ?? e?.title ?? e?.name)))
-            .filter((v: any) => typeof v === 'string' && v.trim().length > 0)
-        : [];
-      const candidateEducationLower = candidateEducation.map((e: string) => e.toLowerCase());
-
-      // Calculate priority score
-      let parts = 0;
-      let sumPct = 0;
-
-      // Skills overlap
-      if (jobSkills.length > 0) {
-        const jobSkillsLower = jobSkills.map(s => s.toLowerCase());
-        const intersection = candidateSkillsLower.filter(s => jobSkillsLower.includes(s));
-        const pct = intersection.length / jobSkills.length;
-        parts++;
-        sumPct += pct;
-      }
-
-      // Education overlap
-      if (jobEducation.length > 0) {
-        const jobEducationLower = jobEducation.map(e => e.toLowerCase());
-        const intersection = candidateEducationLower.filter(e => jobEducationLower.includes(e));
-        const pct = intersection.length / jobEducation.length;
-        parts++;
-        sumPct += pct;
-      }
-
-      // Experience requirements (if specified)
-      const expReq = job.experience_requirements as any;
-      if (expReq && (typeof expReq.min_years === 'number' || typeof expReq.max_years === 'number')) {
-        // Extract years from profile blob
-        const years = Array.isArray(profileBlob.skills)
-          ? profileBlob.skills.reduce((acc: number, s: any) => {
-              if (typeof s?.duration_months === 'number') return acc + s.duration_months / 12;
-              if (typeof s?.years === 'number') return acc + s.years;
-              return acc;
-            }, 0)
-          : 0;
-        
-        const minOk = typeof expReq.min_years === 'number' ? years >= expReq.min_years : true;
-        const maxOk = typeof expReq.max_years === 'number' ? years <= expReq.max_years : true;
-        const pct = minOk && maxOk ? 1 : 0;
-        parts++;
-        sumPct += pct;
-      }
-
-      const priority_score = parts > 0 ? Math.round((sumPct / parts) * 100) : 0;
+      // Calculate priority score using unified FitnessScoreService
+      const candidateProfile = this.fitnessScoreService.extractCandidateProfile(profileBlob);
+      const jobRequirements = this.fitnessScoreService.extractJobRequirements(job);
+      const fitnessResult = this.fitnessScoreService.calculateScore(candidateProfile, jobRequirements);
+      const priority_score = fitnessResult.score;
 
       return {
         application: app,
@@ -569,6 +541,7 @@ export class JobCandidatesController {
         skills: candidateSkills,
         applied_at: application.created_at.toISOString(),
         application_id: application.id,
+        status: application.status,
         documents: (application as any).documents || [],
         interview: interview ? {
           id: interview.id,
@@ -1338,5 +1311,429 @@ export class JobCandidatesController {
       // Keep 24-hour format
       return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
     }
+  }
+
+  // ============================================
+  // CANDIDATE DOCUMENT MANAGEMENT (Agency-side)
+  // ============================================
+
+  /**
+   * Get candidate documents with slots
+   * GET /agencies/:license/jobs/:jobId/candidates/:candidateId/documents
+   */
+  @Get(':jobId/candidates/:candidateId/documents')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Get candidate documents with upload slots',
+    description: 'Returns all document types with upload status for a candidate. Agency can view documents for candidates who applied to their jobs.'
+  })
+  @ApiParam({ name: 'license', description: 'Agency license number', example: 'LIC-AG-0001' })
+  @ApiParam({ name: 'jobId', description: 'Job posting ID (UUID)', example: 'job-uuid' })
+  @ApiParam({ name: 'candidateId', description: 'Candidate ID (UUID)', example: 'candidate-uuid' })
+  @ApiOkResponse({ 
+    description: 'Document slots with upload status',
+    type: DocumentsWithSlotsResponseDto 
+  })
+  async getCandidateDocuments(
+    @Param('license') license: string,
+    @Param('jobId', ParseUUIDPipe) jobId: string,
+    @Param('candidateId', ParseUUIDPipe) candidateId: string,
+  ): Promise<DocumentsWithSlotsResponseDto> {
+    // Verify agency owns this job
+    const job = await this.jobPostingService.findJobPostingById(jobId);
+    const belongs = job.contracts?.some(c => c.agency?.license_number === license);
+    if (!belongs) {
+      throw new ForbiddenException('Cannot access job posting of another agency');
+    }
+
+    // Verify candidate has applied to this job
+    const application = await this.jobAppRepo.findOne({
+      where: { candidate_id: candidateId, job_posting_id: jobId },
+    });
+    if (!application) {
+      throw new NotFoundException('Candidate has not applied to this job');
+    }
+
+    return await this.candidateService.getDocumentsWithSlots(candidateId);
+  }
+
+  /**
+   * Upload document for candidate (agency-side)
+   * POST /agencies/:license/jobs/:jobId/candidates/:candidateId/documents
+   */
+  @Post(':jobId/candidates/:candidateId/documents')
+  @HttpCode(201)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({
+    summary: 'Upload document for candidate on behalf of agency',
+    description: 'Agency can upload documents for candidates who have applied to their jobs. Useful for collecting documents during interview process.'
+  })
+  @ApiParam({ name: 'license', description: 'Agency license number', example: 'LIC-AG-0001' })
+  @ApiParam({ name: 'jobId', description: 'Job posting ID (UUID)', example: 'job-uuid' })
+  @ApiParam({ name: 'candidateId', description: 'Candidate ID (UUID)', example: 'candidate-uuid' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file', 'document_type_id', 'name'],
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Document file (PDF, JPEG, PNG)',
+        },
+        document_type_id: {
+          type: 'string',
+          format: 'uuid',
+          description: 'Document type ID',
+        },
+        name: {
+          type: 'string',
+          description: 'Document name',
+        },
+        description: {
+          type: 'string',
+          description: 'Document description',
+        },
+        notes: {
+          type: 'string',
+          description: 'Additional notes (e.g., "Uploaded by agency during interview")',
+        },
+      },
+    },
+  })
+  @ApiCreatedResponse({ description: 'Document uploaded successfully', type: CandidateDocumentResponseDto })
+  @ApiBadRequestResponse({ description: 'Invalid document type or missing required fields' })
+  async uploadCandidateDocument(
+    @Param('license') license: string,
+    @Param('jobId', ParseUUIDPipe) jobId: string,
+    @Param('candidateId', ParseUUIDPipe) candidateId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body() body: { document_type_id: string; name: string; description?: string; notes?: string },
+    @Req() req: Request,
+  ): Promise<CandidateDocumentResponseDto> {
+    // Verify agency owns this job
+    const job = await this.jobPostingService.findJobPostingById(jobId);
+    const belongs = job.contracts?.some(c => c.agency?.license_number === license);
+    if (!belongs) {
+      throw new ForbiddenException('Cannot access job posting of another agency');
+    }
+
+    // Verify candidate has applied to this job
+    const application = await this.jobAppRepo.findOne({
+      where: { candidate_id: candidateId, job_posting_id: jobId },
+    });
+    if (!application) {
+      throw new NotFoundException('Candidate has not applied to this job');
+    }
+
+    // Verify candidate exists
+    const candidate = await this.candidateService.findById(candidateId);
+    if (!candidate) {
+      throw new NotFoundException('Candidate not found');
+    }
+
+    // Validate document_type_id
+    if (!body.document_type_id) {
+      throw new BadRequestException('document_type_id is required');
+    }
+
+    // Check if document already exists for this type - agency cannot replace existing documents
+    const existingDocs = await this.candidateService.getDocumentsWithSlots(candidateId);
+    const existingDoc = existingDocs.data?.find(
+      slot => slot.document_type?.id === body.document_type_id && slot.document !== null
+    );
+    if (existingDoc) {
+      throw new BadRequestException(
+        'A document already exists for this type. Agency cannot replace existing candidate documents.'
+      );
+    }
+
+    // Add agency context to notes
+    const agencyNote = body.notes 
+      ? `${body.notes} [Uploaded by agency: ${license}]`
+      : `[Uploaded by agency: ${license}]`;
+
+    // Create document record
+    const document = await this.candidateService.createDocument(candidateId, {
+      document_type_id: body.document_type_id,
+      name: body.name,
+      description: body.description,
+      notes: agencyNote,
+      document_url: '',
+      file_type: file.mimetype,
+      file_size: file.size,
+    });
+
+    // Upload the file
+    const result = await this.imageUploadService.uploadFile(
+      file,
+      UploadType.CANDIDATE_DOCUMENT,
+      candidateId,
+      document.id
+    );
+
+    if (result.success && result.url) {
+      await this.candidateService.updateDocumentUrl(document.id, result.url);
+      document.document_url = result.url;
+
+      // Audit log: document uploaded by agency (use auditContext from middleware if available)
+      const auditContext = (req as any).auditContext || {};
+      await this.auditService.log(
+        {
+          method: 'POST',
+          path: `/agencies/${license}/jobs/${jobId}/candidates/${candidateId}/documents`,
+          correlationId: auditContext.correlationId,
+          originIp: auditContext.originIp,
+          userAgent: auditContext.userAgent,
+          userId: auditContext.userId,
+          userEmail: auditContext.userEmail,
+          userRole: auditContext.userRole,
+          agencyId: auditContext.agencyId || job.contracts?.[0]?.agency?.id,
+          clientId: auditContext.clientId,
+        },
+        {
+          action: AuditActions.UPLOAD_DOCUMENT,
+          category: AuditCategories.CANDIDATE,
+          resourceType: 'candidate_document',
+          resourceId: document.id,
+          metadata: {
+            candidate_id: candidateId,
+            job_id: jobId,
+            document_type_id: body.document_type_id,
+            document_name: body.name,
+            file_type: file.mimetype,
+            file_size: file.size,
+            uploaded_by_agency: license,
+          },
+        },
+        { outcome: 'success', statusCode: 201 },
+      );
+    } else {
+      await this.candidateService.deleteDocument(document.id);
+      throw new BadRequestException(result.error || 'Failed to upload document');
+    }
+
+    return document;
+  }
+
+  /**
+   * Delete candidate document (agency-side)
+   * DELETE /agencies/:license/jobs/:jobId/candidates/:candidateId/documents/:documentId
+   */
+  @Delete(':jobId/candidates/:candidateId/documents/:documentId')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Delete candidate document',
+    description: 'Agency can delete documents they uploaded for candidates.'
+  })
+  @ApiParam({ name: 'license', description: 'Agency license number', example: 'LIC-AG-0001' })
+  @ApiParam({ name: 'jobId', description: 'Job posting ID (UUID)', example: 'job-uuid' })
+  @ApiParam({ name: 'candidateId', description: 'Candidate ID (UUID)', example: 'candidate-uuid' })
+  @ApiParam({ name: 'documentId', description: 'Document ID (UUID)', example: 'document-uuid' })
+  @ApiOkResponse({ description: 'Document deleted successfully', type: UploadResponseDto })
+  async deleteCandidateDocument(
+    @Param('license') license: string,
+    @Param('jobId', ParseUUIDPipe) jobId: string,
+    @Param('candidateId', ParseUUIDPipe) candidateId: string,
+    @Param('documentId', ParseUUIDPipe) documentId: string,
+    @Req() req: Request,
+  ): Promise<UploadResponseDto> {
+    // Verify agency owns this job
+    const job = await this.jobPostingService.findJobPostingById(jobId);
+    const belongs = job.contracts?.some(c => c.agency?.license_number === license);
+    if (!belongs) {
+      throw new ForbiddenException('Cannot access job posting of another agency');
+    }
+
+    // Verify candidate has applied to this job
+    const application = await this.jobAppRepo.findOne({
+      where: { candidate_id: candidateId, job_posting_id: jobId },
+    });
+    if (!application) {
+      throw new NotFoundException('Candidate has not applied to this job');
+    }
+
+    // Get document
+    const document = await this.candidateService.findDocumentById(documentId);
+    if (!document || document.candidate_id !== candidateId) {
+      throw new NotFoundException('Document not found');
+    }
+
+    // Capture document info before deletion for audit
+    const documentInfo = {
+      id: document.id,
+      name: document.name,
+      document_type_id: document.document_type_id,
+      file_type: document.file_type,
+    };
+
+    // Extract filename from URL and delete file
+    const fileName = document.document_url.split('/').pop();
+    await this.imageUploadService.deleteFile(
+      UploadType.CANDIDATE_DOCUMENT,
+      candidateId,
+      fileName
+    );
+
+    // Delete document record
+    await this.candidateService.deleteDocument(documentId);
+
+    // Audit log: document deleted by agency
+    const auditContext = (req as any).auditContext || {};
+    await this.auditService.log(
+      {
+        method: 'DELETE',
+        path: `/agencies/${license}/jobs/${jobId}/candidates/${candidateId}/documents/${documentId}`,
+        correlationId: auditContext.correlationId,
+        originIp: auditContext.originIp,
+        userAgent: auditContext.userAgent,
+        userId: auditContext.userId,
+        userEmail: auditContext.userEmail,
+        userRole: auditContext.userRole,
+        agencyId: auditContext.agencyId || job.contracts?.[0]?.agency?.id,
+        clientId: auditContext.clientId,
+      },
+      {
+        action: AuditActions.DELETE_DOCUMENT,
+        category: AuditCategories.CANDIDATE,
+        resourceType: 'candidate_document',
+        resourceId: documentId,
+        metadata: {
+          candidate_id: candidateId,
+          job_id: jobId,
+          document_name: documentInfo.name,
+          document_type_id: documentInfo.document_type_id,
+          deleted_by_agency: license,
+        },
+      },
+      { outcome: 'success', statusCode: 200 },
+    );
+
+    return {
+      success: true,
+      message: 'Document deleted successfully'
+    };
+  }
+
+  /**
+   * Update document verification status (agency-side)
+   * PATCH /agencies/:license/jobs/:jobId/candidates/:candidateId/documents/:documentId/verify
+   */
+  @Post(':jobId/candidates/:candidateId/documents/:documentId/verify')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Update document verification status',
+    description: 'Agency can approve or reject candidate documents.'
+  })
+  @ApiParam({ name: 'license', description: 'Agency license number', example: 'LIC-AG-0001' })
+  @ApiParam({ name: 'jobId', description: 'Job posting ID (UUID)', example: 'job-uuid' })
+  @ApiParam({ name: 'candidateId', description: 'Candidate ID (UUID)', example: 'candidate-uuid' })
+  @ApiParam({ name: 'documentId', description: 'Document ID (UUID)', example: 'document-uuid' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['status'],
+      properties: {
+        status: {
+          type: 'string',
+          enum: ['approved', 'rejected'],
+          description: 'New verification status',
+        },
+        rejection_reason: {
+          type: 'string',
+          description: 'Reason for rejection (required if status is rejected)',
+        },
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Document verification status updated', type: UploadResponseDto })
+  @ApiBadRequestResponse({ description: 'Invalid status or missing rejection reason' })
+  async verifyDocument(
+    @Param('license') license: string,
+    @Param('jobId', ParseUUIDPipe) jobId: string,
+    @Param('candidateId', ParseUUIDPipe) candidateId: string,
+    @Param('documentId', ParseUUIDPipe) documentId: string,
+    @Body() body: { status: 'approved' | 'rejected'; rejection_reason?: string },
+    @Req() req: Request,
+  ): Promise<UploadResponseDto> {
+    // Verify agency owns this job
+    const job = await this.jobPostingService.findJobPostingById(jobId);
+    const belongs = job.contracts?.some(c => c.agency?.license_number === license);
+    if (!belongs) {
+      throw new ForbiddenException('Cannot access job posting of another agency');
+    }
+
+    // Verify candidate has applied to this job
+    const application = await this.jobAppRepo.findOne({
+      where: { candidate_id: candidateId, job_posting_id: jobId },
+    });
+    if (!application) {
+      throw new NotFoundException('Candidate has not applied to this job');
+    }
+
+    // Validate status
+    if (!['approved', 'rejected'].includes(body.status)) {
+      throw new BadRequestException('Status must be "approved" or "rejected"');
+    }
+
+    // Require rejection reason if rejecting
+    if (body.status === 'rejected' && !body.rejection_reason) {
+      throw new BadRequestException('Rejection reason is required when rejecting a document');
+    }
+
+    // Get document
+    const document = await this.candidateService.findDocumentById(documentId);
+    if (!document || document.candidate_id !== candidateId) {
+      throw new NotFoundException('Document not found');
+    }
+
+    const previousStatus = document.verification_status;
+
+    // Update verification status
+    await this.candidateService.updateDocumentVerification(documentId, {
+      status: body.status,
+      rejection_reason: body.rejection_reason,
+    });
+
+    // Audit log: document verification status changed
+    const auditContext = (req as any).auditContext || {};
+    await this.auditService.log(
+      {
+        method: 'POST',
+        path: `/agencies/${license}/jobs/${jobId}/candidates/${candidateId}/documents/${documentId}/verify`,
+        correlationId: auditContext.correlationId,
+        originIp: auditContext.originIp,
+        userAgent: auditContext.userAgent,
+        userId: auditContext.userId,
+        userEmail: auditContext.userEmail,
+        userRole: auditContext.userRole,
+        agencyId: auditContext.agencyId || job.contracts?.[0]?.agency?.id,
+        clientId: auditContext.clientId,
+      },
+      {
+        action: AuditActions.VERIFY_DOCUMENT,
+        category: AuditCategories.CANDIDATE,
+        resourceType: 'candidate_document',
+        resourceId: documentId,
+        stateChange: {
+          verification_status: [previousStatus, body.status],
+        },
+        metadata: {
+          candidate_id: candidateId,
+          job_id: jobId,
+          document_name: document.name,
+          new_status: body.status,
+          rejection_reason: body.rejection_reason || null,
+          verified_by_agency: license,
+        },
+      },
+      { outcome: 'success', statusCode: 200 },
+    );
+
+    return {
+      success: true,
+      message: `Document ${body.status} successfully`
+    };
   }
 }

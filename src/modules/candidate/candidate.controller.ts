@@ -33,9 +33,10 @@ import { FileInterceptor } from '@nestjs/platform-express';
 
 import { CandidateService } from './candidate.service';
 import { ImageUploadService, UploadType } from '../shared/image-upload.service';
-import { JobPostingService, InterviewService } from '../domain/domain.service';
+import { JobPostingService, InterviewService, ExpenseService } from '../domain/domain.service';
 import { CurrencyConversionService } from '../currency/currency-conversion.service';
 import { ApplicationService } from '../application/application.service';
+import { FitnessScoreService } from '../shared/fitness-score.service';
 
 import { PaginatedJobsResponseDto } from './dto/candidate-job-card.dto';
 import { CandidateProfileDto } from './dto/candidate-profile.dto';
@@ -92,6 +93,8 @@ export class CandidateController {
     private readonly interviewService: InterviewService,
     private readonly applicationService: ApplicationService,
     private readonly imageUploadService: ImageUploadService,
+    private readonly fitnessScoreService: FitnessScoreService,
+    private readonly expenseService: ExpenseService,
   ) {}
 
   // Get candidate profile
@@ -123,63 +126,18 @@ export class CandidateController {
     // Base mobile projection with salary conversions preference NPR > USD > first
     const mobile = await this.jobPostingService.jobbyidmobile(jobId);
 
-    // Compute match percentage similar to getJobDetailsWithFitness
+    // Compute match percentage using unified FitnessScoreService
     const jp = await this.jobPostingService.findJobPostingById(jobId);
     const jobProfiles = await this.candidates.listJobProfiles(id);
     const mostRecentJobProfile = jobProfiles[0]; // ordered by updated_at DESC
     const profileBlob = (mostRecentJobProfile?.profile_blob as any) || {};
 
-    const skills = Array.isArray(profileBlob.skills)
-      ? profileBlob.skills
-          .map((s: any) => (typeof s === 'string' ? s : s?.title))
-          .filter((v: any) => typeof v === 'string' && v.trim().length > 0)
-      : [];
-    const skillsLower = skills.map((s: string) => s.toLowerCase());
-
-    const education = Array.isArray(profileBlob.education)
-      ? profileBlob.education
-          .map((e: any) => (typeof e === 'string' ? e : (e?.degree ?? e?.title ?? e?.name)))
-          .filter((v: any) => typeof v === 'string' && v.trim().length > 0)
-      : [];
-    const educationLower = education.map((e: string) => e.toLowerCase());
-
-    let parts = 0;
-    let sumPct = 0;
-    const js: string[] = Array.isArray(jp.skills) ? jp.skills : [];
-    if (js.length) {
-      const jsLower = js.map((x) => String(x).toLowerCase());
-      const inter = skillsLower.filter((s: string) => jsLower.includes(s));
-      const pct = js.length ? inter.length / js.length : 0;
-      parts++;
-      sumPct += pct;
-    }
-    const je: string[] = Array.isArray(jp.education_requirements) ? jp.education_requirements : [];
-    if (je.length) {
-      const jeLower = je.map((x) => String(x).toLowerCase());
-      const inter = educationLower.filter((e: string) => jeLower.includes(e));
-      const pct = je.length ? inter.length / je.length : 0;
-      parts++;
-      sumPct += pct;
-    }
-    const xr = jp.experience_requirements as { min_years?: number; max_years?: number } | undefined;
-    if (xr && (typeof xr.min_years === 'number' || typeof xr.max_years === 'number')) {
-      // Derive years from candidate skills info
-      const years = Array.isArray(profileBlob.skills)
-        ? profileBlob.skills.reduce((acc: number, s: any) => {
-            if (typeof s?.duration_months === 'number') return acc + s.duration_months / 12;
-            if (typeof s?.years === 'number') return acc + s.years;
-            return acc;
-          }, 0)
-        : 0;
-      const minOk = typeof xr.min_years === 'number' ? years >= xr.min_years : true;
-      const maxOk = typeof xr.max_years === 'number' ? years <= xr.max_years : true;
-      const pct = minOk && maxOk ? 1 : 0;
-      parts++;
-      sumPct += pct;
-    }
-    const fitness_score = parts > 0 ? Math.round((sumPct / parts) * 100) : undefined;
-    if (fitness_score != null) {
-      mobile.matchPercentage = String(fitness_score);
+    const candidateProfile = this.fitnessScoreService.extractCandidateProfile(profileBlob);
+    const jobRequirements = this.fitnessScoreService.extractJobRequirements(jp);
+    const fitnessResult = this.fitnessScoreService.calculateScore(candidateProfile, jobRequirements);
+    
+    if (fitnessResult.score > 0) {
+      mobile.matchPercentage = String(fitnessResult.score);
     }
 
     // Add hasApplied flag to positions
@@ -192,6 +150,65 @@ export class CandidateController {
         hasApplied: appliedPositionIds.has(pos.id)
       }));
     }
+
+    // Get total applications count for this job posting
+    const applicationsCount = await this.applicationService.countApplicationsByJobPosting(jobId);
+    mobile.applications = applicationsCount;
+
+    // Fetch and include expenses
+    const expensesData = await this.expenseService.getJobPostingExpenses(jobId);
+    mobile.expenses = {
+      medical: expensesData.medical ? {
+        domestic_who_pays: expensesData.medical.domestic_who_pays,
+        domestic_is_free: expensesData.medical.domestic_is_free,
+        domestic_amount: expensesData.medical.domestic_amount ? Number(expensesData.medical.domestic_amount) : undefined,
+        domestic_currency: expensesData.medical.domestic_currency,
+        foreign_who_pays: expensesData.medical.foreign_who_pays,
+        foreign_is_free: expensesData.medical.foreign_is_free,
+        foreign_amount: expensesData.medical.foreign_amount ? Number(expensesData.medical.foreign_amount) : undefined,
+        foreign_currency: expensesData.medical.foreign_currency,
+      } : null,
+      insurance: expensesData.insurance ? {
+        who_pays: expensesData.insurance.who_pays,
+        is_free: expensesData.insurance.is_free,
+        amount: expensesData.insurance.amount ? Number(expensesData.insurance.amount) : undefined,
+        currency: expensesData.insurance.currency,
+        coverage_amount: expensesData.insurance.coverage_amount ? Number(expensesData.insurance.coverage_amount) : undefined,
+        coverage_currency: expensesData.insurance.coverage_currency,
+      } : null,
+      travel: expensesData.travel ? {
+        who_provides: expensesData.travel.who_provides,
+        ticket_type: expensesData.travel.ticket_type,
+        is_free: expensesData.travel.is_free,
+        amount: expensesData.travel.amount ? Number(expensesData.travel.amount) : undefined,
+        currency: expensesData.travel.currency,
+      } : null,
+      visa_permit: expensesData.visa ? {
+        who_pays: expensesData.visa.who_pays,
+        is_free: expensesData.visa.is_free,
+        amount: expensesData.visa.amount ? Number(expensesData.visa.amount) : undefined,
+        currency: expensesData.visa.currency,
+        refundable: expensesData.visa.refundable,
+      } : null,
+      training: expensesData.training ? {
+        who_pays: expensesData.training.who_pays,
+        is_free: expensesData.training.is_free,
+        amount: expensesData.training.amount ? Number(expensesData.training.amount) : undefined,
+        currency: expensesData.training.currency,
+        duration_days: expensesData.training.duration_days,
+        mandatory: expensesData.training.mandatory,
+      } : null,
+      welfare_service: expensesData.welfare ? {
+        welfare_who_pays: expensesData.welfare.welfare_who_pays,
+        welfare_is_free: expensesData.welfare.welfare_is_free,
+        welfare_amount: expensesData.welfare.welfare_amount ? Number(expensesData.welfare.welfare_amount) : undefined,
+        welfare_currency: expensesData.welfare.welfare_currency,
+        service_who_pays: expensesData.welfare.service_who_pays,
+        service_is_free: expensesData.welfare.service_is_free,
+        service_amount: expensesData.welfare.service_amount ? Number(expensesData.welfare.service_amount) : undefined,
+        service_currency: expensesData.welfare.service_currency,
+      } : null,
+    };
 
     return mobile as MobileJobPostingDto;
   }
@@ -242,70 +259,16 @@ export class CandidateController {
     const profileBlob = (mostRecentJobProfile?.profile_blob as any) || {};
 
     // Load the actual job posting by ID
-    const job = await this.jobs.findJobPostingById(jobId);
+    const job = await this.jobPostingService.findJobPostingById(jobId);
 
-    // Extract candidate-side attributes
-    const skills = Array.isArray(profileBlob.skills)
-      ? profileBlob.skills
-          .map((s: any) => (typeof s === 'string' ? s : s?.title))
-          .filter((v: any) => typeof v === 'string' && v.trim().length > 0)
-      : [];
-    const skillsLower = skills.map((s: string) => s.toLowerCase());
+    // Compute fitness using unified FitnessScoreService
+    const candidateProfile = this.fitnessScoreService.extractCandidateProfile(profileBlob);
+    const jobRequirements = this.fitnessScoreService.extractJobRequirements(job);
+    const fitnessResult = this.fitnessScoreService.calculateScore(candidateProfile, jobRequirements);
+    const fitness_score = fitnessResult.score > 0 ? fitnessResult.score : undefined;
 
-    const education = Array.isArray(profileBlob.education)
-      ? profileBlob.education
-          .map((e: any) => (typeof e === 'string' ? e : (e?.degree ?? e?.title ?? e?.name)))
-          .filter((v: any) => typeof v === 'string' && v.trim().length > 0)
-      : [];
-    const educationLower = education.map((e: string) => e.toLowerCase());
-
-    // Candidate years derived from skills
-    const years = Array.isArray(profileBlob.skills)
-      ? profileBlob.skills.reduce((acc: number, s: any) => {
-          if (typeof s?.duration_months === 'number') return acc + s.duration_months / 12;
-          if (typeof s?.years === 'number') return acc + s.years;
-          return acc;
-        }, 0)
-      : 0;
-
-    // Compute fitness against the real job's requirements
-    let parts = 0;
-    let sumPct = 0;
-
-    // Job skills overlap
-    const js: string[] = Array.isArray(job.skills) ? job.skills : [];
-    if (js.length) {
-      const jsLower = js.map((x) => String(x).toLowerCase());
-      const inter = skillsLower.filter((s: string) => jsLower.includes(s));
-      const pct = js.length ? inter.length / js.length : 0;
-      parts++;
-      sumPct += pct;
-    }
-
-    // Job education overlap
-    const je: string[] = Array.isArray(job.education_requirements) ? job.education_requirements : [];
-    if (je.length) {
-      const jeLower = je.map((x) => String(x).toLowerCase());
-      const inter = educationLower.filter((e: string) => jeLower.includes(e));
-      const pct = je.length ? inter.length / je.length : 0;
-      parts++;
-      sumPct += pct;
-    }
-
-    // Job experience boundary
-    const xr = job.experience_requirements as { min_years?: number; max_years?: number } | undefined;
-    if (xr && (typeof xr.min_years === 'number' || typeof xr.max_years === 'number')) {
-      const minOk = typeof xr.min_years === 'number' ? years >= xr.min_years : true;
-      const maxOk = typeof xr.max_years === 'number' ? years <= xr.max_years : true;
-      const pct = minOk && maxOk ? 1 : 0;
-      parts++;
-      sumPct += pct;
-    }
-    const fitness_score = parts > 0 ? Math.round((sumPct / parts) * 100) : undefined;
-
-    // Aggregate expenses and interview
-    const ex = await this.expenses.getJobPostingExpenses(jobId);
-    const interview = await this.interviews.findInterviewByJobPosting(jobId);
+    // Aggregate interview
+    const interview = await this.interviewService.findInterviewByJobPosting(jobId);
 
     // Build response from the real job entity
     const contract = Array.isArray(job.contracts) ? job.contracts[0] : undefined;
@@ -384,12 +347,12 @@ export class CandidateController {
       experience_requirements: (job.experience_requirements as any) ?? null,
       canonical_titles: (job.canonical_titles || []).map((t: any) => t.title),
       expenses: {
-        medical: ex.medical ? [ex.medical] : [],
-        insurance: ex.insurance ? [ex.insurance] : [],
-        travel: ex.travel ? [ex.travel] : [],
-        visa_permit: ex.visa ? [ex.visa] : [],
-        training: ex.training ? [ex.training] : [],
-        welfare_service: ex.welfare ? [ex.welfare] : [],
+        medical: [],
+        insurance: [],
+        travel: [],
+        visa_permit: [],
+        training: [],
+        welfare_service: [],
       },
       interview: interview ?? null,
       cutout_url: job.cutout_url ?? null,
@@ -882,7 +845,7 @@ export class CandidateController {
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '10',
   ): Promise<PaginatedInterviewsDto> {
-    const res = await this.interviews.listByCandidate({ 
+    const res = await this.interviewService.listByCandidate({ 
       candidateId: id, 
       only_upcoming: onlyUpcoming === 'true', 
       order,

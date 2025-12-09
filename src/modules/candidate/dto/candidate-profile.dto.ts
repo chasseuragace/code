@@ -45,8 +45,8 @@ export class CandidateProfileDto {
     email?: string | null;
   @ApiPropertyOptional({ required: false, nullable: true, enum: ['Male', 'Female'], description: 'Gender of the candidate' })
     gender?: string | null;
-  @ApiPropertyOptional({ required: false, nullable: true, type: Number, description: 'Age of the candidate' })
-    age?: number | null;
+  @ApiPropertyOptional({ required: false, nullable: true, type: String, format: 'date', description: 'Date of birth of the candidate (YYYY-MM-DD)' })
+    date_of_birth?: string | null;
   @ApiProperty({ description: 'Is active', example: true })
     is_active!: boolean;
   @ApiProperty({ description: 'Created at', example: new Date('2024-01-01') })

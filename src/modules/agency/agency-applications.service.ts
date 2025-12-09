@@ -6,6 +6,7 @@ import { JobPosting, JobPosition, JobContract } from '../domain/domain.entity';
 import { PostingAgency } from '../domain/PostingAgency';
 import { Candidate } from '../candidate/candidate.entity';
 import { CandidateJobProfile } from '../candidate/candidate-job-profile.entity';
+import { FitnessScoreService } from '../shared/fitness-score.service';
 
 export interface GetAgencyApplicationsOptions {
   stage?: string;
@@ -93,6 +94,7 @@ export class AgencyApplicationsService {
     private readonly positionRepo: Repository<JobPosition>,
     @InjectRepository(JobContract)
     private readonly contractRepo: Repository<JobContract>,
+    private readonly fitnessScoreService: FitnessScoreService,
   ) {}
 
   /**
@@ -374,62 +376,10 @@ export class AgencyApplicationsService {
     profileBlob: any,
     candidateSkills: string[],
   ): number {
-    let parts = 0;
-    let sumPct = 0;
-
-    // Skills overlap
-    const jobSkills = jobPosting.skills || [];
-    if (jobSkills.length > 0 && candidateSkills.length > 0) {
-      const jobSkillsLower = jobSkills.map(s => s.toLowerCase());
-      const candidateSkillsLower = candidateSkills.map(s => s.toLowerCase());
-      const intersection = candidateSkillsLower.filter(s => 
-        jobSkillsLower.includes(s)
-      );
-      const pct = intersection.length / jobSkills.length;
-      parts++;
-      sumPct += pct;
-    }
-
-    // Education overlap
-    const jobEducation = jobPosting.education_requirements || [];
-    if (jobEducation.length > 0) {
-      const candidateEducation = Array.isArray(profileBlob.education)
-        ? profileBlob.education
-            .map((e: any) => (typeof e === 'string' ? e : (e?.degree ?? e?.title ?? e?.name)))
-            .filter((v: any) => typeof v === 'string' && v.trim().length > 0)
-        : [];
-      
-      if (candidateEducation.length > 0) {
-        const jobEducationLower = jobEducation.map(e => e.toLowerCase());
-        const candidateEducationLower = candidateEducation.map((e: string) => e.toLowerCase());
-        const intersection = candidateEducationLower.filter(e => 
-          jobEducationLower.includes(e)
-        );
-        const pct = intersection.length / jobEducation.length;
-        parts++;
-        sumPct += pct;
-      }
-    }
-
-    // Experience requirements
-    const expReq = jobPosting.experience_requirements as any;
-    if (expReq && (typeof expReq.min_years === 'number' || typeof expReq.max_years === 'number')) {
-      const years = Array.isArray(profileBlob.experience)
-        ? profileBlob.experience.reduce((acc: number, exp: any) => {
-            if (typeof exp?.duration_months === 'number') return acc + exp.duration_months / 12;
-            if (typeof exp?.years === 'number') return acc + exp.years;
-            return acc;
-          }, 0)
-        : 0;
-      
-      const minOk = typeof expReq.min_years === 'number' ? years >= expReq.min_years : true;
-      const maxOk = typeof expReq.max_years === 'number' ? years <= expReq.max_years : true;
-      const pct = minOk && maxOk ? 1 : 0;
-      parts++;
-      sumPct += pct;
-    }
-
-    return parts > 0 ? Math.round((sumPct / parts) * 100) : 0;
+    const candidateProfile = this.fitnessScoreService.extractCandidateProfile(profileBlob);
+    const jobRequirements = this.fitnessScoreService.extractJobRequirements(jobPosting);
+    const fitnessResult = this.fitnessScoreService.calculateScore(candidateProfile, jobRequirements);
+    return fitnessResult.score;
   }
 
   /**

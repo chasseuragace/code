@@ -50,6 +50,9 @@ export class JobPosting extends BaseEntity {
   @Column({ type: 'varchar', length: 1000, nullable: true })
   cutout_url?: string;
 
+  @Column({ type: 'integer', default: 0 })
+  view_count: number;
+
   @Column({ type: 'boolean', default: true })
   is_active: boolean;
 

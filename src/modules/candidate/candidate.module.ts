@@ -15,6 +15,7 @@ import { DomainModule } from '../domain/domain.module';
 import { AuthModule } from '../auth/auth.module';
 import { ApplicationModule } from '../application/application.module';
 import { ImageUploadModule } from '../shared/image-upload.module';
+import { FitnessScoreModule } from '../shared/fitness-score.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { ImageUploadModule } from '../shared/image-upload.module';
     forwardRef(() => DomainModule),
     forwardRef(() => ApplicationModule),
     ImageUploadModule,
+    FitnessScoreModule,
     forwardRef(() => AuthModule),
   ],
   providers: [CandidateService, DocumentTypeService],

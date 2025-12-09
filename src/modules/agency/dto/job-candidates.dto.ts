@@ -152,6 +152,13 @@ export class JobCandidateDto {
   @ApiProperty({ description: 'Application ID', example: 'application-uuid' })
   application_id: string;
 
+  @ApiProperty({ 
+    description: 'Application status/stage',
+    enum: ['applied', 'shortlisted', 'interview_scheduled', 'interview_rescheduled', 'interview_passed', 'interview_failed'],
+    example: 'interview_scheduled'
+  })
+  status: string;
+
   @ApiPropertyOptional({ description: 'Attached documents', type: [CandidateDocumentDto] })
   documents?: CandidateDocumentDto[];
 

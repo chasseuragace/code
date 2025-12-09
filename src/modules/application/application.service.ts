@@ -682,6 +682,11 @@ export class ApplicationService {
     };
   }
 
+  // Count total applications for a job posting
+  async countApplicationsByJobPosting(jobPostingId: string): Promise<number> {
+    return this.appRepo.count({ where: { job_posting_id: jobPostingId } });
+  }
+
   // Analytics for a candidate's applications
   async getAnalytics(candidateId: string): Promise<{
     total: number;

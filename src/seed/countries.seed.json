@@ -1,4 +1,5 @@
 [
+  { "country_code": "NPL", "country_name": "Nepal", "currency_code": "NPR", "currency_name": "Nepalese Rupee", "npr_multiplier": "1.00" },
   { "country_code": "UAE", "country_name": "United Arab Emirates", "currency_code": "AED", "currency_name": "UAE Dirham", "npr_multiplier": "36.00" },
   { "country_code": "QAT", "country_name": "Qatar", "currency_code": "QAR", "currency_name": "Qatari Riyal", "npr_multiplier": "36.50" },
   { "country_code": "KSA", "country_name": "Saudi Arabia", "currency_code": "SAR", "currency_name": "Saudi Riyal", "npr_multiplier": "35.00" },

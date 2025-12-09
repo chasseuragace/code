@@ -112,9 +112,11 @@ export class AdminJobsController {
   }
 
   @Get('statistics/countries')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ 
     summary: 'Get job distribution by country',
-    description: 'Returns the count of jobs per country. Can be filtered by agency ID to show only countries where a specific agency has jobs.'
+    description: 'Returns the count of active jobs per country. Defaults to the authenticated user\'s agency; can be overridden by providing agency_id explicitly.'
   })
   @ApiQuery({ name: 'agency_id', required: false, description: 'Filter by agency ID' })
   @ApiOkResponse({ 
@@ -131,8 +133,10 @@ export class AdminJobsController {
     }
   })
   async getCountryDistribution(
+    @Req() req: any,
     @Query('agency_id') agencyId?: string
   ): Promise<Record<string, number>> {
-    return await this.adminJobsService.getCountryDistribution(agencyId);
+    const effectiveAgencyId = agencyId || req.user?.agency_id;
+    return await this.adminJobsService.getCountryDistribution(effectiveAgencyId);
   }
 }

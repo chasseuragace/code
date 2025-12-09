@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { JobPosting } from '../domain/domain.entity';
+import { JobPosting, InterviewDetail } from '../domain/domain.entity';
 import { JobApplication } from '../application/job-application.entity';
 import { 
   AdminJobFiltersDto, 
@@ -187,7 +187,8 @@ export class AdminJobsService {
   async getApplicationStatistics(jobIds: string[]) {
     if (jobIds.length === 0) return [];
 
-    const stats = await this.applicationRepo
+    // Application-driven stats
+    const appStats = await this.applicationRepo
       .createQueryBuilder('app')
       .select('app.job_posting_id', 'job_id')
       .addSelect('COUNT(*)', 'applications_count')
@@ -195,19 +196,50 @@ export class AdminJobsService {
         "SUM(CASE WHEN app.status = 'shortlisted' THEN 1 ELSE 0 END)",
         'shortlisted_count'
       )
-      .addSelect(
-        "SUM(CASE WHEN app.status IN ('interview_scheduled', 'interview_rescheduled') THEN 1 ELSE 0 END)",
-        'interviews_today'
-      )
-      .addSelect(
-        "SUM(CASE WHEN app.status IN ('interview_scheduled', 'interview_rescheduled', 'interview_passed', 'interview_failed') THEN 1 ELSE 0 END)",
-        'total_interviews'
-      )
       .where('app.job_posting_id IN (:...ids)', { ids: jobIds })
       .groupBy('app.job_posting_id')
       .getRawMany();
 
-    return stats;
+    // Interview-driven stats (truth source for interviews)
+    const interviewRepo = this.jobPostingRepo.manager.getRepository(InterviewDetail);
+    const interviewStats = await interviewRepo
+      .createQueryBuilder('iv')
+      .select('iv.job_posting_id', 'job_id')
+      .addSelect(
+        "SUM(CASE WHEN iv.status = 'scheduled' AND iv.interview_date_ad = CURRENT_DATE THEN 1 ELSE 0 END)",
+        'interviews_today'
+      )
+      .addSelect('COUNT(*)', 'total_interviews')
+      .where('iv.job_posting_id IN (:...ids)', { ids: jobIds })
+      .groupBy('iv.job_posting_id')
+      .getRawMany();
+
+    // Merge stats by job_id
+    const map = new Map<string, any>();
+    for (const a of appStats) {
+      map.set(String(a.job_id), {
+        job_id: String(a.job_id),
+        applications_count: String(a.applications_count ?? '0'),
+        shortlisted_count: String(a.shortlisted_count ?? '0'),
+        interviews_today: '0',
+        total_interviews: '0',
+      });
+    }
+    for (const iv of interviewStats) {
+      const key = String(iv.job_id);
+      const existing = map.get(key) || {
+        job_id: key,
+        applications_count: '0',
+        shortlisted_count: '0',
+        interviews_today: '0',
+        total_interviews: '0',
+      };
+      existing.interviews_today = String(iv.interviews_today ?? '0');
+      existing.total_interviews = String(iv.total_interviews ?? '0');
+      map.set(key, existing);
+    }
+
+    return Array.from(map.values());
   }
 
   /**

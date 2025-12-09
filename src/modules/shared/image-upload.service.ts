@@ -98,10 +98,10 @@ export class ImageUploadService {
     const isMedia = type === UploadType.CANDIDATE_MEDIA;
     const maxSize = (isDocument || isMedia) ? this.maxDocumentSize : this.maxImageSize;
     
-    // Media manager accepts both images and documents
-    const allowedTypes = isMedia 
+    // Documents and media accept both images and document types
+    const allowedTypes = (isMedia || isDocument)
       ? [...this.allowedImageTypes, ...this.allowedDocumentTypes]
-      : (isDocument ? this.allowedDocumentTypes : this.allowedImageTypes);
+      : this.allowedImageTypes;
 
     if (file.size > maxSize) {
       const maxSizeMB = maxSize / (1024 * 1024);

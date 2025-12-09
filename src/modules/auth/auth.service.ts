@@ -103,8 +103,12 @@ export class AuthService {
     }
     if (rec.otp !== input.otp) throw new BadRequestException('Invalid OTP');
 
-    // Sign JWT
-    const token = await this.jwt.signAsync({ sub: rec.userId, cid: rec.candidateId });
+    // Sign JWT with role for audit logging
+    const token = await this.jwt.signAsync({ 
+      sub: rec.userId, 
+      cid: rec.candidateId,
+      role: 'candidate'
+    });
 
     // one-time use OTP
     this.otps.delete(phone);
@@ -201,7 +205,6 @@ export class AuthService {
     }
     if (rec.otp !== input.otp) throw new BadRequestException('Invalid OTP');
 
-    const token = await this.jwt.signAsync({ sub: rec.userId });
     this.otps.delete(phone);
 
     const user = await this.users.findOne({ where: { id: rec.userId } });
@@ -211,6 +214,13 @@ export class AuthService {
       user.is_agency_owner = true;
       await this.users.save(user);
     }
+    
+    // Sign JWT with agency_id and role for audit logging
+    const token = await this.jwt.signAsync({ 
+      sub: rec.userId, 
+      aid: user?.agency_id || null,
+      role: 'owner'
+    });
     
     // Get full_name from User, or fallback to AgencyUser if not set
     let fullName = user?.full_name;

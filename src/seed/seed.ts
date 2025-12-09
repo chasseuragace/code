@@ -121,17 +121,8 @@ async function run() {
   await expSvc.createTrainingExpense(posting.id, { who_pays: ExpensePayer.AGENCY, is_free: false, amount: 5000, currency: 'NPR', duration_days: 3, mandatory: true });
   await expSvc.createWelfareServiceExpense(posting.id, { welfare: { who_pays: ExpensePayer.WORKER, amount: 1500, currency: 'NPR', refundable: false, notes: 'Welfare fund' }, service: { who_pays: ExpensePayer.AGENCY, amount: 3000, currency: 'NPR', service_type: 'Processing', refundable: false } });
 
-  // Add an interview with expenses
-  await intSvc.createInterview(posting.id, {
-    interview_date_ad: new Date().toISOString().slice(0, 10),
-    interview_time: '10:00',
-    location: 'Agency HQ, Kathmandu',
-    contact_person: 'Mr. Manager',
-    required_documents: ['Passport', 'CV', 'Certificates'],
-    expenses: [
-      { expense_type: ExpenseType.DOCUMENT_PROCESSING, who_pays: ExpensePayer.WORKER, is_free: false, amount: 1000, currency: 'NPR' },
-    ],
-  });
+  // Note: Interviews require a job_application_id (candidate must apply first)
+  // Skipping interview creation in seed for now
 
   console.log('Seed complete (domain smoke).');
   await app.close();

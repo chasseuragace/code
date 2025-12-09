@@ -16,6 +16,7 @@ import { diskStorage } from 'multer';
 import type { Express } from 'express';
 import { ExpenseService, InterviewService } from '../domain/domain.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { JwtService } from '@nestjs/jwt';
 import { User } from '../user/user.entity';
 import { AgencyUser } from './agency-user.entity';
 import { DevSmsService } from './dev-sms.service';
@@ -193,6 +194,7 @@ export class AgencyController {
     private readonly imageUploadService: ImageUploadService,
     private readonly agencyProfileService: AgencyProfileService,
     private readonly agencyDashboardService: AgencyDashboardService,
+    private readonly jwtService: JwtService,
   ) {}
 
   // Owner creates their single agency and binds it to their user account
@@ -217,7 +219,15 @@ export class AgencyController {
       .set({ agency_id: saved.id } as any)
       .where('user_id = :uid', { uid: user.id })
       .execute();
-    return { id: saved.id, license_number: saved.license_number };
+    
+    // Issue new JWT with agency_id for proper audit logging
+    const newToken = await this.jwtService.signAsync({
+      sub: user.id,
+      aid: saved.id,
+      role: 'owner',
+    });
+    
+    return { id: saved.id, license_number: saved.license_number, token: newToken };
   }
 
   // Get agency owned by the authenticated user

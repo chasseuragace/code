@@ -13,6 +13,9 @@ import { AuthModule } from './modules/auth/auth.module';
 import { TesthelperModule } from './modules/testhelper/testhelper.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { WorkflowModule } from './modules/workflow/workflow.module';
+import { ApplicationNotesModule } from './modules/application-notes/application-notes.module';
+import { AuditModule } from './modules/audit/audit.module';
 
 @Module({
   imports: [
@@ -33,6 +36,9 @@ import { AdminModule } from './modules/admin/admin.module';
     TesthelperModule,
     NotificationModule,
     AdminModule,
+    WorkflowModule,
+    ApplicationNotesModule,
+    AuditModule,
   ],
 })
 export class AppModule {}

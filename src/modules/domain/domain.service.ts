@@ -540,7 +540,10 @@ export class JobPostingService {
           baseSalary: formatMoney(baseAmount, currency),
           convertedSalary,
           currency,
-          requirements: p.position_notes ? [p.position_notes] : undefined,
+          maleVacancies: p.male_vacancies || undefined,
+          femaleVacancies: p.female_vacancies || undefined,
+          totalVacancies: p.total_vacancies || undefined,
+          notes: p.position_notes || undefined,
         };
       })
     );
@@ -591,12 +594,42 @@ export class JobPostingService {
       ? canonicalTitles.join(', ') 
       : (skills.slice(0, 2).join(', ') || undefined);
 
+    // Agency enrichment: company size from established_year
+    const agency = contract?.agency;
+    let companySize: string | undefined;
+    if (agency?.established_year) {
+      const currentYear = new Date().getFullYear();
+      const yearsInBusiness = currentYear - agency.established_year;
+      if (yearsInBusiness < 5) {
+        companySize = 'Startup (0-5 years)';
+      } else if (yearsInBusiness < 10) {
+        companySize = 'Growing (5-10 years)';
+      } else if (yearsInBusiness < 20) {
+        companySize = 'Established (10-20 years)';
+      } else {
+        companySize = 'Mature (20+ years)';
+      }
+    }
+
     return {
       id: job.id,
       postingTitle: job.posting_title,
       country: job.country,
       city: job.city || null,
-      agency: contract?.agency?.name,
+      ltNumber: job.lt_number || undefined,
+      chalaniNumber: job.chalani_number || undefined,
+      agency: agency?.name,
+      agencyId: agency?.id,
+      agencyLogo: agency?.logo_url,
+      agencyRating: agency?.average_rating ? Number(agency.average_rating) : undefined,
+      agencyReviewCount: agency?.review_count || undefined,
+      companySize,
+      establishedYear: agency?.established_year,
+      agencySpecializations: agency?.specializations,
+      agencyTargetCountries: agency?.target_countries,
+      agencyWebsite: agency?.website,
+      agencyAddress: agency?.address,
+      agencyPhones: agency?.phones,
       employer: contract?.employer?.company_name,
       positions: positionDtos,
       description: job.notes || undefined,
@@ -611,11 +644,24 @@ export class JobPostingService {
       type: 'Full-time', // Default value since contract_type doesn't exist in JobContract
       isRemote: false,
       isFeatured: false,
-      companyLogo: contract?.employer?.logo_url,
+      companyLogo: agency?.logo_url, // Use agency logo as company logo
       matchPercentage: '0', // Will be overridden by controller
       convertedSalary: undefined, // not mapped yet
       applications: 0, // default until implemented
       policy: undefined, // not mapped yet
+      cutoutImageUrl: job.cutout_url || undefined,
+      contract: contract ? {
+        period_years: contract.period_years,
+        renewable: contract.renewable,
+        hours_per_day: contract.hours_per_day,
+        days_per_week: contract.days_per_week,
+        overtime_policy: contract.overtime_policy,
+        weekly_off_days: contract.weekly_off_days,
+        food: contract.food,
+        accommodation: contract.accommodation,
+        transport: contract.transport,
+        annual_leave_days: contract.annual_leave_days,
+      } : null,
     };
   }
 
@@ -677,6 +723,11 @@ export class JobPostingService {
       if (res.affected === 0) throw new NotFoundException(`Job posting with ID ${id} not found`);
     }
     return this.findJobPostingById(id);
+  }
+
+  async incrementViewCount(id: string): Promise<void> {
+    const jp = await this.findJobPostingById(id);
+    await this.jobPostingRepository.increment({ id }, 'view_count', 1);
   }
 
   async findOneWithTags(id: string): Promise<JobPosting> {

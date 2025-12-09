@@ -263,13 +263,30 @@ export class AgencyDashboardService {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // Count by status
+    // Count by status - pending means scheduled and in the future
     const pending = interviews.filter(iv => {
-      const interviewDate = iv.interview_date_ad;
-      return interviewDate && interviewDate > now && !iv.result;
+      if (iv.status !== 'scheduled') return false;
+      
+      // If no date/time, consider it pending if status is scheduled
+      if (!iv.interview_date_ad) return true;
+      
+      // Check if interview datetime is in the future
+      const interviewDate = new Date(iv.interview_date_ad);
+      
+      if (iv.interview_time) {
+        const timeParts = iv.interview_time.toString().split(':');
+        const hours = parseInt(timeParts[0], 10);
+        const minutes = parseInt(timeParts[1], 10);
+        interviewDate.setHours(hours, minutes, 0, 0);
+      } else {
+        // If no time specified, set to end of day
+        interviewDate.setHours(23, 59, 59, 999);
+      }
+      
+      return interviewDate > now;
     }).length;
 
-    const completed = interviews.filter(iv => iv.result).length;
+    const completed = interviews.filter(iv => iv.status === 'completed').length;
     const passed = interviews.filter(iv => iv.result === 'pass').length;
     const failed = interviews.filter(iv => iv.result === 'fail').length;
 

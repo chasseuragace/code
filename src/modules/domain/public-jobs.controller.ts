@@ -180,6 +180,23 @@ export class PublicJobsController {
     };
   }
 
+  // Increment view count for analytics
+  @Get(':id/increment-view')
+  @ApiOperation({ 
+    summary: 'Increment view count for a job posting',
+    description: 'Async endpoint to track job posting views. Called by frontend after 5-second delay.'
+  })
+  @ApiParam({ 
+    name: 'id', 
+    description: 'Job Posting ID (UUID v4)', 
+    required: true,
+    example: 'uuid-v4-string'
+  })
+  @HttpCode(204)
+  async incrementViewCount(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    await this.jobs.incrementViewCount(id);
+  }
+
   // Public job details for mobile app
   @Get(':id')
   @ApiOperation({ 

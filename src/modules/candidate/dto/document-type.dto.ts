@@ -164,6 +164,13 @@ export class DocumentsSummaryDto {
     type: 'integer'
   })
   required_pending!: number;
+
+  @ApiProperty({ 
+    description: 'Upload progress percentage',
+    example: 28,
+    type: 'integer'
+  })
+  progress!: number;
 }
 
 export class DocumentsWithSlotsResponseDto {

@@ -59,8 +59,8 @@ export class CandidateUpdateDto {
     @IsOptional()
     @IsString()
     gender?: string | null;
-  @ApiPropertyOptional({ required: false, nullable: true, type: Number, description: 'Age of the candidate' })
+  @ApiPropertyOptional({ required: false, nullable: true, type: String, format: 'date', description: 'Date of birth of the candidate (YYYY-MM-DD)' })
     @IsOptional()
-    @IsNumber()
-    age?: number | null;
+    @IsString()
+    date_of_birth?: string | null;
 }

@@ -9,6 +9,8 @@ import { CandidatePreference } from './candidate-preference.entity';
 import { CandidateDocument } from './candidate-document.entity';
 import { DocumentType } from './document-type.entity';
 import { DocumentTypeService } from './document-type.service';
+import { DocumentsWithSlotsResponseDto } from './dto/document-type.dto';
+import { FitnessScoreService } from '../shared/fitness-score.service';
 
 function normalizePhoneE164(phone: string): string {
   if (!phone || typeof phone !== 'string') {
@@ -70,6 +72,7 @@ export class CandidateService {
     @InjectRepository(CandidateDocument)
     private readonly documents: Repository<CandidateDocument>,
     private readonly documentTypeService: DocumentTypeService,
+    private readonly fitnessScoreService: FitnessScoreService,
   ) {}
 
   async createCandidate(input: Partial<any>): Promise<Candidate> {
@@ -116,8 +119,8 @@ export class CandidateService {
     if (input.gender !== undefined) {
       existing.gender = input.gender;
     }
-    if (input.age !== undefined) {
-      existing.age = input.age;
+    if (input.date_of_birth !== undefined) {
+      existing.date_of_birth = input.date_of_birth ? new Date(input.date_of_birth) : null;
     }
 
     return this.repo.save(existing);
@@ -637,37 +640,15 @@ export class CandidateService {
       // Compute simple fitness score per posting: average of present requirement matches in [%]
       // Components: skills overlap, education overlap, experience numeric compatibility
       for (const p of data as any[]) {
-        let parts = 0;
-        let sumPct = 0;
-        // skills
-        const js: string[] = Array.isArray(p.skills) ? p.skills : [];
-        if (js.length) {
-          const jsLower = js.map((x) => String(x).toLowerCase());
-          const inter = candSkillsLower.filter((s) => jsLower.includes(s));
-          const pct = js.length ? inter.length / js.length : 0;
-          parts++;
-          sumPct += pct;
-        }
-        // education
-        const je: string[] = Array.isArray(p.education_requirements) ? p.education_requirements : [];
-        if (je.length) {
-          const jeLower = je.map((x) => String(x).toLowerCase());
-          const inter = candEduLower.filter((e) => jeLower.includes(e));
-          const pct = je.length ? inter.length / je.length : 0;
-          parts++;
-          sumPct += pct;
-        }
-        // experience numeric
-        const xr = p.experience_requirements as { min_years?: number; max_years?: number } | undefined;
-        if (xr && (typeof xr.min_years === 'number' || typeof xr.max_years === 'number')) {
-          const minOk = typeof xr.min_years === 'number' ? candYears >= xr.min_years : true;
-          const maxOk = typeof xr.max_years === 'number' ? candYears <= xr.max_years : true;
-          const pct = minOk && maxOk ? 1 : 0;
-          parts++;
-          sumPct += pct;
-        }
-        if (parts > 0) {
-          p.fitness_score = Math.round((sumPct / parts) * 100);
+        const candidateProfile = {
+          skills: candSkills,
+          education: candEdu,
+          experience_years: candYears,
+        };
+        const jobRequirements = this.fitnessScoreService.extractJobRequirements(p);
+        const fitnessResult = this.fitnessScoreService.calculateScore(candidateProfile, jobRequirements);
+        if (fitnessResult.score > 0) {
+          p.fitness_score = fitnessResult.score;
         }
       }
     }
@@ -747,9 +728,8 @@ export class CandidateService {
     });
 
     if (existing) {
-      // Mark old document as replaced
+      // Mark old document as inactive (will link to replacement after new doc is created)
       existing.is_active = false;
-      existing.replaced_by_document_id = 'pending'; // Will be updated after new doc is created
       await this.documents.save(existing);
     }
 
@@ -782,6 +762,19 @@ export class CandidateService {
       throw new NotFoundException('Document not found');
     }
     document.document_url = url;
+    await this.documents.save(document);
+  }
+
+  async updateDocumentVerification(
+    documentId: string,
+    data: { status: 'approved' | 'rejected'; rejection_reason?: string }
+  ): Promise<void> {
+    const document = await this.documents.findOne({ where: { id: documentId } });
+    if (!document) {
+      throw new NotFoundException('Document not found');
+    }
+    document.verification_status = data.status;
+    document.rejection_reason = data.status === 'rejected' ? (data.rejection_reason || undefined) : undefined;
     await this.documents.save(document);
   }
 

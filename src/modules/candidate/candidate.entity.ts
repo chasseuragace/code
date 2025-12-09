@@ -23,8 +23,8 @@ export class Candidate {
   @Column({ type: 'varchar', length: 10, nullable: true })
   gender?: string;
 
-  @Column({ type: 'integer', nullable: true })
-  age?: number;
+  @Column({ type: 'date', nullable: true })
+  date_of_birth?: Date;
 
   @Column({ type: 'jsonb', nullable: true })
   address?: {

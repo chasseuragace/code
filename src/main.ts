@@ -13,12 +13,17 @@ async function bootstrap() {
   // Enable CORS for frontend apps
   app.enableCors({
     origin: (origin, callback) => {
-      // Allow any localhost origin
+      // Allow localhost origins
       if (!origin || origin.startsWith('http://localhost:') || origin.startsWith('https://localhost:')) {
         callback(null, true);
-      } else {
-        callback(null, false);
+        return;
       }
+      // Allow Netlify deployments
+      if (origin && (origin.includes('netlify.app') || origin.includes('netlify.com'))) {
+        callback(null, true);
+        return;
+      }
+      callback(null, false);
     },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: 'Content-Type, Authorization, Accept, X-Requested-With',

@@ -47,6 +47,8 @@ export class CandidateProfileDto {
     gender?: string | null;
   @ApiPropertyOptional({ required: false, nullable: true, type: String, format: 'date', description: 'Date of birth of the candidate (YYYY-MM-DD)' })
     date_of_birth?: string | null;
+  @ApiPropertyOptional({ required: false, nullable: true, type: String, description: 'Profile image URL / avatar URL' })
+    profile_image?: string | null;
   @ApiProperty({ description: 'Is active', example: true })
     is_active!: boolean;
   @ApiProperty({ description: 'Created at', example: new Date('2024-01-01') })

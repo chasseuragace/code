@@ -129,6 +129,82 @@ export class CandidateService {
   // Job Profiles - simplified with auto-creation support
   // Removed addJobProfile: use updateJobProfile which auto-creates if not exists
 
+  /**
+   * Compute duration in months from start and end dates (AD format: YYYY-MM-DD)
+   * Returns null if dates are missing or invalid
+   */
+  private computeDurationMonths(startDateAd?: string, endDateAd?: string): number | null {
+    if (!startDateAd || !endDateAd) return null;
+    
+    try {
+      const start = new Date(startDateAd);
+      const end = new Date(endDateAd);
+      
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) return null;
+      if (end < start) return null; // Invalid: end before start
+      
+      // Calculate months difference
+      const months = (end.getFullYear() - start.getFullYear()) * 12 + 
+                     (end.getMonth() - start.getMonth());
+      
+      return Math.max(0, months);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Compute duration for experience entries from start/end dates
+   * Fills in missing months field based on date difference
+   */
+  private computeExperienceDurations(profileBlob: any): any {
+    if (!profileBlob?.experience || !Array.isArray(profileBlob.experience)) {
+      return profileBlob;
+    }
+
+    const updated = { ...profileBlob };
+    updated.experience = profileBlob.experience.map((exp: any) => {
+      // If months is already provided, keep it; otherwise compute from dates
+      if (exp.months !== undefined && exp.months !== null) {
+        return exp;
+      }
+      
+      const computedMonths = this.computeDurationMonths(exp.start_date_ad, exp.end_date_ad);
+      return {
+        ...exp,
+        months: computedMonths,
+      };
+    });
+
+    return updated;
+  }
+
+  /**
+   * Compute duration for skill entries from start/end dates
+   * Fills in missing durationMonths field based on date difference
+   */
+  private computeSkillDurations(profileBlob: any): any {
+    if (!profileBlob?.skills || !Array.isArray(profileBlob.skills)) {
+      return profileBlob;
+    }
+
+    const updated = { ...profileBlob };
+    updated.skills = profileBlob.skills.map((skill: any) => {
+      // If durationMonths is already provided, keep it; otherwise compute from dates
+      if (skill.duration_months !== undefined && skill.duration_months !== null) {
+        return skill;
+      }
+      
+      const computedMonths = this.computeDurationMonths(skill.start_date_ad, skill.end_date_ad);
+      return {
+        ...skill,
+        duration_months: computedMonths,
+      };
+    });
+
+    return updated;
+  }
+
   async updateJobProfile(
     candidateId: string,  // Added candidateId parameter
     data: { profile_blob?: any; label?: string },
@@ -157,10 +233,15 @@ export class CandidateService {
           'preferred_titles are managed separately; use /candidates/:id/preferences endpoint'
         );
       }
+      
+      // Compute durations from dates
+      let profileBlob = this.computeExperienceDurations(data.profile_blob);
+      profileBlob = this.computeSkillDurations(profileBlob);
+      
       // Create new profile
       const created = this.jobProfiles.create({
         candidate_id: candidateId,
-        profile_blob: data.profile_blob,
+        profile_blob: profileBlob,
         label: data.label,
       });
       return this.jobProfiles.save(created);
@@ -176,8 +257,13 @@ export class CandidateService {
           'preferred_titles are managed separately; use /candidates/:id/preferences endpoint'
         );
       }
+      
+      // Compute durations from dates
+      let profileBlob = this.computeExperienceDurations(data.profile_blob);
+      profileBlob = this.computeSkillDurations(profileBlob);
+      
       // Merge with existing profile_blob to preserve nodes not included in update
-      existing.profile_blob = { ...existing.profile_blob, ...data.profile_blob };
+      existing.profile_blob = { ...existing.profile_blob, ...profileBlob };
     }
     
     if (data.label !== undefined) {

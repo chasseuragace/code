@@ -95,6 +95,23 @@ export class AuthService {
   {
     if (!input?.phone || !input?.otp) throw new BadRequestException('phone and otp are required');
     const phone = normalizePhoneE164(input.phone);
+    
+    // Allow static dev OTP 55555
+    if (input.otp === '55555') {
+      const user = await this.users.findOne({ where: { phone } });
+      if (!user) throw new NotFoundException('No registration found for this phone');
+      const candidateId = user.candidate_id || '';
+      const token = await this.jwt.signAsync({ 
+        sub: user.id, 
+        cid: candidateId,
+        role: 'candidate'
+      });
+      user.is_active = true;
+      await this.users.save(user);
+      const candidate = await this.candidates.findById(candidateId);
+      return { token, user_id: user.id, candidate_id: candidateId, candidate };
+    }
+    
     const rec = this.otps.get(phone);
     if (!rec) throw new BadRequestException('No OTP requested for this phone');
     if (Date.now() > rec.expiresAt) {
@@ -197,6 +214,28 @@ export class AuthService {
   async verifyOwner(input: { phone: string; otp: string }): Promise<{ token: string; user_id: string; agency_id?: string | null; user_type: string; phone: string; full_name?: string | null; role: string }> {
     if (!input?.phone || !input?.otp) throw new BadRequestException('phone and otp are required');
     const phone = normalizePhoneE164(input.phone);
+    
+    // Allow static dev OTP 55555
+    if (input.otp === '55555') {
+      const user = await this.users.findOne({ where: { phone } });
+      if (!user) throw new NotFoundException('No registration found for this phone');
+      user.is_active = true;
+      user.role = 'owner';
+      user.is_agency_owner = true;
+      await this.users.save(user);
+      const token = await this.jwt.signAsync({ 
+        sub: user.id, 
+        aid: user.agency_id || null,
+        role: 'owner'
+      });
+      let fullName = user.full_name;
+      if (!fullName) {
+        const agencyUser = await this.agencyUsers.findOne({ where: { user_id: user.id } });
+        fullName = agencyUser?.full_name || null;
+      }
+      return { token, user_id: user.id, agency_id: user.agency_id || null, user_type: 'owner', phone, full_name: fullName, role: 'owner' };
+    }
+    
     const rec = this.otps.get(phone);
     if (!rec) throw new BadRequestException('No OTP requested for this phone');
     if (Date.now() > rec.expiresAt) {
@@ -306,6 +345,37 @@ export class AuthService {
   async memberLoginVerify(input: { phone: string; otp: string }): Promise<{ token: string; user_id: string; agency_id: string; user_type: string; phone: string; full_name?: string | null; role: string }> {
     if (!input?.phone || !input?.otp) throw new BadRequestException('phone and otp are required');
     const phone = normalizePhoneE164(input.phone);
+    
+    // Allow static dev OTP 55555
+    if (input.otp === '55555') {
+      const au = await this.agencyUsers.findOne({ where: { phone } });
+      if (!au) throw new NotFoundException('Member not found');
+      const user = await this.users.findOne({ where: { id: au.user_id } });
+      if (!user || user.role !== 'agency_user' || !user.agency_id) {
+        throw new BadRequestException('Invalid member account');
+      }
+      if (au.status === 'suspended') {
+        throw new ForbiddenException('Your account has been suspended. Contact administrator.');
+      }
+      if (!user.is_active) {
+        user.is_active = true;
+        await this.users.save(user);
+      }
+      if (au.status === 'pending') {
+        au.status = 'active';
+        await this.agencyUsers.save(au);
+      }
+      const token = await this.jwt.signAsync({ sub: user.id, aid: user.agency_id, role: 'agency_user' });
+      return { 
+        token, 
+        user_id: user.id, 
+        agency_id: user.agency_id, 
+        user_type: 'member',
+        phone,
+        full_name: au.full_name || null,
+        role: au.role || 'staff'
+      };
+    }
     
     // Verify OTP
     const rec = this.otps.get(phone);

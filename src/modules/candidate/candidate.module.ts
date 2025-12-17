@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { CandidateController } from './candidate.controller';
 import { DocumentTypeController } from './document-type.controller';
+import { MobileJobController } from './mobile-job.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Candidate } from './candidate.entity';
 import { CandidateService } from './candidate.service';
@@ -27,7 +28,7 @@ import { FitnessScoreModule } from '../shared/fitness-score.module';
     forwardRef(() => AuthModule),
   ],
   providers: [CandidateService, DocumentTypeService],
-  controllers: [CandidateController, DocumentTypeController],
+  controllers: [CandidateController, DocumentTypeController, MobileJobController],
   exports: [CandidateService, DocumentTypeService],
 })
 export class CandidateModule {}

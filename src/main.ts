@@ -10,25 +10,7 @@ async function bootstrap() {
   // Serve static assets under /public for cutout URLs
   app.useStaticAssets(join(process.cwd(), 'public'), { prefix: '/public/' });
   
-  // Enable CORS for frontend apps
-  app.enableCors({
-    origin: (origin, callback) => {
-      // Allow localhost origins
-      if (!origin || origin.startsWith('http://localhost:') || origin.startsWith('https://localhost:')) {
-        callback(null, true);
-        return;
-      }
-      // Allow Netlify deployments
-      if (origin && (origin.includes('netlify.app') || origin.includes('netlify.com'))) {
-        callback(null, true);
-        return;
-      }
-      callback(null, false);
-    },
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    allowedHeaders: 'Content-Type, Authorization, Accept, X-Requested-With',
-    credentials: true,
-  });
+
   // Swagger setup
   const config = new DocumentBuilder()
     .setTitle('Agency Service API')

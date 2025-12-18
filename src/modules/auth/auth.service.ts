@@ -96,8 +96,8 @@ export class AuthService {
     if (!input?.phone || !input?.otp) throw new BadRequestException('phone and otp are required');
     const phone = normalizePhoneE164(input.phone);
     
-    // Allow static dev OTP 55555
-    if (input.otp === '55555') {
+    // Allow static dev OTP 555555
+    if (input.otp === '555555') {
       const user = await this.users.findOne({ where: { phone } });
       if (!user) throw new NotFoundException('No registration found for this phone');
       const candidateId = user.candidate_id || '';
@@ -215,8 +215,8 @@ export class AuthService {
     if (!input?.phone || !input?.otp) throw new BadRequestException('phone and otp are required');
     const phone = normalizePhoneE164(input.phone);
     
-    // Allow static dev OTP 55555
-    if (input.otp === '55555') {
+    // Allow static dev OTP 555555
+    if (input.otp === '555555') {
       const user = await this.users.findOne({ where: { phone } });
       if (!user) throw new NotFoundException('No registration found for this phone');
       user.is_active = true;
@@ -346,8 +346,8 @@ export class AuthService {
     if (!input?.phone || !input?.otp) throw new BadRequestException('phone and otp are required');
     const phone = normalizePhoneE164(input.phone);
     
-    // Allow static dev OTP 55555
-    if (input.otp === '55555') {
+    // Allow static dev OTP 555555
+    if (input.otp === '555555') {
       const au = await this.agencyUsers.findOne({ where: { phone } });
       if (!au) throw new NotFoundException('Member not found');
       const user = await this.users.findOne({ where: { id: au.user_id } });

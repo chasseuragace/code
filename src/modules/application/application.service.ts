@@ -96,7 +96,7 @@ export class ApplicationService {
       throw new Error('Position does not belong to the specified job posting');
     }
 
-    // Enforce uniqueness
+    // Enforce uniqueness: prevent duplicate applications unless the previous one was withdrawn
     const existing = await this.appRepo.findOne({ 
       where: { 
         candidate_id: candidateId, 
@@ -104,7 +104,9 @@ export class ApplicationService {
         position_id: positionId
       } 
     });
-    if (existing) throw new Error('Candidate has already applied to this position');
+    if (existing && existing.status !== 'withdrawn') {
+      throw new Error('Candidate has already applied to this position');
+    }
 
     const status: JobApplicationStatus = 'applied';
     const history: JobApplicationHistoryEntry[] = [
@@ -466,10 +468,10 @@ export class ApplicationService {
   }
 
   /**
-   * Check which positions a candidate has applied to
+   * Check which positions a candidate has applied to (excluding withdrawn applications)
    * @param candidateId - The candidate's UUID
    * @param positionIds - Array of position UUIDs to check
-   * @returns Set of position IDs that have applications
+   * @returns Set of position IDs that have active applications
    */
   async getAppliedPositionIds(
     candidateId: string, 
@@ -482,10 +484,15 @@ export class ApplicationService {
         candidate_id: candidateId,
         position_id: In(positionIds)
       },
-      select: ['position_id']
+      select: ['position_id', 'status']
     });
     
-    return new Set(applications.map(app => app.position_id));
+    // Filter out withdrawn applications
+    return new Set(
+      applications
+        .filter(app => app.status !== 'withdrawn')
+        .map(app => app.position_id)
+    );
   }
 
   // Get comprehensive application details for frontend

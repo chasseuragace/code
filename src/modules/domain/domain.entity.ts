@@ -56,6 +56,9 @@ export class JobPosting extends BaseEntity {
   @Column({ type: 'boolean', default: true })
   is_active: boolean;
 
+  @Column({ type: 'boolean', default: true })
+  is_draft: boolean;
+
   // --- Tagging fields (optional) ---
   @Column({ type: 'jsonb', nullable: true })
   skills?: string[];

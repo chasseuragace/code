@@ -38,6 +38,9 @@ import { ImageUploadService, UploadType } from '../shared/image-upload.service';
 import { UploadResponseDto } from '../candidate/dto/candidate-document.dto';
 import { AgencyDashboardService } from './agency-dashboard.service';
 import { AgencyDashboardAnalyticsDto, AgencyDashboardQueryDto } from './dto/agency-dashboard-analytics.dto';
+import { AuditService } from '../audit/audit.service';
+import { AuditCategories, AuditActions } from '../audit/audit.entity';
+import { AgencyAuthGuard } from '../auth/agency-auth.guard';
 
 function normalizePhone(phone: string): string {
   const digits = phone.replace(/\D/g, '');
@@ -195,6 +198,7 @@ export class AgencyController {
     private readonly agencyProfileService: AgencyProfileService,
     private readonly agencyDashboardService: AgencyDashboardService,
     private readonly jwtService: JwtService,
+    private readonly auditService: AuditService,
   ) {}
 
   // Owner creates their single agency and binds it to their user account
@@ -779,6 +783,7 @@ export class AgencyController {
     
     const dto: CreateJobPostingDto = {
       ...jobData,
+      is_draft: true, // Always create job postings as draft by default
       posting_agency: {
         name: agency.name,
         license_number: agency.license_number,
@@ -1190,6 +1195,105 @@ export class AgencyController {
       is_published: isPublished,
       message: isPublished ? 'Job posting published successfully' : 'Job posting unpublished successfully'
     };
+  }
+
+  // PATCH /agencies/:license/job-postings/:id/toggle-draft - Toggle draft status
+  @Patch(':license/job-postings/:id/toggle-draft')
+  @UseGuards(AgencyAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Toggle job posting draft status' })
+  @ApiParam({ name: 'license', description: 'Agency license number', required: true })
+  @ApiParam({ name: 'id', description: 'Job posting ID', required: true })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        is_draft: { type: 'boolean', description: 'Set to true for draft, false to publish' }
+      },
+      required: ['is_draft']
+    }
+  })
+  @ApiOkResponse({ description: 'Draft status toggled successfully' })
+  async toggleDraft(
+    @Param('license') license: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('is_draft') isDraft: boolean,
+    @Req() req: any,
+  ): Promise<{ success: boolean; is_draft: boolean; message?: string }> {
+    const startTime = Date.now();
+    const user = req.user as User;
+    
+    try {
+      const posting = await this.jobPostingService.findJobPostingById(id);
+      const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
+      if (!belongs) {
+        throw new ForbiddenException('Cannot modify job posting of another agency');
+      }
+
+      const oldDraftStatus = posting.is_draft;
+      const updated = await this.jobPostingService.toggleJobPostingDraft(id, isDraft);
+
+      // Log audit event
+      await this.auditService.log(
+        {
+          method: 'PATCH',
+          path: req.path,
+          userId: user?.id,
+          userEmail: user?.phone,
+          userRole: user?.role,
+          agencyId: posting.contracts?.[0]?.posting_agency_id,
+          originIp: req.ip,
+          userAgent: req.get('user-agent'),
+        },
+        {
+          action: 'toggle_job_posting_draft',
+          category: AuditCategories.JOB_POSTING,
+          resourceType: 'job_posting',
+          resourceId: id,
+          stateChange: {
+            is_draft: [oldDraftStatus, isDraft],
+          },
+        },
+        {
+          outcome: 'success',
+          statusCode: 200,
+          durationMs: Date.now() - startTime,
+        }
+      );
+
+      return {
+        success: true,
+        is_draft: updated.is_draft,
+        message: isDraft ? 'Job posting marked as draft' : 'Job posting published from draft'
+      };
+    } catch (error) {
+      // Log failed audit event
+      await this.auditService.log(
+        {
+          method: 'PATCH',
+          path: req.path,
+          userId: user?.id,
+          userEmail: user?.phone,
+          userRole: user?.role,
+          originIp: req.ip,
+          userAgent: req.get('user-agent'),
+        },
+        {
+          action: 'toggle_job_posting_draft',
+          category: AuditCategories.JOB_POSTING,
+          resourceType: 'job_posting',
+          resourceId: id,
+        },
+        {
+          outcome: 'failure',
+          statusCode: error.status || 500,
+          errorMessage: error.message,
+          durationMs: Date.now() - startTime,
+        }
+      );
+      throw error;
+    }
   }
 
   // POST /agencies/:license/logo - Upload agency logo

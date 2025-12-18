@@ -60,6 +60,9 @@ export class AdminJobItemDto {
   @ApiProperty({ description: 'View count', default: 0 })
   view_count!: number;
 
+  @ApiProperty({ description: 'Job posting active status', default: true })
+  is_active!: boolean;
+
   @ApiProperty({ description: 'Job category/position title' })
   category!: string;
 

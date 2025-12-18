@@ -180,6 +180,7 @@ export interface CreateJobPostingDto {
   posting_date_bs?: string;
   announcement_type?: AnnouncementType;
   notes?: string;
+  is_draft?: boolean;
   posting_agency: PostingAgencyDto;
   employer: EmployerDto;
   contract: ContractDto;
@@ -207,6 +208,23 @@ export class JobPostingService {
     private dataSource: DataSource,
     private currencyConversionService: CurrencyConversionService,
   ) {}
+
+  /**
+   * Toggle job posting draft status
+   * @param jobPostingId - Job posting UUID
+   * @param isDraft - Set to true for draft, false to publish
+   * @returns Updated job posting with draft status
+   */
+  async toggleJobPostingDraft(jobPostingId: string, isDraft: boolean): Promise<JobPosting> {
+    const jobPosting = await this.jobPostingRepository.findOne({ where: { id: jobPostingId } });
+    if (!jobPosting) {
+      throw new NotFoundException(`Job posting with ID ${jobPostingId} not found`);
+    }
+
+    jobPosting.is_draft = isDraft;
+    await this.jobPostingRepository.save(jobPosting);
+    return this.findJobPostingById(jobPostingId);
+  }
 
   /**
    * Toggle job posting status (close with rejection or reopen)
@@ -312,6 +330,7 @@ export class JobPostingService {
         posting_date_bs: dto.posting_date_bs,
         announcement_type: dto.announcement_type || AnnouncementType.FULL_AD,
         notes: dto.notes,
+        is_draft: dto.is_draft !== undefined ? dto.is_draft : true,
         ...extra,
       });
       const savedJP = await qr.manager.save(jp);
@@ -837,7 +856,8 @@ export class JobPostingService {
       .leftJoinAndSelect('contracts.agency', 'agency')
       .leftJoinAndSelect('contracts.positions', 'positions')
       .leftJoinAndSelect('positions.salaryConversions', 'salaryConversions')
-      .where('jp.is_active = :isActive', { isActive: true });
+      .where('jp.is_active = :isActive', { isActive: true })
+      .andWhere('jp.is_draft = :isDraft', { isDraft: false });
 
     // Keyword search across multiple fields using OR logic
     if (keyword) {

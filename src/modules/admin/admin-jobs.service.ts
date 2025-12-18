@@ -117,6 +117,7 @@ export class AdminJobsService {
         interviews_today: parseInt(stats.interviews_today),
         total_interviews: parseInt(stats.total_interviews),
         view_count: 0, // TODO: Implement view tracking
+        is_active: job.is_active ?? true,
 
         category: position?.title || 'General',
         tags: job.skills || [],

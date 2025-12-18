@@ -125,6 +125,7 @@ export const AuditActions = {
   UPDATE_JOB_POSTING: 'update_job_posting',
   CLOSE_JOB_POSTING: 'close_job_posting',
   UPDATE_JOB_TAGS: 'update_job_tags',
+  TOGGLE_JOB_POSTING_DRAFT: 'toggle_job_posting_draft',
   
   // Agency
   CREATE_AGENCY: 'create_agency',
@@ -179,6 +180,7 @@ export const AuditActionDescriptions: Record<string, string> = {
   [AuditActions.UPDATE_JOB_POSTING]: 'Job posting updated',
   [AuditActions.CLOSE_JOB_POSTING]: 'Job posting closed',
   [AuditActions.UPDATE_JOB_TAGS]: 'Job requirements updated',
+  [AuditActions.TOGGLE_JOB_POSTING_DRAFT]: 'Job posting draft status toggled',
   
   // Agency
   [AuditActions.CREATE_AGENCY]: 'Agency profile created',

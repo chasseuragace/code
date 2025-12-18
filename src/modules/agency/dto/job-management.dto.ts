@@ -1233,6 +1233,9 @@ export class EditableJobDetailsDto {
   @ApiProperty({ description: 'Whether job posting is active' })
   is_active!: boolean;
 
+  @ApiProperty({ description: 'Whether job posting is in draft status' })
+  is_draft!: boolean;
+
   @ApiPropertyOptional({ description: 'Cutout image URL', nullable: true })
   cutout_url!: string | null;
 

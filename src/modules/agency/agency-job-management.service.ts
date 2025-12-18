@@ -373,6 +373,7 @@ export class AgencyJobManagementService {
       announcement_type: posting.announcement_type || null,
       notes: posting.notes || null,
       is_active: posting.is_active,
+      is_draft: posting.is_draft,
       cutout_url: posting.cutout_url || null,
       employer: employerDto,
       contract: contractDto,

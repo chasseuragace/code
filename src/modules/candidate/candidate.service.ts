@@ -536,6 +536,7 @@ export class CandidateService {
       // Ensure monthly_salary_amount is returned as a number
       .addSelect('positions.monthly_salary_amount::numeric', 'positions_monthly_salary_amount')
       .where('jp.is_active = :active', { active: true })
+      .andWhere('jp.is_draft = :isDraft', { isDraft: false })
       .orderBy('jp.posting_date_ad', 'DESC');
 
     const combineWith: 'AND' | 'OR' = (opts?.combineWith as any) === 'OR' ? 'OR' : 'AND';

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, ParseUUIDPipe, Query, HttpCode, NotFoundException, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, ParseUUIDPipe, Query, HttpCode, NotFoundException, UseGuards, BadRequestException } from '@nestjs/common';
 import { ApplicationService } from './application.service';
 import { ApiOperation, ApiParam, ApiTags, ApiOkResponse, ApiQuery, ApiBody, ApiCreatedResponse, ApiBadRequestResponse, ApiNotFoundResponse, ApiBearerAuth, ApiForbiddenResponse, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { ApplyJobDto, ApplyJobResponseDto } from './dto/apply-job.dto';
@@ -37,13 +37,17 @@ export class ApplicationController {
     }
   })
   async apply(@Body() body: ApplyJobDto): Promise<ApplyJobResponseDto> {
-    const saved = await this.apps.apply(
-      body.candidate_id, 
-      body.job_posting_id,
-      body.position_id,
-      { note: body.note, updatedBy: body.updatedBy }
-    );
-    return { id: saved.id, status: saved.status };
+    try {
+      const saved = await this.apps.apply(
+        body.candidate_id, 
+        body.job_posting_id,
+        body.position_id,
+        { note: body.note, updatedBy: body.updatedBy }
+      );
+      return { id: saved.id, status: saved.status };
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
   }
 
   // List applications for a candidate

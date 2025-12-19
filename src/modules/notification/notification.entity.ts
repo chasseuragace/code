@@ -17,6 +17,7 @@ export type NotificationPayload = {
     time: string;
     location: string;
   };
+  image_url?: string;
 };
 
 @Entity('notifications')

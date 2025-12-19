@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { NotificationService } from './notification.service';
-import { 
-  GetNotificationsQueryDto, 
-  NotificationListResponseDto, 
-  MarkAsReadResponseDto, 
-  MarkAllAsReadResponseDto 
+import {
+  GetNotificationsQueryDto,
+  NotificationListResponseDto,
+  MarkAsReadResponseDto,
+  MarkAllAsReadResponseDto
 } from './dto/notification.dto';
 
 /**
@@ -13,7 +13,7 @@ import {
  */
 @Injectable()
 export class NotificationApiService {
-  constructor(private readonly notificationService: NotificationService) {}
+  constructor(private readonly notificationService: NotificationService) { }
 
   /**
    * Get paginated notifications for a candidate
@@ -58,5 +58,19 @@ export class NotificationApiService {
     });
 
     return { count: result.unreadCount };
+  }
+
+  /**
+   * Send a test notification
+   */
+  async sendTestNotification(phone: string, title: string, body: string, data?: Record<string, string>): Promise<any> {
+    return this.notificationService.sendTestNotification(phone, title, body, data);
+  }
+
+  /**
+   * Send a test notification directly to a raw FCM token
+   */
+  async sendTestNotificationToToken(token: string, title: string, body: string, data?: Record<string, string>): Promise<any> {
+    return this.notificationService.sendTestNotificationToToken(token, title, body, data);
   }
 }

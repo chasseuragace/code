@@ -1,47 +1,49 @@
-import { Controller, Get, Patch, Param, Query, HttpStatus, HttpException } from '@nestjs/common';
+import { Controller, Get, Patch, Post, Body, Param, Query, HttpStatus, HttpException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiParam } from '@nestjs/swagger';
 import { NotificationApiService } from './notification-api.service';
-import { 
-  GetNotificationsQueryDto, 
-  NotificationListResponseDto, 
-  MarkAsReadResponseDto, 
-  MarkAllAsReadResponseDto 
+import {
+  GetNotificationsQueryDto,
+  NotificationListResponseDto,
+  MarkAsReadResponseDto,
+  MarkAllAsReadResponseDto,
+  SendTestNotificationDto,
+  SendTestNotificationToTokenDto
 } from './dto/notification.dto';
 
 @ApiTags('notifications')
 @Controller('notifications')
 export class NotificationController {
-  constructor(private readonly notificationApiService: NotificationApiService) {}
+  constructor(private readonly notificationApiService: NotificationApiService) { }
 
   /**
    * Get paginated notifications for a candidate
    * GET /notifications?candidateId=uuid&page=1&limit=20&unreadOnly=false
    */
   @Get()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get paginated notifications for a candidate',
     description: 'Retrieve notifications for a specific candidate with pagination and filtering options'
   })
-  @ApiQuery({ 
-    name: 'candidateId', 
+  @ApiQuery({
+    name: 'candidateId',
     description: 'UUID of the candidate to get notifications for',
     required: true,
     type: String
   })
-  @ApiQuery({ 
-    name: 'page', 
+  @ApiQuery({
+    name: 'page',
     description: 'Page number (default: 1)',
     required: false,
     type: Number
   })
-  @ApiQuery({ 
-    name: 'limit', 
+  @ApiQuery({
+    name: 'limit',
     description: 'Number of items per page (default: 20, max: 100)',
     required: false,
     type: Number
   })
-  @ApiQuery({ 
-    name: 'unreadOnly', 
+  @ApiQuery({
+    name: 'unreadOnly',
     description: 'Filter to show only unread notifications (default: false)',
     required: false,
     type: Boolean
@@ -71,12 +73,12 @@ export class NotificationController {
    * GET /notifications/unread-count?candidateId=uuid
    */
   @Get('unread-count')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get unread notification count',
     description: 'Get the count of unread notifications for a specific candidate'
   })
-  @ApiQuery({ 
-    name: 'candidateId', 
+  @ApiQuery({
+    name: 'candidateId',
     description: 'UUID of the candidate to get unread count for',
     required: true,
     type: String
@@ -113,12 +115,12 @@ export class NotificationController {
    * PATCH /notifications/:id/read
    */
   @Patch(':id/read')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Mark notification as read',
     description: 'Mark a specific notification as read by its ID'
   })
-  @ApiParam({ 
-    name: 'id', 
+  @ApiParam({
+    name: 'id',
     description: 'UUID of the notification to mark as read',
     type: String
   })
@@ -142,12 +144,12 @@ export class NotificationController {
    * PATCH /notifications/mark-all-read?candidateId=uuid
    */
   @Patch('mark-all-read')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Mark all notifications as read',
     description: 'Mark all notifications as read for a specific candidate'
   })
-  @ApiQuery({ 
-    name: 'candidateId', 
+  @ApiQuery({
+    name: 'candidateId',
     description: 'UUID of the candidate to mark all notifications as read',
     required: true,
     type: String
@@ -169,5 +171,49 @@ export class NotificationController {
     }
 
     return this.notificationApiService.markAllAsRead(candidateId);
+  }
+
+  /**
+   * Send a test notification
+   * POST /notifications/test
+   */
+  @Post('test')
+  @ApiOperation({
+    summary: 'Send a test notification',
+    description: 'Send a test push notification to a user by phone number'
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Notification sent successfully'
+  })
+  async sendTestNotification(@Body() body: SendTestNotificationDto): Promise<any> {
+    return this.notificationApiService.sendTestNotification(
+      body.phone,
+      body.title,
+      body.body,
+      body.data
+    );
+  }
+
+  /**
+   * Send a test notification directly to an FCM token
+   * POST /notifications/test-token
+   */
+  @Post('test-token')
+  @ApiOperation({
+    summary: 'Send a test notification to a raw FCM token',
+    description: 'Send a test push notification directly to a provided FCM device token'
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Notification sent successfully'
+  })
+  async sendTestNotificationToToken(@Body() body: SendTestNotificationToTokenDto): Promise<any> {
+    return this.notificationApiService.sendTestNotificationToToken(
+      body.token,
+      body.title,
+      body.body,
+      body.data
+    );
   }
 }

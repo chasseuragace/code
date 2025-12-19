@@ -7,6 +7,7 @@ import { NotificationController } from './notification.controller';
 import { JobApplication } from '../application/job-application.entity';
 import { JobPosting, InterviewDetail } from '../domain/domain.entity';
 import { PostingAgency } from '../domain/PostingAgency';
+import { User } from '../user/user.entity';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { PostingAgency } from '../domain/PostingAgency';
       JobPosting,
       InterviewDetail,
       PostingAgency,
+      User,
     ]),
   ],
   controllers: [
@@ -30,4 +32,4 @@ import { PostingAgency } from '../domain/PostingAgency';
     NotificationApiService,
   ],
 })
-export class NotificationModule {}
+export class NotificationModule { }

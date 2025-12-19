@@ -123,6 +123,10 @@ export class CandidateService {
       existing.date_of_birth = input.date_of_birth ? new Date(input.date_of_birth) : null;
     }
 
+    if (input.profile_image !== undefined) {
+      existing.profile_image = input.profile_image as any;
+    }
+
     return this.repo.save(existing);
   }
 

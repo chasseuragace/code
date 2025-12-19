@@ -5,6 +5,11 @@ import { Notification, NotificationType, NotificationPayload } from './notificat
 import { JobApplication } from '../application/job-application.entity';
 import { JobPosting, InterviewDetail } from '../domain/domain.entity';
 import { PostingAgency } from '../domain/PostingAgency';
+import { User } from '../user/user.entity';
+import * as admin from 'firebase-admin';
+import { OnModuleInit } from '@nestjs/common';
+import * as path from 'path';
+import * as fs from 'fs';
 
 export interface CreateNotificationData {
   candidateId: string;
@@ -37,7 +42,8 @@ export interface NotificationListResponse {
 }
 
 @Injectable()
-export class NotificationService {
+export class NotificationService implements OnModuleInit {
+  private firebaseApp: admin.app.App | undefined;
   constructor(
     @InjectRepository(Notification)
     private readonly notificationRepo: Repository<Notification>,
@@ -49,7 +55,40 @@ export class NotificationService {
     private readonly agencyRepo: Repository<PostingAgency>,
     @InjectRepository(InterviewDetail)
     private readonly interviewRepo: Repository<InterviewDetail>,
-  ) {}
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
+  ) { }
+
+  onModuleInit() {
+    this.initializeFirebase();
+  }
+
+  private initializeFirebase() {
+    try {
+      // Check if already initialized
+      if (admin.apps.length > 0) {
+        this.firebaseApp = admin.apps[0] || undefined;
+        return;
+      }
+
+      const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH ||
+        path.resolve(process.cwd(), 'firebase-service-account.json');
+
+      if (fs.existsSync(serviceAccountPath)) {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const serviceAccount = require(serviceAccountPath);
+        this.firebaseApp = admin.initializeApp({
+          credential: admin.credential.cert(serviceAccount),
+        });
+        console.log('✅ Firebase Admin initialized successfully');
+      } else {
+        console.warn('⚠️ Firebase service account file not found at:', serviceAccountPath);
+        console.warn('Push notifications will not be sent.');
+      }
+    } catch (error) {
+      console.error('❌ Failed to initialize Firebase Admin:', error);
+    }
+  }
 
   /**
    * Create and persist a notification
@@ -93,6 +132,9 @@ export class NotificationService {
   /**
    * Send push notification (stubbed implementation)
    */
+  /**
+   * Send push notification
+   */
   async sendNotification(notificationId: string): Promise<boolean> {
     try {
       const notification = await this.notificationRepo.findOne({
@@ -104,23 +146,113 @@ export class NotificationService {
         return false;
       }
 
-      // Stub: Log notification sending
-      console.log(`📱 Sending notification to candidate ${notification.candidate_id}:`);
-      console.log(`   Title: ${notification.title}`);
-      console.log(`   Message: ${notification.message}`);
-      console.log(`   Type: ${notification.notification_type}`);
-      console.log(`   Job: ${notification.payload.job_title} at ${notification.payload.agency_name}`);
+      // Find user associated with candidate
+      const user = await this.userRepo.findOne({
+        where: { candidate_id: notification.candidate_id }
+      });
+
+      if (!user || !user.fcm_token) {
+        console.log(`No FCM token found for candidate ${notification.candidate_id}`);
+        return false;
+      }
+
+      if (!this.firebaseApp) {
+        console.log('Firebase not initialized, skipping push notification');
+        return false;
+      }
+
+      const message: admin.messaging.Message = {
+        data: this.buildFcmDataFromNotification(notification),
+        token: user.fcm_token,
+      };
+
+      await admin.messaging().send(message);
 
       // Mark as sent
       notification.is_sent = true;
       notification.sent_at = new Date();
       await this.notificationRepo.save(notification);
 
+      console.log(`✅ Notification sent to user ${user.id} (${user.phone})`);
       return true;
     } catch (error) {
       console.error(`Failed to send notification ${notificationId}:`, error);
       return false;
     }
+  }
+
+  /**
+   * Send a test notification to a specific phone number
+   */
+  async sendTestNotification(phone: string, title: string, body: string, data?: Record<string, string>): Promise<any> {
+    if (!this.firebaseApp) {
+      throw new Error('Firebase not initialized');
+    }
+
+    const user = await this.userRepo.findOne({ where: { phone } });
+    if (!user) {
+      throw new Error(`User with phone ${phone} not found`);
+    }
+
+    if (!user.fcm_token) {
+      throw new Error(`User ${phone} has no FCM token`);
+    }
+
+    const message: admin.messaging.Message = {
+      data: this.buildFcmDataFromRaw({ title, body, extraData: data }),
+      token: user.fcm_token,
+    };
+
+    const response = await admin.messaging().send(message);
+    return { success: true, messageId: response, user: { id: user.id, phone: user.phone } };
+  }
+
+  /**
+   * Send a test notification directly to a raw FCM token
+   */
+  async sendTestNotificationToToken(token: string, title: string, body: string, data?: Record<string, string>): Promise<any> {
+    if (!this.firebaseApp) {
+      throw new Error('Firebase not initialized');
+    }
+
+    const message: admin.messaging.Message = {
+      data: this.buildFcmDataFromRaw({ title, body, extraData: data }),
+      token,
+    };
+
+    const response = await admin.messaging().send(message);
+    return { success: true, messageId: response };
+  }
+
+  private flattenPayload(payload: any): Record<string, string> {
+    const flattened: Record<string, string> = {};
+    for (const key in payload) {
+      if (typeof payload[key] === 'object' && payload[key] !== null) {
+        flattened[key] = JSON.stringify(payload[key]);
+      } else {
+        flattened[key] = String(payload[key]);
+      }
+    }
+    return flattened;
+  }
+
+  private buildFcmDataFromNotification(notification: Notification): Record<string, string> {
+    return {
+      title: notification.title,
+      body: notification.message,
+      imageUrl: (notification.payload as any)?.image_url || '',
+      ...this.flattenPayload(notification.payload),
+      notificationId: notification.id,
+      type: notification.notification_type,
+    };
+  }
+
+  private buildFcmDataFromRaw(input: { title: string; body: string; extraData?: Record<string, string> | undefined }): Record<string, string> {
+    return {
+      title: input.title,
+      body: input.body,
+      ...(input.extraData || {}),
+    };
   }
 
   /**
@@ -137,7 +269,7 @@ export class NotificationService {
       .where('notification.candidate_id = :candidateId', { candidateId })
       .orderBy('notification.created_at', 'DESC');
 
-   
+
 
     const [items, total] = await queryBuilder
       .skip((page - 1) * limit)
@@ -233,12 +365,12 @@ export class NotificationService {
       // Handle case where interview_date_ad might be a string or Date
       let formattedDate = '';
       if (interview.interview_date_ad) {
-        const date = interview.interview_date_ad instanceof Date 
-          ? interview.interview_date_ad 
+        const date = interview.interview_date_ad instanceof Date
+          ? interview.interview_date_ad
           : new Date(interview.interview_date_ad);
         formattedDate = !isNaN(date.getTime()) ? date.toISOString().split('T')[0] : '';
       }
-      
+
       interviewDetails = {
         date: formattedDate || interview.interview_date_bs || '',
         time: interview.interview_time || '',

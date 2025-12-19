@@ -43,6 +43,7 @@ services:
       - ./package.json:/app/package.json
       - ./reference:/app/reference
       - ./public:/app/public
+      - ./firebase-service-account.json:/app/firebase-service-account.json
     depends_on:
       db:
         condition: service_healthy

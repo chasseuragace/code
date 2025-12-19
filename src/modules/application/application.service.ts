@@ -97,12 +97,14 @@ export class ApplicationService {
     }
 
     // Enforce uniqueness: prevent duplicate applications unless the previous one was withdrawn
+    // Find the LATEST application for this candidate/job/position combination
     const existing = await this.appRepo.findOne({ 
       where: { 
         candidate_id: candidateId, 
         job_posting_id: jobPostingId,
         position_id: positionId
-      } 
+      },
+      order: { created_at: 'DESC' }
     });
     if (existing && existing.status !== 'withdrawn') {
       throw new Error('Candidate has already applied to this position');
@@ -258,10 +260,14 @@ export class ApplicationService {
 
   // Withdraw application by candidate + posting
   async withdraw(candidateId: string, jobPostingId: string, opts: UpdateOptions = {}): Promise<JobApplication> {
-    const app = await this.appRepo.findOne({ where: { candidate_id: candidateId, job_posting_id: jobPostingId } });
+    // Find the LATEST application for this candidate/job combination
+    const app = await this.appRepo.findOne({ 
+      where: { candidate_id: candidateId, job_posting_id: jobPostingId },
+      order: { created_at: 'DESC' }
+    });
     if (!app) throw new Error('Application not found');
     if (app.status === 'withdrawn') return app; // idempotent
-    if (TERMINAL_STATUSES.has(app.status)) throw new Error('Cannot withdraw from terminal status');
+    // Allow withdrawing from any non-withdrawn status (including terminal statuses like interview_passed)
 
     // If there's an active interview, cancel it
     const interview = await this.interviewHelperSvc.findLatestInterviewForApplication(app.id);

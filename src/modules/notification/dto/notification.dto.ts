@@ -1,4 +1,4 @@
-import { IsOptional, IsBoolean, IsNumber, Min, Max } from 'class-validator';
+import { IsOptional, IsBoolean, IsNumber, Min, Max, IsString, IsNotEmpty } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Notification, NotificationPayload } from '../notification.entity';
@@ -263,4 +263,46 @@ export class MarkAllAsReadResponseDto {
     this.markedCount = markedCount;
     this.message = `${markedCount} notifications marked as read`;
   }
+}
+
+export class SendTestNotificationDto {
+  @ApiProperty({ description: 'Phone number of the user (E.164 format)', example: '+9779812345678' })
+  @IsString()
+  @IsNotEmpty()
+  phone: string;
+
+  @ApiProperty({ description: 'Notification title', example: 'Test Notification' })
+  @IsString()
+  @IsNotEmpty()
+  title: string;
+
+  @ApiProperty({ description: 'Notification body', example: 'This is a test message' })
+  @IsString()
+  @IsNotEmpty()
+  body: string;
+
+  @ApiProperty({ description: 'Additional data payload', required: false })
+  @IsOptional()
+  data?: Record<string, string>;
+}
+
+export class SendTestNotificationToTokenDto {
+  @ApiProperty({ description: 'FCM device token to send the notification to' })
+  @IsString()
+  @IsNotEmpty()
+  token: string;
+
+  @ApiProperty({ description: 'Notification title', example: 'Test Notification' })
+  @IsString()
+  @IsNotEmpty()
+  title: string;
+
+  @ApiProperty({ description: 'Notification body', example: 'This is a test message' })
+  @IsString()
+  @IsNotEmpty()
+  body: string;
+
+  @ApiProperty({ description: 'Additional data payload', required: false })
+  @IsOptional()
+  data?: Record<string, string>;
 }

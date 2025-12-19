@@ -36,4 +36,7 @@ export class User {
 
   @Column({ type: 'boolean', default: false })
   is_agency_owner: boolean;
+
+  @Column({ type: 'varchar', nullable: true })
+  fcm_token?: string | null;
 }

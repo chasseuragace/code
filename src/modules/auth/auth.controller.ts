@@ -1,5 +1,5 @@
-import { Body, Controller, HttpCode, Post, Req, Param } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, HttpCode, Post, Req, Param, UseGuards } from '@nestjs/common';
+import { ApiBody, ApiOperation, ApiResponse, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterCandidateDto } from './dto/register.dto';
 import { VerifyOtpDto } from './dto/verify.dto';
@@ -9,6 +9,8 @@ import { MemberLoginDto } from './dto/member-login.dto';
 import { RequestPhoneChangeDto, VerifyPhoneChangeDto } from './dto/phone-change.dto';
 import { Logger } from '@nestjs/common';
 import { Request } from 'express';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { UpdateFcmTokenDto } from './dto/update-fcm-token.dto';
 
 @ApiTags('auth')
 @Controller()
@@ -138,5 +140,27 @@ export class AuthController {
     if (!body.candidateId) throw new Error('Invalid candidate');
     await this.auth.verifyPhoneChange(body.candidateId, body.newPhone, body.otp);
     return { message: 'Phone number changed successfully' };
+  }
+
+  @Post('me/fcm-token')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Update FCM token for the current user' })
+  @ApiBody({ type: UpdateFcmTokenDto })
+  @ApiResponse({ status: 200, description: 'FCM token updated' })
+  async updateFcmToken(
+    @Req() req: Request & { user: any },
+    @Body() body: UpdateFcmTokenDto,
+  ) {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new Error('Authenticated user not found in request');
+    }
+
+    const normalized = body.fcmToken && body.fcmToken.trim().length > 0 ? body.fcmToken : null;
+    await this.auth.updateUserFcmToken(userId, normalized);
+
+    return { success: true };
   }
 }

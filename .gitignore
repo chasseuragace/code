@@ -9,5 +9,9 @@ variant_dashboard
 node_modules
 admin_panel
 
+# Local secrets and env files (do not commit)
+secrets/
+.env
+
 firebase-service-account.json
 madiramaps-268511-firebase-adminsdk-yfwl7-8fda59f0d2.json

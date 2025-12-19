@@ -1,4 +1,4 @@
-import { IsOptional, IsBoolean, IsNumber, Min, Max, IsString, IsNotEmpty } from 'class-validator';
+import { IsOptional, IsBoolean, IsNumber, Min, Max, IsString, IsNotEmpty, IsObject } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Notification, NotificationPayload } from '../notification.entity';
@@ -292,17 +292,33 @@ export class SendTestNotificationToTokenDto {
   @IsNotEmpty()
   token: string;
 
-  @ApiProperty({ description: 'Notification title', example: 'Test Notification' })
+  @ApiProperty({
+    description: 'Notification title. If omitted, a random test template title will be used.',
+    example: 'Test Notification',
+    required: false,
+  })
   @IsString()
-  @IsNotEmpty()
-  title: string;
-
-  @ApiProperty({ description: 'Notification body', example: 'This is a test message' })
-  @IsString()
-  @IsNotEmpty()
-  body: string;
-
-  @ApiProperty({ description: 'Additional data payload', required: false })
   @IsOptional()
+  title?: string;
+
+  @ApiProperty({
+    description: 'Notification body. If omitted, a random test template body will be used.',
+    example: 'This is a test push notification.',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  body?: string;
+
+  @ApiProperty({
+    description: 'Optional custom data payload (key-value pairs). Will be merged with random template data if provided.',
+    required: false,
+    example: {
+      foo: 'bar',
+      screen: 'notifications',
+    },
+  })
+  @IsOptional()
+  @IsObject()
   data?: Record<string, string>;
 }

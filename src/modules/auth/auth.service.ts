@@ -38,6 +38,10 @@ export class AuthService {
     private readonly jwt: JwtService,
   ) {}
 
+  async updateUserFcmToken(userId: string, fcmToken: string | null): Promise<void> {
+    await this.users.update({ id: userId }, { fcm_token: fcmToken });
+  }
+
   private generateOtp(): string {
     return String(Math.floor(100000 + Math.random() * 900000));
   }

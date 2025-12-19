@@ -8,8 +8,30 @@ import { PostingAgency } from '../domain/PostingAgency';
 import { User } from '../user/user.entity';
 import * as admin from 'firebase-admin';
 import { OnModuleInit } from '@nestjs/common';
-import * as path from 'path';
-import * as fs from 'fs';
+import * as crypto from 'crypto';
+
+// Simple in-memory templates used only for test notification APIs
+const TEST_NOTIFICATION_TEMPLATES: Array<{
+  title: string;
+  body: string;
+  data?: Record<string, string>;
+}> = [
+  {
+    title: 'Shortlisted for {{job}}',
+    body: 'Good news! You have been shortlisted for {{job}} at {{agency}}.',
+    data: { templateType: 'shortlisted_test' },
+  },
+  {
+    title: 'Interview Scheduled - {{job}}',
+    body: 'Your interview for {{job}} at {{agency}} is scheduled. Please check the app for details.',
+    data: { templateType: 'interview_scheduled_test' },
+  },
+  {
+    title: 'Application Update for {{job}}',
+    body: 'There is a new update on your application for {{job}} at {{agency}}.',
+    data: { templateType: 'generic_update_test' },
+  },
+];
 
 export interface CreateNotificationData {
   candidateId: string;
@@ -71,20 +93,39 @@ export class NotificationService implements OnModuleInit {
         return;
       }
 
-      const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH ||
-        path.resolve(process.cwd(), 'firebase-service-account.json');
+      const encrypted = process.env.FIREBASE_SA_ENC;
+      const keyB64 = process.env.FIREBASE_SA_KEY;
 
-      if (fs.existsSync(serviceAccountPath)) {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const serviceAccount = require(serviceAccountPath);
-        this.firebaseApp = admin.initializeApp({
-          credential: admin.credential.cert(serviceAccount),
-        });
-        console.log('✅ Firebase Admin initialized successfully');
-      } else {
-        console.warn('⚠️ Firebase service account file not found at:', serviceAccountPath);
-        console.warn('Push notifications will not be sent.');
+      if (!encrypted || !keyB64) {
+        console.warn('⚠️ FIREBASE_SA_ENC or FIREBASE_SA_KEY not set; push notifications will not be sent.');
+        return;
       }
+
+      const parts = encrypted.split(':');
+      if (parts.length !== 3) {
+        console.warn('⚠️ FIREBASE_SA_ENC has invalid format; expected iv:ciphertext:authTag (base64).');
+        console.warn('Push notifications will not be sent.');
+        return;
+      }
+
+      const [ivB64, ciphertextB64, authTagB64] = parts;
+
+      const key = Buffer.from(keyB64, 'base64');
+      const iv = Buffer.from(ivB64, 'base64');
+      const authTag = Buffer.from(authTagB64, 'base64');
+
+      const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+      decipher.setAuthTag(authTag);
+
+      let decrypted = decipher.update(ciphertextB64, 'base64', 'utf8');
+      decrypted += decipher.final('utf8');
+
+      const serviceAccount = JSON.parse(decrypted);
+
+      this.firebaseApp = admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+      });
+      console.log('✅ Firebase Admin initialized successfully from encrypted env');
     } catch (error) {
       console.error('❌ Failed to initialize Firebase Admin:', error);
     }
@@ -213,6 +254,27 @@ export class NotificationService implements OnModuleInit {
   async sendTestNotificationToToken(token: string, title: string, body: string, data?: Record<string, string>): Promise<any> {
     if (!this.firebaseApp) {
       throw new Error('Firebase not initialized');
+    }
+
+    // Pure test mode: if title/body are not provided, generate them from a random template
+    if (!title || !body) {
+      const tpl = TEST_NOTIFICATION_TEMPLATES[Math.floor(Math.random() * TEST_NOTIFICATION_TEMPLATES.length)];
+
+      const job = 'Security Guard';
+      const agency = 'Madira Maps Agency';
+
+      const replaceTokens = (text: string) =>
+        text
+          .replace(/{{job}}/g, job)
+          .replace(/{{agency}}/g, agency);
+
+      title = title || replaceTokens(tpl.title);
+      body = body || replaceTokens(tpl.body);
+
+      data = {
+        ...(tpl.data || {}),
+        ...(data || {}),
+      };
     }
 
     const message: admin.messaging.Message = {

@@ -7,10 +7,12 @@ import { BlockedPhone } from './blocked-phone.entity';
 import { CandidateModule } from '../candidate/candidate.module';
 import { JwtModule } from '@nestjs/jwt';
 import { AgencyUser } from '../agency/agency-user.entity';
+import { SmsModule } from '../sms/sms.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, BlockedPhone, AgencyUser]),
+    SmsModule,
     forwardRef(() => CandidateModule),
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'secretKey',

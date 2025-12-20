@@ -8,6 +8,7 @@ import { BlockedPhone } from './blocked-phone.entity';
 import { JwtService } from '@nestjs/jwt';
 import { AgencyUser } from '../agency/agency-user.entity';
 import * as bcrypt from 'bcryptjs';
+import { SmsService, buildOtpSmsMessage } from '../sms/sms.service';
 
 function normalizePhoneE164(phone: string): string {
   const digits = phone.replace(/\D/g, '');
@@ -36,6 +37,7 @@ export class AuthService {
     @InjectRepository(AgencyUser) private readonly agencyUsers: Repository<AgencyUser>,
     private readonly candidates: CandidateService,
     private readonly jwt: JwtService,
+    private readonly smsService: SmsService,
   ) {}
 
   async updateUserFcmToken(userId: string, fcmToken: string | null): Promise<void> {
@@ -90,6 +92,9 @@ export class AuthService {
 
     const otp = this.generateOtp();
     this.otps.set(phone, { otp, expiresAt: Date.now() + 5 * 60_000, userId: user.id, candidateId });
+
+    const smsMessage = buildOtpSmsMessage('candidate_register', otp);
+    this.smsService.sendSmsNotification({ contactNumber: phone, message: smsMessage });
 
     // NOTE: In dev we return the OTP. In prod we'd send via SMS and not return it.
     return { dev_otp: otp };
@@ -170,6 +175,10 @@ export class AuthService {
     // Issue OTP
     const otp = this.generateOtp();
     this.otps.set(phone, { otp, expiresAt: Date.now() + 5 * 60_000, userId: user.id, candidateId });
+
+    const smsMessage = buildOtpSmsMessage('candidate_login', otp);
+    this.smsService.sendSmsNotification({ contactNumber: phone, message: smsMessage });
+
     return { dev_otp: otp };
   }
 
@@ -212,6 +221,10 @@ export class AuthService {
 
     const otp = this.generateOtp();
     this.otps.set(phone, { otp, expiresAt: Date.now() + 5 * 60_000, userId: user.id, candidateId: '' as any });
+
+    const smsMessage = buildOtpSmsMessage('owner_register', otp);
+    this.smsService.sendSmsNotification({ contactNumber: phone, message: smsMessage });
+
     return { dev_otp: otp };
   }
 
@@ -340,8 +353,8 @@ export class AuthService {
     const otp = this.generateOtp();
     this.otps.set(phone, { otp, expiresAt: Date.now() + 5 * 60_000, userId: user.id, candidateId: '' as any });
     
-    // Send SMS with OTP
-    // await this.sms.send(phone, `Your login OTP is: ${otp}`);
+    const smsMessage = buildOtpSmsMessage('member_login', otp);
+    this.smsService.sendSmsNotification({ contactNumber: phone, message: smsMessage });
     
     return { dev_otp: otp };
   }
@@ -445,6 +458,10 @@ export class AuthService {
 
     const otp = this.generateOtp();
     this.otps.set(newPhone, { otp, expiresAt: Date.now() + 5 * 60_000, userId: user.id, candidateId });
+
+    const smsMessage = buildOtpSmsMessage('phone_change', otp);
+    this.smsService.sendSmsNotification({ contactNumber: newPhone, message: smsMessage });
+
     return { dev_otp: otp };
   }
 

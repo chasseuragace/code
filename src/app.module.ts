@@ -10,6 +10,7 @@ import { OwnerAnalyticsModule } from './modules/owner-analytics/owner-analytics.
 import { CountryModule } from './modules/country/country.module';
 import { SeedModule } from './modules/seed/seed.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { SmsModule } from './modules/sms/sms.module';
 import { TesthelperModule } from './modules/testhelper/testhelper.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { AdminModule } from './modules/admin/admin.module';
@@ -33,6 +34,7 @@ import { AuditModule } from './modules/audit/audit.module';
     CountryModule,
     SeedModule,
     AuthModule,
+    SmsModule,
     TesthelperModule,
     NotificationModule,
     AdminModule,

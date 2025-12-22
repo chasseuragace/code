@@ -7,7 +7,8 @@ export type NotificationType =
   | 'interview_scheduled'
   | 'interview_rescheduled'
   | 'interview_passed'
-  | 'interview_failed';
+  | 'interview_failed'
+  | 'withdrawn';
 
 export type NotificationPayload = {
   job_title: string;

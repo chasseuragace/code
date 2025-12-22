@@ -92,7 +92,9 @@ export class AdminJobsService {
       const position = contract?.positions?.[0];
       const stats = statsMap.get(job.id) || {
         applications_count: '0',
+        applied_count: '0',
         shortlisted_count: '0',
+        withdrawn_count: '0',
         interviews_today: '0',
         total_interviews: '0',
       } as any;
@@ -113,7 +115,9 @@ export class AdminJobsService {
         salary_amount: Number(position?.monthly_salary_amount) || 0,
 
         applications_count: parseInt(stats.applications_count),
+        applied_count: parseInt(stats.applied_count),
         shortlisted_count: parseInt(stats.shortlisted_count),
+        withdrawn_count: parseInt(stats.withdrawn_count),
         interviews_today: parseInt(stats.interviews_today),
         total_interviews: parseInt(stats.total_interviews),
         view_count: 0, // TODO: Implement view tracking
@@ -194,8 +198,16 @@ export class AdminJobsService {
       .select('app.job_posting_id', 'job_id')
       .addSelect('COUNT(*)', 'applications_count')
       .addSelect(
+        "SUM(CASE WHEN app.status = 'applied' THEN 1 ELSE 0 END)",
+        'applied_count'
+      )
+      .addSelect(
         "SUM(CASE WHEN app.status = 'shortlisted' THEN 1 ELSE 0 END)",
         'shortlisted_count'
+      )
+      .addSelect(
+        "SUM(CASE WHEN app.status = 'withdrawn' THEN 1 ELSE 0 END)",
+        'withdrawn_count'
       )
       .where('app.job_posting_id IN (:...ids)', { ids: jobIds })
       .groupBy('app.job_posting_id')
@@ -221,7 +233,9 @@ export class AdminJobsService {
       map.set(String(a.job_id), {
         job_id: String(a.job_id),
         applications_count: String(a.applications_count ?? '0'),
+        applied_count: String(a.applied_count ?? '0'),
         shortlisted_count: String(a.shortlisted_count ?? '0'),
+        withdrawn_count: String(a.withdrawn_count ?? '0'),
         interviews_today: '0',
         total_interviews: '0',
       });
@@ -231,7 +245,9 @@ export class AdminJobsService {
       const existing = map.get(key) || {
         job_id: key,
         applications_count: '0',
+        applied_count: '0',
         shortlisted_count: '0',
+        withdrawn_count: '0',
         interviews_today: '0',
         total_interviews: '0',
       };

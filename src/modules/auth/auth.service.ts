@@ -150,6 +150,7 @@ export class AuthService {
     return { token, user_id: rec.userId, candidate_id: rec.candidateId, candidate };
   }
 
+  // --- Candidate Login Flow (for job applicants) ---
   async loginStart(input: { phone: string }): Promise<{ dev_otp: string }> {
     if (!input?.phone) throw new BadRequestException('phone is required');
     const phone = normalizePhoneE164(input.phone);
@@ -158,6 +159,14 @@ export class AuthService {
 
     const user = await this.users.findOne({ where: { phone } });
     if (!user) throw new NotFoundException('No registration found for this phone');
+
+    // This endpoint is for candidates only - owners and agency users should use their respective portals
+    if (user.role === 'owner') {
+      throw new BadRequestException('Agency owners should use the owner login portal');
+    }
+    if (user.role === 'agency_user') {
+      throw new BadRequestException('Agency members should use the member login portal');
+    }
 
     // Fix data integrity: if user.candidate_id is null, find and link the candidate
     let candidateId = user.candidate_id;
@@ -295,6 +304,12 @@ export class AuthService {
     if (isBlocked) throw new BadRequestException('Phone is blocked');
     const user = await this.users.findOne({ where: { phone } });
     if (!user) throw new NotFoundException('No registration found for this phone');
+    
+    // Validate user role - only owners can use owner login
+    if (user.role !== 'owner') {
+      throw new BadRequestException('This phone number is not authorized for owner login. Please use the member portal instead.');
+    }
+    
     const otp = this.generateOtp();
     this.otps.set(phone, { otp, expiresAt: Date.now() + 5 * 60_000, userId: user.id, candidateId: '' as any });
     return { dev_otp: otp };
@@ -328,8 +343,9 @@ export class AuthService {
       await this.agencyUsers.save(au);
     }
 
-    const token = await this.jwt.signAsync({ sub: user.id, aid: user.agency_id, role: 'agency_user' });
-    return { token, user_id: user.id, agency_id: user.agency_id, user_type: 'member', role: au.role || 'staff' };
+    const memberRole = au.role || 'staff';
+    const token = await this.jwt.signAsync({ sub: user.id, aid: user.agency_id, role: memberRole });
+    return { token, user_id: user.id, agency_id: user.agency_id, user_type: 'member', role: memberRole };
   }
 
   // --- Member OTP Login Flow ---
@@ -382,7 +398,8 @@ export class AuthService {
         au.status = 'active';
         await this.agencyUsers.save(au);
       }
-      const token = await this.jwt.signAsync({ sub: user.id, aid: user.agency_id, role: 'agency_user' });
+      const memberRole = au.role || 'staff';
+      const token = await this.jwt.signAsync({ sub: user.id, aid: user.agency_id, role: memberRole });
       return { 
         token, 
         user_id: user.id, 
@@ -390,7 +407,7 @@ export class AuthService {
         user_type: 'member',
         phone,
         full_name: au.full_name || null,
-        role: au.role || 'staff'
+        role: memberRole
       };
     }
     
@@ -430,7 +447,8 @@ export class AuthService {
     }
     
     // Generate JWT
-    const token = await this.jwt.signAsync({ sub: user.id, aid: user.agency_id, role: 'agency_user' });
+    const memberRole = au.role || 'staff';
+    const token = await this.jwt.signAsync({ sub: user.id, aid: user.agency_id, role: memberRole });
     
     // Clean up OTP
     this.otps.delete(phone);
@@ -442,7 +460,7 @@ export class AuthService {
       user_type: 'member',
       phone,
       full_name: au.full_name || null,
-      role: au.role || 'staff'
+      role: memberRole
     };
   }
 

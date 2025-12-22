@@ -281,8 +281,9 @@ export class SendTestNotificationDto {
   @IsNotEmpty()
   body: string;
 
-  @ApiProperty({ description: 'Additional data payload', required: false })
+  
   @IsOptional()
+    @ApiPropertyOptional({ description: 'Additional data payload', required: false })
   data?: Record<string, string>;
 }
 
@@ -292,33 +293,36 @@ export class SendTestNotificationToTokenDto {
   @IsNotEmpty()
   token: string;
 
-  @ApiProperty({
-    description: 'Notification title. If omitted, a random test template title will be used.',
-    example: 'Test Notification',
-    required: false,
-  })
+  
   @IsString()
   @IsOptional()
+    @ApiPropertyOptional({
+        description: 'Notification title. If omitted, a random test template title will be used.',
+        example: 'Test Notification',
+        required: false,
+      })
   title?: string;
 
-  @ApiProperty({
-    description: 'Notification body. If omitted, a random test template body will be used.',
-    example: 'This is a test push notification.',
-    required: false,
-  })
+  
   @IsString()
   @IsOptional()
+    @ApiPropertyOptional({
+        description: 'Notification body. If omitted, a random test template body will be used.',
+        example: 'This is a test push notification.',
+        required: false,
+      })
   body?: string;
 
-  @ApiProperty({
-    description: 'Optional custom data payload (key-value pairs). Will be merged with random template data if provided.',
-    required: false,
-    example: {
-      foo: 'bar',
-      screen: 'notifications',
-    },
-  })
+  
   @IsOptional()
   @IsObject()
+    @ApiPropertyOptional({
+        description: 'Optional custom data payload (key-value pairs). Will be merged with random template data if provided.',
+        required: false,
+        example: {
+          foo: 'bar',
+          screen: 'notifications',
+        },
+      })
   data?: Record<string, string>;
 }

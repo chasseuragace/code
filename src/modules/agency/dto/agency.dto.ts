@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsBoolean, IsDateString, IsEmail, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, IsUrl, MaxLength, ValidateNested, ArrayNotEmpty, IsObject, IsNumber } from 'class-validator';
+import { IsArray, IsBoolean, IsDateString, IsEmail, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, IsUrl, MaxLength, ValidateNested, ArrayNotEmpty, IsObject, IsNumber, Matches } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CertificationDto {
@@ -213,10 +213,13 @@ export class CreateAgencyDto {
     @ApiProperty({ description: 'Name', example: 'Example Name' })
   name!: string;
 
-  @ApiProperty({ description: 'Unique license number for the agency' })
+  @ApiProperty({ description: 'Unique license number for the agency (URL-safe characters only)' })
   @IsString()
   @IsNotEmpty()
   @MaxLength(100)
+  @Matches(/^[A-Za-z0-9\-_]+$/, { 
+    message: 'License number can only contain letters, numbers, hyphens, and underscores (no slashes or special characters)' 
+  })
   license_number!: string;
 
   
@@ -696,11 +699,15 @@ export class UpdateAgencyBasicDto {
   @ApiPropertyOptional({ description: 'Year the agency was established', example: 2020 })
   @IsOptional()
   @IsInt()
+    @IsNumber()
   established_year?: number;
 
-  @ApiPropertyOptional({ description: 'License number', example: 'LIC-12345' })
+  @ApiPropertyOptional({ description: 'License number (URL-safe characters only)', example: 'LIC-12345' })
   @IsOptional()
   @IsString()
+  @Matches(/^[A-Za-z0-9\-_]+$/, { 
+    message: 'License number can only contain letters, numbers, hyphens, and underscores (no slashes or special characters)' 
+  })
   license_number?: string;
 }
 

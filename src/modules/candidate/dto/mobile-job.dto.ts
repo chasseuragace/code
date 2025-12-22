@@ -163,7 +163,12 @@ export class MobileJobPositionDto {
     type: Boolean,
     description: 'Whether the candidate has applied to this position'
   })
-  hasApplied?: boolean;
+  hasApplied: boolean = false;
+  @ApiPropertyOptional({ 
+    type: Boolean,
+    description: 'Whether the candidate can apply to this position (false if already applied and not withdrawn)'
+  })
+  canApply: boolean = false;
 }
 
 export class MobileContractTermsDto {

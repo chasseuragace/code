@@ -5,8 +5,10 @@ import {
   Query,
   HttpCode,
   ForbiddenException,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiParam, ApiQuery, ApiOkResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiParam, ApiQuery, ApiOkResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -16,6 +18,7 @@ import { JobApplication } from '../application/job-application.entity';
 import { Candidate } from '../candidate/candidate.entity';
 import { CandidateJobProfile } from '../candidate/candidate-job-profile.entity';
 import { PostingAgency } from '../domain/PostingAgency';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 import {
   GetJobCandidatesQueryDto,
@@ -51,6 +54,8 @@ export class AgencyInterviewsController {
    * GET /agencies/:license/interviews
    */
   @Get()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @HttpCode(200)
   @ApiOperation({
     summary: 'Get all interviews for an agency',
@@ -129,6 +134,7 @@ export class AgencyInterviewsController {
     }
   })
   async getAllInterviewsForAgency(
+    @Req() req: any,
     @Param('license') license: string,
     @Query('job_id') jobId?: string,
     @Query('interview_filter') interviewFilter?: string,
@@ -140,13 +146,22 @@ export class AgencyInterviewsController {
     @Query('offset') offsetStr?: string,
   ) {
     try {
+      const user = req.user as any;
+      if (!user?.agency_id) {
+        throw new ForbiddenException('User has no agency');
+      }
+
       const limit = limitStr ? Math.min(100, Math.max(1, parseInt(limitStr, 10))) : 20;
       const offset = offsetStr ? Math.max(0, parseInt(offsetStr, 10)) : 0;
 
-      // Verify agency exists
+      // Verify agency exists and user belongs to it
       const agency = await this.agencyRepo.findOne({ where: { license_number: license } });
       if (!agency) {
         throw new ForbiddenException('Agency not found');
+      }
+
+      if (agency.id !== user.agency_id) {
+        throw new ForbiddenException('Cannot access interviews of another agency');
       }
 
       // Build query to get all jobs for this agency
@@ -190,38 +205,35 @@ export class AgencyInterviewsController {
 
       // Apply interview status filter
       if (interviewFilter && interviewFilter !== 'all') {
-        const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
+        // Get current time from database - it's in Nepal timezone (UTC+5:45)
+        const dbTimeResult = await this.jobAppRepo.query('SELECT NOW() as now');
+        const dbNow = new Date(dbTimeResult[0].now);
+        
+        // Import timezone utilities
+        const { getNepalNow, getNepalToday, getNepalTomorrow, getNepalDayAfterTomorrow, parseInterviewDateTime, getInterviewEndTime, isInterviewToday, isInterviewTomorrow, isInterviewUnattended } = await import('../../shared/timezone.util');
+        
+        const nepalNow = getNepalNow(dbNow);
+        const today = getNepalToday(nepalNow);
+        const tomorrow = getNepalTomorrow(today);
+        const dayAfterTomorrow = getNepalDayAfterTomorrow(tomorrow);
 
         applications = applications.filter(app => {
           const interview = app.interview_details?.[0];
           if (!interview || !interview.interview_date_ad) return false;
 
           const interviewDate = new Date(interview.interview_date_ad);
-          const interviewDateTime = new Date(interviewDate);
-
-          if (interview.interview_time) {
-            const timeParts = interview.interview_time.toString().split(':');
-            const hours = parseInt(timeParts[0], 10);
-            const minutes = parseInt(timeParts[1], 10);
-            interviewDateTime.setHours(hours, minutes, 0, 0);
-          }
+          const interviewDateTime = parseInterviewDateTime(interview.interview_date_ad, interview.interview_time);
+          const endTime = getInterviewEndTime(interviewDateTime, interview.duration_minutes);
 
           switch (interviewFilter) {
             case 'today':
-              return interviewDate >= today && interviewDate < tomorrow;
+              return isInterviewToday(interviewDate, today, tomorrow);
             case 'tomorrow':
-              const dayAfterTomorrow = new Date(tomorrow);
-              dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
-              return interviewDate >= tomorrow && interviewDate < dayAfterTomorrow;
+              return isInterviewTomorrow(interviewDate, tomorrow, dayAfterTomorrow);
             case 'unattended':
-              const duration = interview.duration_minutes || 60;
-              const gracePeriod = 30;
-              const endTime = new Date(interviewDateTime);
-              endTime.setMinutes(endTime.getMinutes() + duration + gracePeriod);
-              return now > endTime;
+              const todayUnattended = isInterviewToday(interviewDate, today, tomorrow);
+              const hasPassed = isInterviewUnattended(interviewDateTime, nepalNow, interview.duration_minutes);
+              return todayUnattended && hasPassed;
             default:
               return true;
           }
@@ -429,6 +441,8 @@ export class AgencyInterviewsController {
    * GET /agencies/:license/interviews/stats
    */
   @Get('stats')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @HttpCode(200)
   @ApiOperation({
     summary: 'Get interview statistics for all agency jobs',
@@ -447,13 +461,23 @@ export class AgencyInterviewsController {
     type: InterviewStatsDto
   })
   async getAgencyInterviewStats(
+    @Req() req: any,
     @Param('license') license: string,
     @Query('date_range') dateRange?: 'today' | 'week' | 'month' | 'all',
   ): Promise<InterviewStatsDto> {
-    // Verify agency exists
+    const user = req.user as any;
+    if (!user?.agency_id) {
+      throw new ForbiddenException('User has no agency');
+    }
+
+    // Verify agency exists and user belongs to it
     const agency = await this.agencyRepo.findOne({ where: { license_number: license } });
     if (!agency) {
       throw new ForbiddenException('Agency not found');
+    }
+
+    if (agency.id !== user.agency_id) {
+      throw new ForbiddenException('Cannot access interview stats of another agency');
     }
 
     // Get all jobs for this agency

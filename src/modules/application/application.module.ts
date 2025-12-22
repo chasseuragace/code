@@ -10,6 +10,8 @@ import { NotificationModule } from '../notification/notification.module';
 import { AuthModule } from '../auth/auth.module';
 import { User } from '../user/user.entity';
 import { AgencyAuthGuard } from '../auth/agency-auth.guard';
+import { CandidateModule } from '../candidate/candidate.module';
+import { ImageUploadModule } from '../shared/image-upload.module';
 
 @Module({
   imports: [
@@ -17,6 +19,8 @@ import { AgencyAuthGuard } from '../auth/agency-auth.guard';
     forwardRef(() => DomainModule),
     NotificationModule,
     forwardRef(() => AuthModule),
+    forwardRef(() => CandidateModule),
+    ImageUploadModule,
   ],
   providers: [ApplicationService, AgencyAuthGuard],
   controllers: [ApplicationController],

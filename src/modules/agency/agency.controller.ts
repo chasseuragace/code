@@ -239,7 +239,7 @@ export class AgencyController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(200)
-  @ApiOperation({ summary: 'Get dashboard analytics for the authenticated owner agency' })
+  @ApiOperation({ summary: 'Get dashboard analytics for the authenticated user agency' })
   @ApiOkResponse({ description: 'Dashboard analytics', type: AgencyDashboardAnalyticsDto })
   @ApiQuery({ name: 'startDate', required: false, description: 'Start date for filtering (ISO 8601)' })
   @ApiQuery({ name: 'endDate', required: false, description: 'End date for filtering (ISO 8601)' })
@@ -250,8 +250,8 @@ export class AgencyController {
     @Query() query: AgencyDashboardQueryDto,
   ): Promise<AgencyDashboardAnalyticsDto> {
     const user = req.user as any;
-    if (!user?.is_agency_owner || !user?.agency_id) {
-      throw new ForbiddenException('User is not an agency owner or has no agency');
+    if (!user?.agency_id) {
+      throw new ForbiddenException('User has no agency');
     }
     
     const agency = await this.agencyService.findAgencyById(user.agency_id);
@@ -262,14 +262,14 @@ export class AgencyController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(200)
-  @ApiOperation({ summary: 'Get agency owned by the authenticated user' })
+  @ApiOperation({ summary: 'Get agency for the authenticated user (owner or team member)' })
   @ApiOkResponse({ description: 'Agency details', type: AgencyResponseDto })
-  @ApiResponse({ status: 403, description: 'Forbidden if user is not an agency owner' })
+  @ApiResponse({ status: 403, description: 'Forbidden if user has no agency' })
   @ApiResponse({ status: 404, description: 'Not found if agency does not exist' })
   async getMyAgency(@Req() req: any) {
     const user = req.user as any;
-    if (!user?.is_agency_owner || !user?.agency_id) {
-      throw new ForbiddenException('User is not an agency owner or has no agency');
+    if (!user?.agency_id) {
+      throw new ForbiddenException('User has no agency');
     }
     
     const agency = await this.agencyService.findAgencyById(user.agency_id);
@@ -438,62 +438,126 @@ export class AgencyController {
     @Req() req: any,
     @Body() body: { full_name: string; phone: string; role?: 'staff' | 'admin' | 'manager' | 'recruiter' | 'coordinator' | 'visaOfficer' | 'accountant' },
   ) {
+    const startTime = Date.now();
     const user = req.user as any;
     if (!user?.is_agency_owner || !user?.agency_id) throw new ForbiddenException('Only owners with an agency can invite');
     if (!body?.full_name || !body?.phone) throw new BadRequestException('full_name and phone are required');
     const phone = normalizePhone(body.phone);
 
-    // Upsert User with role=agency_user and link to owner agency
-    const mgr = this.jobPostingRepo.manager;
-    const userRepo = mgr.getRepository(User);
-    let u = await userRepo.findOne({ where: { phone } });
-    if (u) {
-      u.role = 'agency_user';
-      u.is_active = true;
-      u.agency_id = user.agency_id;
-      await userRepo.save(u);
-    } else {
-      u = userRepo.create({ phone, role: 'agency_user', is_active: true, agency_id: user.agency_id });
-      await userRepo.save(u);
-    }
+    try {
+      // Upsert User with role=agency_user and link to owner agency
+      const mgr = this.jobPostingRepo.manager;
+      const userRepo = mgr.getRepository(User);
+      let u = await userRepo.findOne({ where: { phone } });
+      if (u) {
+        u.role = 'agency_user';
+        u.is_active = true;
+        u.agency_id = user.agency_id;
+        await userRepo.save(u);
+      } else {
+        u = userRepo.create({ phone, role: 'agency_user', is_active: true, agency_id: user.agency_id });
+        await userRepo.save(u);
+      }
 
-    // Upsert AgencyUser under this agency
-    let au = await this.agencyUserRepo.findOne({ where: [{ user_id: u.id }, { phone }] });
-    const password = generatePassword();
-    const hash = await bcrypt.hash(password, 10);
-    if (au) {
-      au.full_name = body.full_name;
-      au.role = (body.role as any) || 'staff';
-      au.phone = phone;
-      au.user_id = u.id;
-      au.agency_id = user.agency_id;
-      au.status = 'pending';
-      au.password_hash = hash;
-      au.password_set_by_admin_at = new Date();
-      await this.agencyUserRepo.save(au);
-    } else {
-      au = this.agencyUserRepo.create({
-        full_name: body.full_name,
-        phone,
-        user_id: u.id,
-        agency_id: user.agency_id,
-        role: (body.role as any) || 'staff',
-        status: 'pending',
-        password_hash: hash,
-        password_set_by_admin_at: new Date(),
-      });
-      await this.agencyUserRepo.save(au);
-    }
+      // Upsert AgencyUser under this agency
+      let au = await this.agencyUserRepo.findOne({ where: [{ user_id: u.id }, { phone }] });
+      const password = generatePassword();
+      const hash = await bcrypt.hash(password, 10);
+      const isNewMember = !au;
+      if (au) {
+        au.full_name = body.full_name;
+        au.role = (body.role as any) || 'staff';
+        au.phone = phone;
+        au.user_id = u.id;
+        au.agency_id = user.agency_id;
+        au.status = 'pending';
+        au.password_hash = hash;
+        au.password_set_by_admin_at = new Date();
+        await this.agencyUserRepo.save(au);
+      } else {
+        au = this.agencyUserRepo.create({
+          full_name: body.full_name,
+          phone,
+          user_id: u.id,
+          agency_id: user.agency_id,
+          role: (body.role as any) || 'staff',
+          status: 'pending',
+          password_hash: hash,
+          password_set_by_admin_at: new Date(),
+        });
+        await this.agencyUserRepo.save(au);
+      }
 
-    // Send SMS with login URL (OTP-based, no password)
-    await this.sms.send(phone, `Welcome to your agency. Login at /member/login with your phone number and OTP.`);
-    return { 
-      id: au.id, 
-      phone: au.phone, 
-      role: au.role, 
-      status: au.status,
-      created_at: au.created_at
-    };
+      // Send SMS with login URL (OTP-based, no password)
+      await this.sms.send(phone, `Welcome to your agency. Login at /member/login with your phone number and OTP.`);
+
+      // Log audit event
+      await this.auditService.log(
+        {
+          method: 'POST',
+          path: req.path,
+          userId: user?.id,
+          userEmail: user?.phone,
+          userRole: user?.role,
+          agencyId: user?.agency_id,
+          originIp: req.ip,
+          userAgent: req.get('user-agent'),
+        },
+        {
+          action: AuditActions.ADD_TEAM_MEMBER,
+          category: AuditCategories.AGENCY,
+          resourceType: 'agency_user',
+          resourceId: au.id,
+          metadata: {
+            member_phone: phone,
+            member_role: au.role,
+            is_new: isNewMember,
+          },
+        },
+        {
+          outcome: 'success',
+          statusCode: 201,
+          durationMs: Date.now() - startTime,
+        }
+      );
+
+      return { 
+        id: au.id, 
+        phone: au.phone, 
+        role: au.role, 
+        status: au.status,
+        created_at: au.created_at
+      };
+    } catch (error) {
+      // Log failed audit event
+      await this.auditService.log(
+        {
+          method: 'POST',
+          path: req.path,
+          userId: user?.id,
+          userEmail: user?.phone,
+          userRole: user?.role,
+          agencyId: user?.agency_id,
+          originIp: req.ip,
+          userAgent: req.get('user-agent'),
+        },
+        {
+          action: AuditActions.ADD_TEAM_MEMBER,
+          category: AuditCategories.AGENCY,
+          resourceType: 'agency_user',
+          metadata: {
+            member_phone: phone,
+          },
+        },
+        {
+          outcome: 'failure',
+          statusCode: error.status || 500,
+          errorMessage: error.message,
+          durationMs: Date.now() - startTime,
+        }
+      );
+      throw error;
+    }
   }
 
   @Post('owner/members/:id/reset-password')
@@ -594,23 +658,86 @@ export class AgencyController {
   @ApiBody({ schema: { properties: { full_name: { type: 'string' }, role: { type: 'string' } }, required: [] } })
   @ApiResponse({ status: 200, description: 'Member updated', schema: { properties: { id: { type: 'string', format: 'uuid' }, full_name: { type: 'string' }, phone: { type: 'string' }, role: { type: 'string' }, status: { type: 'string' }, created_at: { type: 'string', format: 'date-time' } } } })
   async updateMember(@Req() req: any, @Param('id', ParseUUIDPipe) id: string, @Body() body: { full_name?: string; role?: string }) {
+    const startTime = Date.now();
     const user = req.user as any;
     if (!user?.is_agency_owner || !user?.agency_id) throw new ForbiddenException('Only owners with an agency can update');
     const member = await this.agencyUserRepo.findOne({ where: { id, agency_id: user.agency_id } });
     if (!member) throw new NotFoundException('Member not found');
     
-    if (body.full_name) member.full_name = body.full_name;
-    if (body.role) member.role = body.role as any;
+    const stateChange: Record<string, [any, any]> = {};
+    if (body.full_name && body.full_name !== member.full_name) {
+      stateChange.full_name = [member.full_name, body.full_name];
+      member.full_name = body.full_name;
+    }
+    if (body.role && body.role !== member.role) {
+      stateChange.role = [member.role, body.role];
+      member.role = body.role as any;
+    }
     
-    await this.agencyUserRepo.save(member);
-    return { 
-      id: member.id, 
-      full_name: member.full_name, 
-      phone: member.phone, 
-      role: member.role,
-      status: member.status || 'active',
-      created_at: member.created_at
-    };
+    try {
+      await this.agencyUserRepo.save(member);
+
+      // Log audit event
+      await this.auditService.log(
+        {
+          method: 'PATCH',
+          path: req.path,
+          userId: user?.id,
+          userEmail: user?.phone,
+          userRole: user?.role,
+          agencyId: user?.agency_id,
+          originIp: req.ip,
+          userAgent: req.get('user-agent'),
+        },
+        {
+          action: AuditActions.ADD_TEAM_MEMBER,
+          category: AuditCategories.AGENCY,
+          resourceType: 'agency_user',
+          resourceId: member.id,
+          stateChange: Object.keys(stateChange).length > 0 ? stateChange : undefined,
+        },
+        {
+          outcome: 'success',
+          statusCode: 200,
+          durationMs: Date.now() - startTime,
+        }
+      );
+
+      return { 
+        id: member.id, 
+        full_name: member.full_name, 
+        phone: member.phone, 
+        role: member.role,
+        status: member.status || 'active',
+        created_at: member.created_at
+      };
+    } catch (error) {
+      await this.auditService.log(
+        {
+          method: 'PATCH',
+          path: req.path,
+          userId: user?.id,
+          userEmail: user?.phone,
+          userRole: user?.role,
+          agencyId: user?.agency_id,
+          originIp: req.ip,
+          userAgent: req.get('user-agent'),
+        },
+        {
+          action: AuditActions.ADD_TEAM_MEMBER,
+          category: AuditCategories.AGENCY,
+          resourceType: 'agency_user',
+          resourceId: member.id,
+        },
+        {
+          outcome: 'failure',
+          statusCode: error.status || 500,
+          errorMessage: error.message,
+          durationMs: Date.now() - startTime,
+        }
+      );
+      throw error;
+    }
   }
 
   @Patch('owner/members/:id/status')
@@ -621,6 +748,7 @@ export class AgencyController {
   @ApiBody({ schema: { properties: { status: { type: 'string', enum: ['active', 'inactive', 'pending', 'suspended'] } }, required: ['status'] } })
   @ApiResponse({ status: 200, description: 'Member status updated', schema: { properties: { id: { type: 'string', format: 'uuid' }, status: { type: 'string' } } } })
   async updateMemberStatus(@Req() req: any, @Param('id', ParseUUIDPipe) id: string, @Body() body: { status: string }) {
+    const startTime = Date.now();
     const user = req.user as any;
     if (!user?.is_agency_owner || !user?.agency_id) throw new ForbiddenException('Only owners with an agency can update');
     if (!body.status) throw new BadRequestException('Status is required');
@@ -628,9 +756,68 @@ export class AgencyController {
     const member = await this.agencyUserRepo.findOne({ where: { id, agency_id: user.agency_id } });
     if (!member) throw new NotFoundException('Member not found');
     
+    const oldStatus = member.status;
     member.status = body.status;
-    await this.agencyUserRepo.save(member);
-    return { id: member.id, status: member.status };
+
+    try {
+      await this.agencyUserRepo.save(member);
+
+      // Log audit event
+      await this.auditService.log(
+        {
+          method: 'PATCH',
+          path: req.path,
+          userId: user?.id,
+          userEmail: user?.phone,
+          userRole: user?.role,
+          agencyId: user?.agency_id,
+          originIp: req.ip,
+          userAgent: req.get('user-agent'),
+        },
+        {
+          action: AuditActions.ADD_TEAM_MEMBER,
+          category: AuditCategories.AGENCY,
+          resourceType: 'agency_user',
+          resourceId: member.id,
+          stateChange: {
+            status: [oldStatus, body.status],
+          },
+        },
+        {
+          outcome: 'success',
+          statusCode: 200,
+          durationMs: Date.now() - startTime,
+        }
+      );
+
+      return { id: member.id, status: member.status };
+    } catch (error) {
+      await this.auditService.log(
+        {
+          method: 'PATCH',
+          path: req.path,
+          userId: user?.id,
+          userEmail: user?.phone,
+          userRole: user?.role,
+          agencyId: user?.agency_id,
+          originIp: req.ip,
+          userAgent: req.get('user-agent'),
+        },
+        {
+          action: AuditActions.ADD_TEAM_MEMBER,
+          category: AuditCategories.AGENCY,
+          resourceType: 'agency_user',
+          resourceId: member.id,
+        },
+        {
+          outcome: 'failure',
+          statusCode: error.status || 500,
+          errorMessage: error.message,
+          durationMs: Date.now() - startTime,
+        }
+      );
+      throw error;
+    }
   }
 
   @Delete('owner/members/:id')
@@ -640,24 +827,82 @@ export class AgencyController {
   @ApiOperation({ summary: 'Delete a member' })
   @ApiResponse({ status: 200, description: 'Member deleted' })
   async deleteMember(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    const startTime = Date.now();
     const user = req.user as any;
     if (!user?.is_agency_owner || !user?.agency_id) throw new ForbiddenException('Only owners with an agency can delete');
     
     const member = await this.agencyUserRepo.findOne({ where: { id, agency_id: user.agency_id } });
     if (!member) throw new NotFoundException('Member not found');
     
-    // Delete AgencyUser
-    await this.agencyUserRepo.remove(member);
-    
-    // Optionally delete User if they have no other agency associations
-    const mgr = this.jobPostingRepo.manager;
-    const userRepo = mgr.getRepository(User);
-    const otherMembers = await this.agencyUserRepo.find({ where: { user_id: member.user_id } });
-    if (otherMembers.length === 0) {
-      await userRepo.delete({ id: member.user_id });
+    try {
+      // Delete AgencyUser
+      await this.agencyUserRepo.remove(member);
+      
+      // Optionally delete User if they have no other agency associations
+      const mgr = this.jobPostingRepo.manager;
+      const userRepo = mgr.getRepository(User);
+      const otherMembers = await this.agencyUserRepo.find({ where: { user_id: member.user_id } });
+      if (otherMembers.length === 0) {
+        await userRepo.delete({ id: member.user_id });
+      }
+
+      // Log audit event
+      await this.auditService.log(
+        {
+          method: 'DELETE',
+          path: req.path,
+          userId: user?.id,
+          userEmail: user?.phone,
+          userRole: user?.role,
+          agencyId: user?.agency_id,
+          originIp: req.ip,
+          userAgent: req.get('user-agent'),
+        },
+        {
+          action: AuditActions.REMOVE_TEAM_MEMBER,
+          category: AuditCategories.AGENCY,
+          resourceType: 'agency_user',
+          resourceId: member.id,
+          metadata: {
+            member_phone: member.phone,
+            member_role: member.role,
+          },
+        },
+        {
+          outcome: 'success',
+          statusCode: 200,
+          durationMs: Date.now() - startTime,
+        }
+      );
+      
+      return { success: true, message: 'Member deleted successfully' };
+    } catch (error) {
+      await this.auditService.log(
+        {
+          method: 'DELETE',
+          path: req.path,
+          userId: user?.id,
+          userEmail: user?.phone,
+          userRole: user?.role,
+          agencyId: user?.agency_id,
+          originIp: req.ip,
+          userAgent: req.get('user-agent'),
+        },
+        {
+          action: AuditActions.REMOVE_TEAM_MEMBER,
+          category: AuditCategories.AGENCY,
+          resourceType: 'agency_user',
+          resourceId: member.id,
+        },
+        {
+          outcome: 'failure',
+          statusCode: error.status || 500,
+          errorMessage: error.message,
+          durationMs: Date.now() - startTime,
+        }
+      );
+      throw error;
     }
-    
-    return { success: true, message: 'Member deleted successfully' };
   }
 
   // Create agency (production-friendly controller)
@@ -677,7 +922,7 @@ export class AgencyController {
     @Param('license') license: string,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    const posting = await this.jobPostingService.findJobPostingById(id);
+    const posting = await this.jobPostingService.findJobPostingByIdInternal(id);
     const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) {
       throw new ForbiddenException('Cannot access job posting of another agency');
@@ -833,7 +1078,7 @@ export class AgencyController {
     @Body() body: UpdateJobTagsDto,
   ) {
     // Verify ownership: posting must belong to this agency license
-    const posting = await this.jobPostingService.findJobPostingById(id);
+    const posting = await this.jobPostingService.findJobPostingByIdInternal(id);
     const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) {
       throw new ForbiddenException('Cannot modify job posting of another agency');
@@ -855,7 +1100,7 @@ export class AgencyController {
     @Param('license') license: string,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    const posting = await this.jobPostingService.findJobPostingById(id);
+    const posting = await this.jobPostingService.findJobPostingByIdInternal(id);
     const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) {
       throw new ForbiddenException('Cannot access job posting of another agency');
@@ -877,7 +1122,7 @@ export class AgencyController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: Partial<CreateJobPostingDto>,
   ) {
-    const posting = await this.jobPostingService.findJobPostingById(id);
+    const posting = await this.jobPostingService.findJobPostingByIdInternal(id);
     const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) {
       throw new ForbiddenException('Cannot modify job posting of another agency');
@@ -943,7 +1188,7 @@ export class AgencyController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: { domestic?: any; foreign?: any },
   ) {
-    const posting = await this.jobPostingService.findJobPostingById(id);
+    const posting = await this.jobPostingService.findJobPostingByIdInternal(id);
     const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) throw new ForbiddenException('Cannot modify job posting of another agency');
     const saved = await this.expenseService.createMedicalExpense(id, body as any);
@@ -957,7 +1202,7 @@ export class AgencyController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: any,
   ) {
-    const posting = await this.jobPostingService.findJobPostingById(id);
+    const posting = await this.jobPostingService.findJobPostingByIdInternal(id);
     const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) throw new ForbiddenException('Cannot modify job posting of another agency');
     const saved = await this.expenseService.createInsuranceExpense(id, body as any);
@@ -971,7 +1216,7 @@ export class AgencyController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: any,
   ) {
-    const posting = await this.jobPostingService.findJobPostingById(id);
+    const posting = await this.jobPostingService.findJobPostingByIdInternal(id);
     const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) throw new ForbiddenException('Cannot modify job posting of another agency');
     const saved = await this.expenseService.createTravelExpense(id, body as any);
@@ -985,7 +1230,7 @@ export class AgencyController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: any,
   ) {
-    const posting = await this.jobPostingService.findJobPostingById(id);
+    const posting = await this.jobPostingService.findJobPostingByIdInternal(id);
     const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) throw new ForbiddenException('Cannot modify job posting of another agency');
     const saved = await this.expenseService.createVisaPermitExpense(id, body as any);
@@ -999,7 +1244,7 @@ export class AgencyController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: any,
   ) {
-    const posting = await this.jobPostingService.findJobPostingById(id);
+    const posting = await this.jobPostingService.findJobPostingByIdInternal(id);
     const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) throw new ForbiddenException('Cannot modify job posting of another agency');
     const saved = await this.expenseService.createTrainingExpense(id, body as any);
@@ -1013,14 +1258,13 @@ export class AgencyController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: any,
   ) {
-    const posting = await this.jobPostingService.findJobPostingById(id);
+    const posting = await this.jobPostingService.findJobPostingByIdInternal(id);
     const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) throw new ForbiddenException('Cannot modify job posting of another agency');
     const saved = await this.expenseService.createWelfareServiceExpense(id, body as any);
     return { id: saved.id };
   }
 
-  // --- Interview Endpoints ---
   @Post(':license/job-postings/:id/interview')
   @HttpCode(201)
   @ApiOperation({ 
@@ -1037,7 +1281,7 @@ export class AgencyController {
       throw new BadRequestException('job_application_id is required. Interviews must be linked to a candidate application.');
     }
 
-    const posting = await this.jobPostingService.findJobPostingById(id);
+    const posting = await this.jobPostingService.findJobPostingByIdInternal(id);
     const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) throw new ForbiddenException('Cannot modify job posting of another agency');
     
@@ -1052,7 +1296,7 @@ export class AgencyController {
     @Param('license') license: string,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    const posting = await this.jobPostingService.findJobPostingById(id);
+    const posting = await this.jobPostingService.findJobPostingByIdInternal(id);
     const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) throw new ForbiddenException('Cannot access job posting of another agency');
     const found = await this.interviewService.findInterviewByJobPosting(id);
@@ -1066,7 +1310,7 @@ export class AgencyController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: any,
   ) {
-    const posting = await this.jobPostingService.findJobPostingById(id);
+    const posting = await this.jobPostingService.findJobPostingByIdInternal(id);
     const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) throw new ForbiddenException('Cannot modify job posting of another agency');
     const existing = await this.interviewService.findInterviewByJobPosting(id);
@@ -1102,7 +1346,7 @@ export class AgencyController {
     @Param('id', ParseUUIDPipe) id: string,
     @UploadedFile() file: Express.Multer.File,
   ): Promise<UploadResponseDto> {
-    const posting = await this.jobPostingService.findJobPostingById(id);
+    const posting = await this.jobPostingService.findJobPostingByIdInternal(id);
     const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) throw new ForbiddenException('Cannot modify job posting of another agency');
 
@@ -1131,7 +1375,7 @@ export class AgencyController {
     @Param('license') license: string,
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<UploadResponseDto> {
-    const posting = await this.jobPostingService.findJobPostingById(id);
+    const posting = await this.jobPostingService.findJobPostingByIdInternal(id);
     const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) throw new ForbiddenException('Cannot modify job posting of another agency');
 
@@ -1147,54 +1391,6 @@ export class AgencyController {
     }
 
     return result;
-  }
-
-  // PATCH /agencies/:license/job-postings/:id/toggle-published - Toggle published status
-  @Patch(':license/job-postings/:id/toggle-published')
-  @HttpCode(200)
-  @ApiOperation({ summary: 'Toggle job posting published status' })
-  @ApiParam({ name: 'license', description: 'Agency license number', required: true })
-  @ApiParam({ name: 'id', description: 'Job posting ID', required: true })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        is_published: { type: 'boolean', description: 'New published status' }
-      },
-      required: ['is_published']
-    }
-  })
-  @ApiOkResponse({ description: 'Published status toggled successfully' })
-  async togglePublished(
-    @Param('license') license: string,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body('is_published') isPublished: boolean,
-  ): Promise<{ success: boolean; is_published: boolean; message?: string }> {
-    const posting = await this.jobPostingService.findJobPostingById(id);
-    const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
-    if (!belongs) throw new ForbiddenException('Cannot modify job posting of another agency');
-
-    // If trying to unpublish (set to false), check for applications
-    if (!isPublished && posting.is_published) {
-      const applicationCount = await this.jobAppRepo.count({
-        where: { job_posting_id: id }
-      });
-      
-      if (applicationCount > 0) {
-        throw new BadRequestException(
-          `Cannot unpublish job posting. There are ${applicationCount} application(s) already submitted.`
-        );
-      }
-    }
-
-    // Update the published status
-    await this.jobPostingService.updatePublishedStatus(id, isPublished);
-
-    return {
-      success: true,
-      is_published: isPublished,
-      message: isPublished ? 'Job posting published successfully' : 'Job posting unpublished successfully'
-    };
   }
 
   // PATCH /agencies/:license/job-postings/:id/toggle-draft - Toggle draft status
@@ -1225,7 +1421,7 @@ export class AgencyController {
     const user = req.user as User;
     
     try {
-      const posting = await this.jobPostingService.findJobPostingById(id);
+      const posting = await this.jobPostingService.findJobPostingByIdInternal(id);
       const belongs = posting.contracts?.some(c => c.agency?.license_number === license);
       if (!belongs) {
         throw new ForbiddenException('Cannot modify job posting of another agency');

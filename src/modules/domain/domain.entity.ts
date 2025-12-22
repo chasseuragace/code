@@ -70,7 +70,6 @@ export class JobPosting extends BaseEntity {
   experience_requirements?: {
     min_years?: number;
     max_years?: number;
-    level?: 'fresher' | 'experienced' | 'skilled' | 'expert';
   };
 
   @ManyToMany(() => JobTitle)

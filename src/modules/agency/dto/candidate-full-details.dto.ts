@@ -31,55 +31,73 @@ class CandidateBasicDto {
     is_active!: boolean;
 }
 
+// Skill Item
+class SkillItemDto {
+  @ApiProperty({ description: 'Skill name', example: 'English' })
+    title!: string;
+  @ApiPropertyOptional({ description: 'Years of experience', example: 1 })
+    years?: number;
+  @ApiPropertyOptional({ description: 'Duration in months', example: 3 })
+    duration_months?: number;
+  @ApiPropertyOptional({ description: 'Formatted display text', example: 'English (1 year, 3 months)' })
+    formatted?: string;
+}
+
 // Education
 class EducationItemDto {
-  @ApiProperty({ description: 'Degree', example: 'example' })
+  @ApiProperty({ description: 'Degree/qualification', example: 'SLC' })
     degree!: string;
-  @ApiPropertyOptional({ description: 'Institution', example: 'example' })
+  @ApiPropertyOptional({ description: 'Institution name', example: 'Nepal School' })
     institution?: string;
   @ApiPropertyOptional({ description: 'Year completed', example: 2024 })
     year_completed?: number;
+  @ApiPropertyOptional({ description: 'Formatted display text', example: 'SLC from Nepal School' })
+    formatted?: string;
 }
 
 // Training
 class TrainingItemDto {
-  @ApiProperty({ description: 'Title', example: 'example' })
+  @ApiProperty({ description: 'Training title', example: 'Cook' })
     title!: string;
-  @ApiPropertyOptional({ description: 'Provider', example: 'example' })
+  @ApiPropertyOptional({ description: 'Training provider', example: 'Kathmandu Kitchen' })
     provider?: string;
-  @ApiPropertyOptional({ description: 'Hours', example: 0 })
+  @ApiPropertyOptional({ description: 'Training hours', example: 40 })
     hours?: number;
-  @ApiPropertyOptional({ description: 'Certificate', example: true })
+  @ApiPropertyOptional({ description: 'Has certificate', example: true })
     certificate?: boolean;
+  @ApiPropertyOptional({ description: 'Formatted display text', example: 'Cook - Kathmandu Kitchen (40 hours)' })
+    formatted?: string;
 }
 
 // Experience
 class ExperienceItemDto {
-  @ApiProperty({ description: 'Title', example: 'example' })
+  @ApiProperty({ description: 'Job title', example: 'Mason' })
     title!: string;
-  @ApiPropertyOptional({ description: 'Employer', example: 'example' })
+  @ApiPropertyOptional({ description: 'Employer name', example: 'Local Construction' })
     employer?: string;
-  @ApiPropertyOptional({ description: 'Start date ad', example: 'example' })
+  @ApiPropertyOptional({ description: 'Start date (AD)', example: '2025-12-01' })
     start_date_ad?: string;
-  @ApiPropertyOptional({ description: 'End date ad', example: 'example' })
+  @ApiPropertyOptional({ description: 'End date (AD)', example: '2025-12-18' })
     end_date_ad?: string;
-  @ApiPropertyOptional({ description: 'Months', example: 0 })
+  @ApiPropertyOptional({ description: 'Duration in months', example: 1 })
     months?: number;
-  @ApiPropertyOptional({ description: 'Description', example: 'example' })
+  @ApiPropertyOptional({ description: 'Job description', example: 'Sarai Kam Ramro Theo' })
     description?: string;
+  @ApiPropertyOptional({ description: 'Formatted display text', example: 'Mason at Local Construction (1 month, Dec 2025)' })
+    formatted?: string;
 }
 
 // Job Profile
 class JobProfileDto {
-  @ApiPropertyOptional({ description: 'Summary', example: 'example' })
+  @ApiPropertyOptional({ description: 'Professional summary', example: 'Experienced cook with 5+ years in international cuisine' })
     summary?: string | null;
-  @ApiProperty({ description: 'Skills', type: [String] })
-    skills!: string[];
-  @ApiProperty({ description: 'Education', type: [EducationItemDto] })
+  @ApiProperty({ description: 'Skills with experience details', type: [SkillItemDto] })
+    skills!: SkillItemDto[];
+  @ApiProperty({ description: 'Education qualifications', type: [EducationItemDto] })
     education!: EducationItemDto[];
-  @ApiProperty({ description: 'Trainings', type: [TrainingItemDto] })
+  @ApiProperty({ description: 'Professional trainings completed', type: [TrainingItemDto] })
     trainings!: TrainingItemDto[];
-  @ApiProperty({ description: 'Experience', type: [ExperienceItemDto] })
+  @ApiProperty({ description: 'Work experience', type: [ExperienceItemDto] })
     experience!: ExperienceItemDto[];
 }
 

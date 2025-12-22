@@ -118,6 +118,34 @@ export class CandidateDocumentDto {
   url: string;
 }
 
+export class SalaryInfoDto {
+  @ApiProperty({ description: 'Monthly salary amount in base currency', example: 2500 })
+  amount: number;
+
+  @ApiProperty({ description: 'Base currency code', example: 'AED' })
+  currency: string;
+
+  @ApiPropertyOptional({ description: 'Converted salary amount (if available)', example: 150000 })
+  converted_amount?: number;
+
+  @ApiPropertyOptional({ description: 'Converted currency code (typically NPR)', example: 'NPR' })
+  converted_currency?: string;
+
+  @ApiPropertyOptional({ description: 'Conversion rate used', example: 60.5 })
+  conversion_rate?: number;
+}
+
+export class PositionDto {
+  @ApiProperty({ description: 'Position ID', example: 'position-uuid' })
+  id: string;
+
+  @ApiProperty({ description: 'Position title', example: 'Cook' })
+  title: string;
+
+  @ApiProperty({ description: 'Salary information with base and converted amounts', type: SalaryInfoDto })
+  salary: SalaryInfoDto;
+}
+
 export class JobCandidateDto {
   @ApiProperty({ description: 'Candidate ID', example: 'candidate-uuid' })
   id: string;
@@ -125,26 +153,23 @@ export class JobCandidateDto {
   @ApiProperty({ description: 'Candidate full name', example: 'Ram Bahadur Thapa' })
   name: string;
 
+  @ApiPropertyOptional({ description: 'Candidate gender', example: 'Male', enum: ['Male', 'Female', 'Other'] })
+  gender?: string;
+
   @ApiProperty({ description: 'Priority/fitness score (0-100)', example: 85, minimum: 0, maximum: 100 })
   priority_score: number;
 
-  @ApiProperty({ description: 'Location', example: { city: 'Kathmandu', country: 'Nepal' } })
-  location: {
-    city: string;
-    country: string;
-  };
+  @ApiProperty({ description: 'Candidate address', example: 'Kathmandu, Nepal' })
+  address: string;
 
   @ApiProperty({ description: 'Phone number', example: '+977-9841234567' })
   phone: string;
 
-  @ApiProperty({ description: 'Email address', example: 'ram.thapa@example.com' })
-  email: string;
+  @ApiPropertyOptional({ description: 'Email address', example: 'ram.thapa@example.com' })
+  email?: string;
 
-  @ApiProperty({ description: 'Years of experience', example: '5 years' })
-  experience: string;
-
-  @ApiProperty({ description: 'Skills array', example: ['Cooking', 'English', 'Fast Food'], type: [String] })
-  skills: string[];
+  @ApiProperty({ description: 'Position applied for', type: PositionDto })
+  position: PositionDto;
 
   @ApiProperty({ description: 'Application date', example: '2025-08-25T10:30:00.000Z' })
   applied_at: string;
@@ -159,9 +184,6 @@ export class JobCandidateDto {
   })
   status: string;
 
-  @ApiPropertyOptional({ description: 'Attached documents', type: [CandidateDocumentDto] })
-  documents?: CandidateDocumentDto[];
-
   @ApiPropertyOptional({ 
     description: 'Interview details (if scheduled)',
     example: {
@@ -170,9 +192,7 @@ export class JobCandidateDto {
       time: '10:00:00',
       duration: 60,
       location: 'Office',
-      interviewer: 'HR Manager',
-      notes: 'Bring original documents',
-      required_documents: ['passport', 'cv']
+      interviewer: 'HR Manager'
     }
   })
   interview?: {
@@ -182,8 +202,6 @@ export class JobCandidateDto {
     duration: number;
     location: string | null;
     interviewer: string | null;
-    notes: string | null;
-    required_documents: string[];
   } | null;
 }
 
@@ -211,13 +229,13 @@ export class GetJobCandidatesResponseDto {
 
 export class BulkShortlistDto {
   @ApiProperty({ 
-    description: 'Array of candidate IDs to shortlist',
-    example: ['candidate-uuid-1', 'candidate-uuid-2'],
+    description: 'Array of application IDs to shortlist',
+    example: ['application-uuid-1', 'application-uuid-2'],
     type: [String]
   })
   @IsArray()
   @IsString({ each: true })
-  candidate_ids: string[];
+  application_ids: string[];
 }
 
 export class BulkRejectDto {
@@ -369,13 +387,13 @@ export class BulkScheduleInterviewDto {
 // Single Batch for Multi-Batch Scheduling
 export class InterviewBatchDto {
   @ApiProperty({ 
-    description: 'Array of candidate IDs for this batch',
-    example: ['candidate-uuid-1', 'candidate-uuid-2'],
+    description: 'Array of application IDs for this batch (one per candidate)',
+    example: ['app-uuid-1', 'app-uuid-2'],
     type: [String]
   })
   @IsArray()
   @IsString({ each: true })
-  candidate_ids: string[];
+  application_ids: string[];
 
   @ApiProperty({ description: 'Interview date in AD format', example: '2025-12-01' })
   @IsString()

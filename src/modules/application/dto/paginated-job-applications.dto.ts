@@ -98,6 +98,23 @@ class InterviewDetailsDto {
     expenses?: InterviewExpenseDto[];
 }
 
+class ApplicationHistoryEntryDto {
+  @ApiPropertyOptional({ description: 'Previous application status', example: 'applied', required: false })
+  prev_status?: string | null;
+
+  @ApiProperty({ description: 'New application status', example: 'withdrawn' })
+  next_status!: string;
+
+  @ApiProperty({ description: 'Timestamp of the status change', example: '2025-12-22T03:41:28.750Z' })
+  updated_at!: string;
+
+  @ApiPropertyOptional({ description: 'User or system that made the change', example: 'system', required: false })
+  updated_by?: string | null;
+
+  @ApiPropertyOptional({ description: 'Note or reason for the status change', example: 'REJECTED: Job posting closed by agency', required: false })
+  note?: string | null;
+}
+
 export class JobApplicationListItemDto {
   @ApiProperty({ description: 'Job application UUID', example: '075ce7d9-fcdb-4f7e-b794-4190f49d729f' })
   id!: string;
@@ -142,6 +159,13 @@ export class JobApplicationListItemDto {
         required: false 
       })
     interview?: InterviewDetailsDto | null;
+
+  @ApiPropertyOptional({ 
+        description: 'Application history with status changes and notes',
+        type: [ApplicationHistoryEntryDto],
+        required: false
+      })
+    history_blob?: ApplicationHistoryEntryDto[];
 
   @ApiProperty({ description: 'Date the application was created', example: '2025-09-21T10:30:00.000Z' })
   created_at!: Date;

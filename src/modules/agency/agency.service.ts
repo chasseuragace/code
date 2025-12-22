@@ -14,6 +14,15 @@ export interface AgencyAnalytics {
   salary: Record<string, { min: number; max: number; avg: number }>;
 }
 
+/**
+ * Normalize license number by replacing URL-breaking characters
+ * Converts slashes (/) to dashes (-) to prevent routing issues
+ */
+function normalizeLicenseNumber(licenseNumber: string): string {
+  if (!licenseNumber) return licenseNumber;
+  return licenseNumber.replace(/\//g, '-');
+}
+
 @Injectable()
 export class AgencyService {
   constructor(
@@ -25,7 +34,10 @@ export class AgencyService {
   ) {}
 
   async createAgency(dto: CreateAgencyDto): Promise<PostingAgency> {
-    const existing = await this.agencyRepository.findOne({ where: { license_number: dto.license_number } });
+    // Normalize license number to prevent URL routing issues
+    const normalizedLicenseNumber = normalizeLicenseNumber(dto.license_number);
+    
+    const existing = await this.agencyRepository.findOne({ where: { license_number: normalizedLicenseNumber } });
     if (existing) return existing;
 
     // Normalize phones/emails arrays from possible single fields
@@ -43,6 +55,7 @@ export class AgencyService {
 
     const entity = this.agencyRepository.create({
       ...dto,
+      license_number: normalizedLicenseNumber,
       phones,
       emails,
       license_valid_till: dto.license_valid_till ? new Date(dto.license_valid_till) : undefined,
@@ -65,8 +78,15 @@ export class AgencyService {
 
   async updateAgency(id: string, dto: UpdateAgencyDto): Promise<PostingAgency> {
     const current = await this.findAgencyById(id);
+    
+    // Normalize license number if it's being updated
+    const updateData = { ...dto };
+    if (dto.license_number) {
+      updateData.license_number = normalizeLicenseNumber(dto.license_number);
+    }
+    
     const res = await this.agencyRepository.update(id, {
-      ...dto,
+      ...updateData,
       license_valid_till: dto.license_valid_till ? new Date(dto.license_valid_till) : current.license_valid_till,
       updated_at: new Date(),
     } as any);
@@ -169,7 +189,9 @@ export class AgencyService {
       .innerJoin('posting_agencies', 'ag', 'ag.id = jc.posting_agency_id')
       .leftJoin('employers', 'em', 'em.id = jc.employer_id')
       .leftJoin('job_positions', 'pos', 'pos.job_contract_id = jc.id')
-      .where('ag.license_number = :license', { license });
+      .where('ag.license_number = :license', { license })
+      .andWhere('jp.is_draft = :isDraft', { isDraft: false })
+      .andWhere('jp.is_active = :isActive', { isActive: true });
 
     if (query.country) countQb.andWhere('jp.country ILIKE :country', { country: `%${query.country}%` });
     if (query.title) countQb.andWhere('jp.posting_title ILIKE :title', { title: `%${query.title}%` });
@@ -209,7 +231,9 @@ export class AgencyService {
       .innerJoin('posting_agencies', 'ag', 'ag.id = jc.posting_agency_id')
       .leftJoin('employers', 'em', 'em.id = jc.employer_id')
       .leftJoin('job_positions', 'pos', 'pos.job_contract_id = jc.id')
-      .where('ag.license_number = :license', { license });
+      .where('ag.license_number = :license', { license })
+      .andWhere('jp.is_draft = :isDraft', { isDraft: false })
+      .andWhere('jp.is_active = :isActive', { isActive: true });
 
     if (query.country) qb.andWhere('jp.country ILIKE :country', { country: `%${query.country}%` });
     if (query.title) qb.andWhere('jp.posting_title ILIKE :title', { title: `%${query.title}%` });
@@ -333,10 +357,6 @@ export class AgencyService {
     // Create query builder with proper relations
     const queryBuilder = this.agencyRepository
       .createQueryBuilder('agency')
-      .leftJoin('agency.contracts', 'contract')
-      .loadRelationCountAndMap('agency.job_posting_count', 'agency.contracts', 'contract', qb => 
-        qb.andWhere('contract.job_posting_id IS NOT NULL')
-      )
       .where('agency.is_active = :isActive', { isActive: true });
 
     // Add keyword search if provided
@@ -368,8 +388,16 @@ export class AgencyService {
       .take(limit)
       .getMany();
 
-    // Map to DTO
-    const data = agencies.map(agency => {
+    // Map to DTO and add job posting count (excluding drafts and inactive jobs)
+    const data = await Promise.all(agencies.map(async (agency) => {
+      const jobPostingCount = await this.jobPostingRepository
+        .createQueryBuilder('jp')
+        .innerJoin('job_contracts', 'jc', 'jc.job_posting_id = jp.id')
+        .where('jc.posting_agency_id = :agencyId', { agencyId: agency.id })
+        .andWhere('jp.is_draft = :isDraft', { isDraft: false })
+        .andWhere('jp.is_active = :isActive', { isActive: true })
+        .getCount();
+
       const dto = new AgencyCardDto();
       dto.id = agency.id;
       dto.name = agency.name;
@@ -380,11 +408,11 @@ export class AgencyService {
       dto.country = agency.country;
       dto.website = agency.website;
       dto.is_active = agency.is_active;
+      dto.created_at = agency.created_at.toISOString();
       dto.specializations = agency.specializations;
-      dto.created_at = agency.created_at;
-      dto.job_posting_count = (agency as any).job_posting_count || 0;
+      dto.job_posting_count = jobPostingCount;
       return dto;
-    });
+    }));
 
     return {
       data,
@@ -418,7 +446,7 @@ export class AgencyService {
     if (!agency) {
       throw new NotFoundException('Agency not found');
     }
-    agency.logo_url = logoUrl;
+    agency.logo_url = logoUrl ?? undefined;
     await this.agencyRepository.save(agency);
   }
 
@@ -427,7 +455,7 @@ export class AgencyService {
     if (!agency) {
       throw new NotFoundException('Agency not found');
     }
-    agency.banner_url = bannerUrl;
+    agency.banner_url = bannerUrl ?? undefined;
     await this.agencyRepository.save(agency);
   }
 }

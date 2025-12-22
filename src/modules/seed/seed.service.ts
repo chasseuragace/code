@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CountryService, CountrySeedDto } from '../country/country.service';
 import { JobTitleService, JobTitleSeedDto } from '../job-title/job-title.service';
-import { AgencyService, CreateAgencyDto } from '../agency/agency.service';
+import { AgencyService } from '../agency/agency.service';
+import { CreateAgencyDto } from '../agency/dto/agency.dto';
 import { JobPostingService, AnnouncementType, OvertimePolicy, ProvisionType, ExpensePayer, ExpenseType } from '../domain/domain.service';
 import { DocumentTypeService, DocumentTypeSeedDto } from '../candidate/document-type.service';
 import * as fs from 'fs';

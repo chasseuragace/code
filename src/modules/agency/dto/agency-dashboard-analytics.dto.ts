@@ -8,6 +8,7 @@ export class AgencyDashboardQueryDto {
   })
   @IsOptional()
   @IsDateString()
+    @IsString()
   startDate?: string;
 
   @ApiPropertyOptional({
@@ -16,6 +17,7 @@ export class AgencyDashboardQueryDto {
   })
   @IsOptional()
   @IsDateString()
+    @IsString()
   endDate?: string;
 
   @ApiPropertyOptional({

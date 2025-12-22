@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, Post, Req, Param, UseGuards } from '@nestjs/common';
+import { Body, Controller, HttpCode, Post, Req, Param, UseGuards, Get, UnauthorizedException } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterCandidateDto } from './dto/register.dto';
@@ -11,6 +11,9 @@ import { Logger } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UpdateFcmTokenDto } from './dto/update-fcm-token.dto';
+import { GetUser } from './get-user.decorator';
+import { User } from '../user/user.entity';
+import { ROLE_PERMISSIONS, getActionsForRole } from '../../config/rolePermissions';
 
 @ApiTags('auth')
 @Controller()
@@ -163,4 +166,120 @@ export class AuthController {
 
     return { success: true };
   }
+
+  /**
+   * Get permissions for the authenticated user's role
+   * Used by frontend to determine which actions are available
+   * Single source of truth for role-based permissions
+   */
+  @Get('permissions/my-role')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Get permissions for current user role',
+    description: 'Returns the list of actions the authenticated user can perform based on their role. Used by frontend to show/hide UI elements.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User permissions retrieved successfully',
+    schema: {
+      properties: {
+        role: { type: 'string', description: 'User role', example: 'recruiter' },
+        actions: { type: 'array', items: { type: 'string' }, description: 'List of actions user can perform', example: ['shortlist', 'schedule_interview'] },
+        timestamp: { type: 'string', format: 'date-time', description: 'Response timestamp' },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized - invalid or missing token' })
+  async getMyPermissions(@GetUser() user?: User) {
+    if (!user) {
+      throw new UnauthorizedException('User not found in request');
+    }
+
+    const actions = getActionsForRole(user.role);
+
+    return {
+      role: user.role,
+      actions: actions,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Get available roles for team member assignment
+   * Used by frontend to populate role dropdown when inviting members
+   * Single source of truth from backend
+   */
+  @Get('roles/available')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Get available roles for team member assignment',
+    description: 'Returns list of roles that can be assigned to team members. Used by frontend to populate role dropdowns.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Available roles retrieved successfully',
+    schema: {
+      properties: {
+        roles: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              value: { type: 'string', description: 'Role value', example: 'recruiter' },
+              label: { type: 'string', description: 'Role display name', example: 'Recruiter' },
+              description: { type: 'string', description: 'Role description', example: 'Focuses on candidate sourcing and screening' },
+            },
+          },
+          description: 'List of assignable roles',
+        },
+        timestamp: { type: 'string', format: 'date-time', description: 'Response timestamp' },
+      },
+    },
+  })
+  async getAvailableRoles() {
+    // Return roles that can be assigned to team members (exclude owner, candidate, call_agent)
+    const assignableRoles = ['admin', 'recruiter', 'coordinator', 'visa_officer', 'viewer'];
+    
+    const roles = assignableRoles.map(role => ({
+      value: role,
+      label: this.getRoleLabel(role),
+      description: this.getRoleDescription(role),
+    }));
+
+    return {
+      roles,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Helper to get role label
+   */
+  private getRoleLabel(role: string): string {
+    const labels: Record<string, string> = {
+      admin: 'Admin',
+      recruiter: 'Recruiter',
+      coordinator: 'Interview Coordinator',
+      visa_officer: 'Visa Officer',
+      viewer: 'Viewer',
+    };
+    return labels[role] || role;
+  }
+
+  /**
+   * Helper to get role description
+   */
+  private getRoleDescription(role: string): string {
+    const descriptions: Record<string, string> = {
+      admin: 'Manages operations, team, and reports',
+      recruiter: 'Focuses on candidate sourcing and screening',
+      coordinator: 'Manages interview scheduling and coordination',
+      visa_officer: 'Handles document verification and visa processing',
+      viewer: 'Read-only access to view information',
+    };
+    return descriptions[role] || '';
+  }
 }
+

@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiOkResponse, ApiQuery, ApiBearerAuth } from '@
 import { AuditService, AuditQueryFilters } from './audit.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AuditCategories } from './audit.entity';
+import { isAgencyMember, isSystemAdmin, isCandidate } from '../../config/rolePermissions';
 
 /**
  * Audit Log Controller
@@ -116,14 +117,14 @@ Returns paginated audit logs filtered by the observer's context.
 
     // Scope based on user role
     // Only system admin sees all logs
-    const isAdmin = userRole === 'admin' || req.user?.phone === '+9779860000000';
+    const isAdmin = isSystemAdmin(userRole) || req.user?.phone === '+9779860000000';
     
     if (isAdmin) {
       // Admin sees all logs (no scoping)
-    } else if (userRole === 'owner' || userRole === 'agency_user') {
-      // Agency owners and staff see their agency's activity only
+    } else if (isAgencyMember(userRole)) {
+      // Agency owners and members see their agency's activity only
       filters.agencyId = agencyId;
-    } else if (userRole === 'candidate') {
+    } else if (isCandidate(userRole)) {
       // Candidates see only their own activity
       filters.userId = userId;
     }
@@ -145,7 +146,7 @@ Returns paginated audit logs filtered by the observer's context.
     @Query('limit') limit?: string,
   ) {
     const userRole = req.user?.role;
-    const isAdmin = userRole === 'admin' || req.user?.phone === '+9779860000000';
+    const isAdmin = isSystemAdmin(userRole) || req.user?.phone === '+9779860000000';
     const agencyId = isAdmin ? undefined : req.user?.agency_id;
     return this.auditService.getTimeline(agencyId, limit ? parseInt(limit) : 20);
   }
@@ -178,7 +179,7 @@ Returns paginated audit logs filtered by the observer's context.
     @Query('end_date') endDate?: string,
   ) {
     const userRole = req.user?.role;
-    const isAdmin = userRole === 'admin' || req.user?.phone === '+9779860000000';
+    const isAdmin = isSystemAdmin(userRole) || req.user?.phone === '+9779860000000';
     const agencyId = isAdmin ? undefined : req.user?.agency_id;
     return this.auditService.getCategorySummary(
       agencyId,
@@ -227,7 +228,7 @@ Returns paginated audit logs filtered by the observer's context.
   ) {
     // Security: Only allow viewing own activity or agency members' activity
     const requestingUser = req.user;
-    if (requestingUser.role === 'candidate' && requestingUser.id !== userId) {
+    if (isCandidate(requestingUser.role) && requestingUser.id !== userId) {
       return { items: [], message: 'Access denied' };
     }
 

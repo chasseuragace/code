@@ -143,6 +143,16 @@ export const AuditActions = {
   DELETE_DOCUMENT: 'delete_document',
   VERIFY_DOCUMENT: 'verify_document',
   
+  // Bulk operations
+  BULK_SHORTLIST_CANDIDATES: 'bulk_shortlist_candidates',
+  BULK_SCHEDULE_INTERVIEWS: 'bulk_schedule_interviews',
+  MULTI_BATCH_SCHEDULE_INTERVIEWS: 'multi_batch_schedule_interviews',
+  
+  // Job management
+  MANAGE_JOB_POSITIONS: 'manage_job_positions',
+  CREATE_JOB_TEMPLATE: 'create_job_template',
+  DELETE_JOB_CUTOUT: 'delete_job_cutout',
+  
   // Admin
   VIEW_ADMIN_JOBS: 'view_admin_jobs',
   BULK_REJECT: 'bulk_reject',
@@ -201,6 +211,12 @@ export const AuditActionDescriptions: Record<string, string> = {
   // Admin
   [AuditActions.VIEW_ADMIN_JOBS]: 'Viewed admin job listings',
   [AuditActions.BULK_REJECT]: 'Bulk rejection performed',
+  [AuditActions.BULK_SHORTLIST_CANDIDATES]: 'Bulk shortlist performed on multiple candidates',
+  [AuditActions.BULK_SCHEDULE_INTERVIEWS]: 'Bulk interview scheduling performed',
+  [AuditActions.MULTI_BATCH_SCHEDULE_INTERVIEWS]: 'Multi-batch interview scheduling performed',
+  [AuditActions.MANAGE_JOB_POSITIONS]: 'Job position created, updated, or deleted',
+  [AuditActions.CREATE_JOB_TEMPLATE]: 'Job template created',
+  [AuditActions.DELETE_JOB_CUTOUT]: 'Job cutout deleted',
   
   // Notes
   [AuditActions.CREATE_NOTE]: 'Note added to application',

@@ -147,6 +147,7 @@ export class UpdateBasicInfoDto {
   })
   @IsOptional()
   @IsDateString()
+    @IsString()
   approval_date_ad?: string;
 
   @ApiPropertyOptional({
@@ -155,6 +156,7 @@ export class UpdateBasicInfoDto {
   })
   @IsOptional()
   @IsDateString()
+    @IsString()
   posting_date_ad?: string;
 
   @ApiPropertyOptional({
@@ -222,6 +224,7 @@ export class UpdateContractDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+    @IsNumber()
   period_years?: number;
 
   @ApiPropertyOptional({
@@ -239,6 +242,7 @@ export class UpdateContractDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+    @IsNumber()
   hours_per_day?: number;
 
   @ApiPropertyOptional({
@@ -248,6 +252,7 @@ export class UpdateContractDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+    @IsNumber()
   days_per_week?: number;
 
   @ApiPropertyOptional({
@@ -266,6 +271,7 @@ export class UpdateContractDto {
   @IsOptional()
   @IsInt()
   @Min(0)
+    @IsNumber()
   weekly_off_days?: number;
 
   @ApiPropertyOptional({
@@ -302,6 +308,7 @@ export class UpdateContractDto {
   @IsOptional()
   @IsInt()
   @Min(0)
+    @IsNumber()
   annual_leave_days?: number;
 }
 
@@ -393,6 +400,7 @@ export class CreatePositionDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+    @IsNumber()
   hours_per_day_override?: number;
 
   @ApiPropertyOptional({
@@ -402,6 +410,7 @@ export class CreatePositionDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+    @IsNumber()
   days_per_week_override?: number;
 
   @ApiPropertyOptional({
@@ -419,6 +428,7 @@ export class CreatePositionDto {
   @IsOptional()
   @IsInt()
   @Min(0)
+    @IsNumber()
   weekly_off_days_override?: number;
 
   @ApiPropertyOptional({
@@ -493,6 +503,7 @@ export class UpdatePositionDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+    @IsNumber()
   hours_per_day_override?: number;
 
   @ApiPropertyOptional({
@@ -501,6 +512,7 @@ export class UpdatePositionDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+    @IsNumber()
   days_per_week_override?: number;
 
   @ApiPropertyOptional({
@@ -517,6 +529,7 @@ export class UpdatePositionDto {
   @IsOptional()
   @IsInt()
   @Min(0)
+    @IsNumber()
   weekly_off_days_override?: number;
 
   @ApiPropertyOptional({
@@ -785,6 +798,7 @@ export class UpdateTrainingExpenseDto {
   @ApiPropertyOptional({ description: 'Duration in days' })
   @IsOptional()
   @IsInt()
+    @IsNumber()
   duration_days?: number;
 
   @ApiPropertyOptional({ description: 'Is mandatory' })
@@ -984,18 +998,21 @@ export class TemplateCreatedDto {
     description: 'Created job posting ID',
     example: 'd841e933-1a14-4602-97e2-c51c9e5d8cf2',
   })
+    @IsString()
   id!: string;
 
   @ApiProperty({
     description: 'Job posting title',
     example: 'Electrician - Dubai Project',
   })
+    @IsString()
   posting_title!: string;
 
   @ApiProperty({
     description: 'Destination country',
     example: 'UAE',
   })
+    @IsString()
   country!: string;
 
   @ApiPropertyOptional({
@@ -1003,12 +1020,14 @@ export class TemplateCreatedDto {
     example: 'Dubai',
     nullable: true,
   })
+    @IsString()
   city!: string | null;
 
   @ApiProperty({
     description: 'Creation timestamp',
     example: '2025-01-20T10:30:00.000Z',
   })
+    @IsString()
   created_at!: string;
 }
 
@@ -1283,9 +1302,11 @@ export class EditableJobDetailsDto {
  */
 export class JobPostingUpdatedDto {
   @ApiProperty({ description: 'Job posting ID' })
+    @IsString()
   id!: string;
 
   @ApiProperty({ description: 'Update timestamp' })
+    @IsString()
   updated_at!: string;
 }
 

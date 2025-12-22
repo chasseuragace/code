@@ -220,7 +220,7 @@ export class InterviewHelperService {
    * Returns true if interview time + duration + 30min grace period has passed
    * and status is still 'scheduled'
    */
-  isInterviewUnattended(interview: InterviewDetail): boolean {
+  isInterviewUnattended(interview: InterviewDetail, nepalNow?: Date): boolean {
     if (interview.status !== 'scheduled') {
       return false;
     }
@@ -229,21 +229,19 @@ export class InterviewHelperService {
       return false;
     }
 
-    const now = new Date();
-    const interviewDate = new Date(interview.interview_date_ad);
-    
-    // Parse time (format: "HH:MM:SS" or "HH:MM")
-    const timeParts = interview.interview_time.toString().split(':');
-    const hours = parseInt(timeParts[0], 10);
-    const minutes = parseInt(timeParts[1], 10);
-    
-    interviewDate.setHours(hours, minutes, 0, 0);
-    
-    // Add duration + 30min grace period
-    const duration = interview.duration_minutes || 60;
-    const gracePeriod = 30; // minutes
-    const endTime = new Date(interviewDate);
-    endTime.setMinutes(endTime.getMinutes() + duration + gracePeriod);
+    // Use provided nepalNow or calculate it
+    let now = nepalNow;
+    if (!now) {
+      const systemNow = new Date();
+      // Nepal timezone offset is UTC+5:45 (5 hours 45 minutes)
+      const nepalOffsetMs = (5 * 60 + 45) * 60 * 1000;
+      now = new Date(systemNow.getTime() + nepalOffsetMs);
+    }
+
+    // Import timezone utilities
+    const { parseInterviewDateTime, getInterviewEndTime } = require('../../shared/timezone.util');
+    const interviewDateTime = parseInterviewDateTime(interview.interview_date_ad, interview.interview_time);
+    const endTime = getInterviewEndTime(interviewDateTime, interview.duration_minutes);
     
     return now > endTime;
   }
@@ -298,13 +296,17 @@ export class InterviewHelperService {
 
     const interviews = await qb.getMany();
 
-    // Calculate statistics
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const dayAfterTomorrow = new Date(tomorrow);
-    dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
+    // Get current time from database in Nepal timezone
+    const dbTimeResult = await this.interviewRepo.query('SELECT NOW() as now');
+    const dbNow = new Date(dbTimeResult[0].now);
+    
+    // Import timezone utilities
+    const { getNepalNow, getNepalToday, getNepalTomorrow, getNepalDayAfterTomorrow } = await import('../../shared/timezone.util');
+    
+    const nepalNow = getNepalNow(dbNow);
+    const today = getNepalToday(nepalNow);
+    const tomorrow = getNepalTomorrow(today);
+    const dayAfterTomorrow = getNepalDayAfterTomorrow(tomorrow);
 
     const stats = {
       total_scheduled: 0,
@@ -322,8 +324,8 @@ export class InterviewHelperService {
       if (interview.status === 'scheduled') {
         stats.total_scheduled++;
         
-        // Check if unattended
-        if (this.isInterviewUnattended(interview)) {
+        // Check if unattended - pass nepalNow for consistent timezone handling
+        if (this.isInterviewUnattended(interview, nepalNow)) {
           stats.unattended++;
         }
         

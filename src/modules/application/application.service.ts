@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere, In, DataSource } from 'typeorm';
 import { JobApplication, JobApplicationHistoryEntry, JobApplicationStatus } from './job-application.entity';
@@ -9,6 +9,9 @@ import { JobPosting, JobPosition } from '../domain/domain.entity';
 import { InterviewService } from '../domain/domain.service';
 import { InterviewHelperService } from '../domain/interview-helper.service';
 import { NotificationService } from '../notification/notification.service';
+import { UserRole } from '../user/user.entity';
+import { ROLE_PERMISSIONS } from '../../config/rolePermissions';
+import { CandidateService } from '../candidate/candidate.service';
 
 export type ApplyOptions = { note?: string | null; updatedBy?: string | null };
 export type ListOptions = { status?: JobApplicationStatus; page?: number; limit?: number };
@@ -46,6 +49,20 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+/**
+ * Check if a role has permission for an action
+ */
+function checkPermission(role: UserRole | null | undefined, action: string): void {
+  if (!role) {
+    throw new ForbiddenException('User role is required');
+  }
+  
+  const permissions = ROLE_PERMISSIONS[role];
+  if (!permissions || !permissions.includes(action)) {
+    throw new ForbiddenException(`Permission denied: ${role} cannot perform ${action}`);
+  }
+}
+
 @Injectable()
 export class ApplicationService {
   constructor(
@@ -55,6 +72,7 @@ export class ApplicationService {
     private readonly interviewSvc: InterviewService,
     private readonly interviewHelperSvc: InterviewHelperService,
     private readonly notificationService: NotificationService,
+    private readonly candidateService: CandidateService,
     private dataSource: DataSource,
   ) {}
 
@@ -172,7 +190,7 @@ export class ApplicationService {
       const position = contract?.positions?.find(p => p.id === app.position_id);
 
       // Map position details if found
-      let positionDto = null;
+      let positionDto: any = null;
       if (position) {
         positionDto = {
           id: position.id,
@@ -211,7 +229,7 @@ export class ApplicationService {
       }
 
       // Get job posting details from the first contract
-      let jobPosting = null;
+      let jobPosting: any = null;
       if (app.job_posting) {
         const contract = app.job_posting.contracts?.[0];
         jobPosting = {
@@ -238,6 +256,7 @@ export class ApplicationService {
         status: app.status,
         agency_name: agency?.name || null,
         interview: interviewDetails,
+        history_blob: app.history_blob, // Include application history with notes
         created_at: app.created_at,
         updated_at: app.updated_at
       };
@@ -259,7 +278,10 @@ export class ApplicationService {
   }
 
   // Withdraw application by candidate + posting
-  async withdraw(candidateId: string, jobPostingId: string, opts: UpdateOptions = {}): Promise<JobApplication> {
+  async withdraw(candidateId: string, jobPostingId: string, opts: UpdateOptions = {}, userRole?: UserRole): Promise<JobApplication> {
+    // Role validation
+    checkPermission(userRole, 'withdraw');
+    
     // Find the LATEST application for this candidate/job combination
     const app = await this.appRepo.findOne({ 
       where: { candidate_id: candidateId, job_posting_id: jobPostingId },
@@ -295,7 +317,20 @@ export class ApplicationService {
   }
 
   // Strict workflow status update
-  async updateStatus(applicationId: string, nextStatus: JobApplicationStatus, opts: UpdateOptions = {}): Promise<JobApplication> {
+  async updateStatus(applicationId: string, nextStatus: JobApplicationStatus, opts: UpdateOptions = {}, userRole?: UserRole): Promise<JobApplication> {
+    // Role validation
+    if (nextStatus === 'shortlisted') {
+      checkPermission(userRole, 'shortlist');
+    } else if (nextStatus === 'interview_scheduled') {
+      checkPermission(userRole, 'schedule_interview');
+    } else if (nextStatus === 'interview_rescheduled') {
+      checkPermission(userRole, 'reschedule_interview');
+    } else if (nextStatus === 'interview_passed' || nextStatus === 'interview_failed') {
+      checkPermission(userRole, 'complete_interview');
+    } else if (nextStatus === 'withdrawn') {
+      checkPermission(userRole, 'withdraw');
+    }
+
     const app = await this.getById(applicationId);
     if (!app) throw new Error('Application not found');
 
@@ -360,7 +395,9 @@ export class ApplicationService {
   }
 
   // Schedule an interview for an application and link it
-  async scheduleInterview(applicationId: string, input: ScheduleInterviewInput, opts: UpdateOptions = {}): Promise<JobApplication> {
+  async scheduleInterview(applicationId: string, input: ScheduleInterviewInput, opts: UpdateOptions = {}, userRole?: UserRole): Promise<JobApplication> {
+    checkPermission(userRole, 'schedule_interview');
+
     const app = await this.getById(applicationId);
     if (!app) throw new Error('Application not found');
     if (TERMINAL_STATUSES.has(app.status)) throw new Error('Cannot schedule interview for terminal application');
@@ -396,7 +433,9 @@ export class ApplicationService {
   }
 
   // Reschedule an interview; updates interview details and application status
-  async rescheduleInterview(applicationId: string, interviewId: string, updates: RescheduleInterviewInput, opts: UpdateOptions = {}): Promise<JobApplication> {
+  async rescheduleInterview(applicationId: string, interviewId: string, updates: RescheduleInterviewInput, opts: UpdateOptions = {}, userRole?: UserRole): Promise<JobApplication> {
+    checkPermission(userRole, 'reschedule_interview');
+
     const app = await this.getById(applicationId);
     if (!app) throw new Error('Application not found');
     if (TERMINAL_STATUSES.has(app.status)) throw new Error('Cannot reschedule interview for terminal application');
@@ -433,7 +472,9 @@ export class ApplicationService {
   }
 
   // Complete an interview with result pass/fail
-  async completeInterview(applicationId: string, result: 'passed'|'failed', opts: UpdateOptions = {}): Promise<JobApplication> {
+  async completeInterview(applicationId: string, result: 'passed'|'failed', opts: UpdateOptions = {}, userRole?: UserRole): Promise<JobApplication> {
+    checkPermission(userRole, 'complete_interview');
+
     const app = await this.getById(applicationId);
     if (!app) throw new Error('Application not found');
     if (TERMINAL_STATUSES.has(app.status)) throw new Error('Cannot complete interview for terminal application');
@@ -485,19 +526,18 @@ export class ApplicationService {
   ): Promise<Set<string>> {
     if (positionIds.length === 0) return new Set();
     
-    const applications = await this.appRepo.find({
-      where: {
-        candidate_id: candidateId,
-        position_id: In(positionIds)
-      },
-      select: ['position_id', 'status']
-    });
+    // Use DataSource query for UUID handling
+    const applications = await this.dataSource.query(
+      `SELECT position_id, status FROM job_applications 
+       WHERE candidate_id = $1::uuid AND position_id = ANY($2::uuid[])`,
+      [candidateId, positionIds]
+    );
     
-    // Filter out withdrawn applications
+    // Filter out withdrawn applications and convert to string
     return new Set(
       applications
-        .filter(app => app.status !== 'withdrawn')
-        .map(app => app.position_id)
+        .filter((app: any) => app.status !== 'withdrawn')
+        .map((app: any) => String(app.position_id))
     );
   }
 
@@ -520,6 +560,34 @@ export class ApplicationService {
       return null;
     }
 
+    return this.buildApplicationDetailsDto(app);
+  }
+
+  // Get the latest application details for a candidate
+  async getLatestApplicationDetailsForCandidate(candidateId: string): Promise<ApplicationDetailsDto | null> {
+    const app = await this.appRepo.findOne({
+      where: { candidate_id: candidateId },
+      relations: [
+        'job_posting',
+        'job_posting.contracts',
+        'job_posting.contracts.agency',
+        'job_posting.contracts.employer',
+        'job_posting.contracts.positions',
+        'interview_details',
+        'interview_details.expenses',
+      ],
+      order: { created_at: 'DESC' },
+    });
+
+    if (!app) {
+      return null;
+    }
+
+    return this.buildApplicationDetailsDto(app);
+  }
+
+  // Helper method to build ApplicationDetailsDto from JobApplication entity
+  private buildApplicationDetailsDto(app: JobApplication): ApplicationDetailsDto {
     // Helper functions for data formatting
     const formatDate = (date: Date): string => {
       return date.toLocaleDateString('en-GB', { 
@@ -590,25 +658,51 @@ export class ApplicationService {
         agencyEmail: 'info@agency.com', // TODO: Add email field to agency
         agencyAddress: 'Address not available', // TODO: Add address field to agency
       },
-      documents: [
-        { name: 'CV.pdf', size: '245 KB' },
-        { name: 'Passport.pdf', size: '1.2 MB' },
-        { name: 'Experience_Certificate.pdf', size: '180 KB' }
-      ], // TODO: Implement document management system
     };
 
     // Add interview details if available
     if (interview && ['interview_scheduled', 'interview_rescheduled'].includes(app.status)) {
+      // Format interview date - handle both Date objects and strings
+      let interviewDate = 'TBD';
+      if (interview.interview_date_ad) {
+        try {
+          const dateObj = interview.interview_date_ad instanceof Date 
+            ? interview.interview_date_ad 
+            : new Date(interview.interview_date_ad);
+          interviewDate = formatDate(dateObj);
+        } catch (e) {
+          interviewDate = 'TBD';
+        }
+      }
+
+      // Format interview time - handle both time objects and strings
+      let interviewTime = '10:00 AM';
+      if (interview.interview_time) {
+        try {
+          if (typeof interview.interview_time === 'string') {
+            // Parse HH:mm format to 12-hour format
+            const [hours, minutes] = interview.interview_time.split(':');
+            const hour = parseInt(hours, 10);
+            const ampm = hour >= 12 ? 'PM' : 'AM';
+            const displayHour = hour % 12 || 12;
+            interviewTime = `${displayHour}:${minutes} ${ampm}`;
+          }
+        } catch (e) {
+          interviewTime = '10:00 AM';
+        }
+      }
+
       result.interview = {
-        date: interview.interview_date_ad ? formatDate(interview.interview_date_ad) : 'TBD',
-        time: interview.interview_time || '10:00 AM',
-        mode: 'Online via Zoom', // TODO: Add mode field to interview
-        link: 'https://zoom.us/12345', // TODO: Add link field to interview
-        documents: interview.required_documents || ['Passport Copy', 'Experience Certificate'],
-        contactPerson: interview.contact_person || 'HR Officer',
-        contactRole: 'HR Officer', // TODO: Add contact role field
-        contactPhone: '+971 55 123 4567', // TODO: Add contact phone field
-        contactEmail: 'hr@company.com', // TODO: Add contact email field
+        date: interviewDate,
+        time: interviewTime,
+        mode: interview.type || 'In-person',
+        location: interview.location || 'TBD',
+        documents: interview.required_documents || [],
+        contactPerson: interview.contact_person || 'Not assigned',
+        contactRole: 'HR Officer', // TODO: Add contact role field to interview
+        contactPhone: agency?.contact_phone || 'Not provided',
+        contactEmail: agency?.contact_email || 'Not provided',
+        notes: interview.notes || null,
       };
     }
 
@@ -616,7 +710,9 @@ export class ApplicationService {
   }
 
   // Reject an application with reason
-  async rejectApplication(applicationId: string, reason: string, opts: UpdateOptions = {}): Promise<JobApplication> {
+  async rejectApplication(applicationId: string, reason: string, opts: UpdateOptions = {}, userRole?: UserRole): Promise<JobApplication> {
+    checkPermission(userRole, 'reject');
+
     if (!reason || reason.trim().length === 0) {
       throw new Error('Rejection reason is required');
     }
@@ -635,7 +731,7 @@ export class ApplicationService {
     }
 
     const prev = app.status;
-    app.status = 'interview_failed'; // Use interview_failed as rejection status
+    app.status = 'withdrawn'; // Set status to withdrawn when rejecting
     
     const entry: JobApplicationHistoryEntry = {
       prev_status: prev,
@@ -650,7 +746,7 @@ export class ApplicationService {
 
     // Trigger notification for rejection
     try {
-      await this.notificationService.createNotificationFromApplication(savedApp, 'interview_failed');
+      await this.notificationService.createNotificationFromApplication(savedApp, 'withdrawn');
     } catch (error) {
       console.error('Failed to create notification for rejection:', error);
     }
@@ -662,8 +758,11 @@ export class ApplicationService {
   async bulkRejectApplicationsForJobPosting(
     jobPostingId: string, 
     reason: string, 
-    opts: UpdateOptions = {}
+    opts: UpdateOptions = {},
+    userRole?: UserRole
   ): Promise<{ rejected: number; applicationIds: string[] }> {
+    checkPermission(userRole, 'bulk_reject');
+
     if (!reason || reason.trim().length === 0) {
       throw new Error('Rejection reason is required');
     }
@@ -681,7 +780,7 @@ export class ApplicationService {
     // Reject each application
     for (const app of applications) {
       try {
-        await this.rejectApplication(app.id, reason, opts);
+        await this.rejectApplication(app.id, reason, opts, userRole);
         rejectedIds.push(app.id);
       } catch (error) {
         console.error(`Failed to reject application ${app.id}:`, error);
@@ -739,5 +838,80 @@ export class ApplicationService {
     }, {} as Record<JobApplicationStatus, number>);
 
     return { total, active, by_status };
+  }
+
+  // Get application details with candidate data for S2 component
+  async getApplicationDetailsWithCandidate(applicationId: string): Promise<any> {
+    const app = await this.appRepo.findOne({
+      where: { id: applicationId },
+      relations: [
+        'job_posting',
+        'job_posting.contracts',
+        'job_posting.contracts.agency',
+        'job_posting.contracts.employer',
+        'job_posting.contracts.positions',
+        'interview_details',
+        'interview_details.expenses',
+      ],
+    });
+
+    if (!app) {
+      return null;
+    }
+
+    // Load candidate data
+    const candidate = await this.candidateRepo.findOne({
+      where: { id: app.candidate_id },
+    });
+
+    // Load candidate job profile (skills, education, experience, trainings)
+    const jobProfile = await this.dataSource.getRepository('CandidateJobProfile').findOne({
+      where: { candidate_id: app.candidate_id },
+      order: { updated_at: 'DESC' },
+    });
+
+    // Get application details (job, employer, interview info)
+    const details = this.buildApplicationDetailsDto(app);
+
+    // Format skills from job profile
+    const profileBlob = (jobProfile?.profile_blob as any) || {};
+    const formattedSkills = (profileBlob.skills || []).map((skill: any) => ({
+      title: skill.title || skill,
+      years: skill.years || 0,
+      duration_months: skill.duration_months || 0,
+      formatted: skill.title ? `${skill.title}${skill.years ? ` (${skill.years}y)` : ''}` : skill
+    }));
+
+    // Get documents and slots for the candidate
+    const documentsWithSlots = await this.candidateService.getDocumentsWithSlots(app.candidate_id);
+
+    // Return combined response with candidate + application data for S2 component
+    return {
+      candidate: {
+        id: candidate?.id,
+        name: candidate?.full_name || 'Candidate Name',
+        phone: candidate?.phone || '',
+        email: candidate?.email || '',
+        address: candidate?.address || null,
+        passport_number: candidate?.passport_number || null,
+        profile_image: candidate?.profile_image || null,
+      },
+      application: {
+        id: app.id,
+        stage: app.status,
+        created_at: app.created_at,
+        updated_at: app.updated_at,
+        history_blob: app.history_blob || [],
+      },
+      job_profile: {
+        skills: formattedSkills,
+        education: profileBlob.education || [],
+        experience: profileBlob.experience || [],
+        trainings: profileBlob.trainings || [],
+        summary: profileBlob.summary || null,
+      },
+      documents: documentsWithSlots.data,
+      ...details, // Include all the original details (job, employer, interview, etc.)
+    };
   }
 }

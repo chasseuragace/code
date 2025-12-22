@@ -3,6 +3,8 @@ import { ApiOperation, ApiParam, ApiTags, ApiBody, ApiOkResponse, ApiNotFoundRes
 import { JobPostingService, CreateJobPostingDto } from './domain.service';
 import { AgencyAuthGuard } from '../auth/agency-auth.guard';
 import { ApplicationService } from '../application/application.service';
+import { GetUser } from '../auth/get-user.decorator';
+import { User } from '../user/user.entity';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -66,11 +68,13 @@ export class DomainController {
   async toggleJobPostingStatus(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() body: { is_active: boolean },
+    @GetUser() user?: User,
   ) {
     return this.jobPostingService.toggleJobPostingStatus(
       id, 
       body.is_active,
-      this.applicationService
+      this.applicationService,
+      user?.role
     );
   }
 

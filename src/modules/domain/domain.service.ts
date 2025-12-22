@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   InternalServerErrorException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, QueryRunner, DataSource, In, ILike } from 'typeorm';
@@ -26,6 +27,8 @@ import { MobileJobPostingDto, MobileJobPositionDto, MobileContractTermsDto } fro
 import { CurrencyConversionService } from '../currency/currency-conversion.service';
 import { JobTitle } from '../job-title/job-title.entity';
 import { PostingAgency } from './PostingAgency';
+import { UserRole } from '../user/user.entity';
+import { ROLE_PERMISSIONS } from '../../config/rolePermissions';
 
 // Minimal DTOs mirrored from reference/service.ts
 export enum AnnouncementType {
@@ -195,6 +198,20 @@ export interface CreateJobPostingDto {
   welfare_service_expense?: WelfareServiceExpenseDto;
 }
 
+/**
+ * Check if a role has permission for a job operation
+ */
+function checkJobPermission(role: UserRole | null | undefined, action: string): void {
+  if (!role) {
+    throw new ForbiddenException('User role is required');
+  }
+  
+  const permissions = ROLE_PERMISSIONS[role];
+  if (!permissions || !permissions.includes(action)) {
+    throw new ForbiddenException(`Permission denied: ${role} cannot perform ${action}`);
+  }
+}
+
 @Injectable()
 export class JobPostingService {
   constructor(
@@ -216,14 +233,55 @@ export class JobPostingService {
    * @returns Updated job posting with draft status
    */
   async toggleJobPostingDraft(jobPostingId: string, isDraft: boolean): Promise<JobPosting> {
-    const jobPosting = await this.jobPostingRepository.findOne({ where: { id: jobPostingId } });
+    const jobPosting = await this.jobPostingRepository.findOne({ 
+      where: { id: jobPostingId },
+      relations: ['contracts', 'contracts.positions']
+    });
     if (!jobPosting) {
       throw new NotFoundException(`Job posting with ID ${jobPostingId} not found`);
     }
 
+    // Validate before publishing (isDraft = false means publishing)
+    if (!isDraft) {
+      const validationErrors: string[] = [];
+
+      // Check if image is present
+      if (!jobPosting.cutout_url) {
+        validationErrors.push('Job posting must have an image (cutout) before publishing');
+      }
+
+      // Check if positions exist
+      const positions = jobPosting.contracts?.[0]?.positions || [];
+      if (!positions || positions.length === 0) {
+        validationErrors.push('Job posting must have at least one position before publishing');
+      }
+
+      // Check each position for required fields
+      if (positions && positions.length > 0) {
+        positions.forEach((pos, index) => {
+          if (pos.male_vacancies === null || pos.male_vacancies === undefined || pos.male_vacancies < 0) {
+            validationErrors.push(`Position ${index + 1} (${pos.title}): Male vacancies must be defined and non-negative`);
+          }
+          if (pos.female_vacancies === null || pos.female_vacancies === undefined || pos.female_vacancies < 0) {
+            validationErrors.push(`Position ${index + 1} (${pos.title}): Female vacancies must be defined and non-negative`);
+          }
+          if (!pos.monthly_salary_amount || pos.monthly_salary_amount <= 0) {
+            validationErrors.push(`Position ${index + 1} (${pos.title}): Salary must be defined and greater than 0`);
+          }
+        });
+      }
+
+      if (validationErrors.length > 0) {
+        throw new BadRequestException({
+          message: 'Cannot publish job posting. Please fix the following issues:',
+          errors: validationErrors
+        });
+      }
+    }
+
     jobPosting.is_draft = isDraft;
     await this.jobPostingRepository.save(jobPosting);
-    return this.findJobPostingById(jobPostingId);
+    return this.findJobPostingByIdInternal(jobPostingId);
   }
 
   /**
@@ -234,18 +292,22 @@ export class JobPostingService {
    * @param jobPostingId - Job posting UUID
    * @param isActive - Set to false to close (with rejection), true to reopen
    * @param applicationService - ApplicationService instance for bulk rejection
+   * @param userRole - User role for permission validation
    * @returns Object with updated status and rejection summary
    */
   async toggleJobPostingStatus(
     jobPostingId: string, 
     isActive: boolean,
-    applicationService: any
+    applicationService: any,
+    userRole?: UserRole
   ): Promise<{ 
     id: string; 
     is_active: boolean; 
     rejected_count?: number; 
     rejected_application_ids?: string[] 
   }> {
+    checkJobPermission(userRole, 'close_job');
+
     const jobPosting = await this.jobPostingRepository.findOne({ where: { id: jobPostingId } });
     if (!jobPosting) {
       throw new NotFoundException(`Job posting with ID ${jobPostingId} not found`);
@@ -260,7 +322,8 @@ export class JobPostingService {
         rejectionResult = await applicationService.bulkRejectApplicationsForJobPosting(
           jobPostingId,
           'Job posting closed by agency',
-          { updatedBy: 'system' }
+          { updatedBy: 'system' },
+          userRole
         );
       } catch (error) {
         console.error(`[toggleJobPostingStatus] Failed to reject applications for job ${jobPostingId}:`, error);
@@ -281,7 +344,9 @@ export class JobPostingService {
     };
   }
 
-  async createJobPosting(dto: CreateJobPostingDto): Promise<JobPosting> {
+  async createJobPosting(dto: CreateJobPostingDto, userRole?: UserRole): Promise<JobPosting> {
+    checkJobPermission(userRole, 'create_job');
+
     const qr = this.dataSource.createQueryRunner();
     await qr.connect();
     await qr.startTransaction();
@@ -496,7 +561,7 @@ export class JobPostingService {
       }
 
       await qr.commitTransaction();
-      return this.findJobPostingById(savedJP.id);
+      return this.findJobPostingByIdInternal(savedJP.id);
     } catch (e) {
       await qr.rollbackTransaction();
       throw e;
@@ -506,6 +571,17 @@ export class JobPostingService {
   }
 
   async findJobPostingById(id: string): Promise<JobPosting> {
+    const jp = await this.jobPostingRepository.findOne({
+      where: { id },
+      relations: ['canonical_titles', 'contracts', 'contracts.employer', 'contracts.agency', 'contracts.positions', 'contracts.positions.salaryConversions'],
+    });
+    if (!jp) throw new NotFoundException(`Job posting with ID ${id} not found`);
+    if (!jp.is_active) throw new NotFoundException(`Job posting with ID ${id} is not active`);
+    return jp;
+  }
+
+  // Internal method to find job posting without active check (for admin/agency operations)
+  async findJobPostingByIdInternal(id: string): Promise<JobPosting> {
     const jp = await this.jobPostingRepository.findOne({
       where: { id },
       relations: ['canonical_titles', 'contracts', 'contracts.employer', 'contracts.agency', 'contracts.positions', 'contracts.positions.salaryConversions'],
@@ -563,6 +639,8 @@ export class JobPostingService {
           femaleVacancies: p.female_vacancies || undefined,
           totalVacancies: p.total_vacancies || undefined,
           notes: p.position_notes || undefined,
+          hasApplied: false,
+          canApply: false,
         };
       })
     );
@@ -725,7 +803,7 @@ export class JobPostingService {
     }
     Object.assign(jp, updates);
     await this.jobPostingRepository.save(jp);
-    return this.findJobPostingById(id);
+    return this.findJobPostingByIdInternal(id);
   }
 
   async updateCutoutUrl(id: string, cutoutUrl: string | null): Promise<JobPosting> {
@@ -741,11 +819,11 @@ export class JobPostingService {
       const res = await this.jobPostingRepository.update(id, { cutout_url: cutoutUrl, updated_at: new Date() as any });
       if (res.affected === 0) throw new NotFoundException(`Job posting with ID ${id} not found`);
     }
-    return this.findJobPostingById(id);
+    return this.findJobPostingByIdInternal(id);
   }
 
   async incrementViewCount(id: string): Promise<void> {
-    const jp = await this.findJobPostingById(id);
+    const jp = await this.findJobPostingByIdInternal(id);
     await this.jobPostingRepository.increment({ id }, 'view_count', 1);
   }
 
@@ -770,8 +848,10 @@ export class JobPostingService {
     return { data, total, page, limit };
   }
 
-  async updateJobPosting(id: string, updateDto: Partial<CreateJobPostingDto>): Promise<JobPosting> {
-    const _ = await this.findJobPostingById(id);
+  async updateJobPosting(id: string, updateDto: Partial<CreateJobPostingDto>, userRole?: UserRole): Promise<JobPosting> {
+    checkJobPermission(userRole, 'update_job');
+
+    const _ = await this.findJobPostingByIdInternal(id);
     const res = await this.jobPostingRepository.update(id, {
       posting_title: updateDto.posting_title,
       country: updateDto.country,
@@ -786,7 +866,7 @@ export class JobPostingService {
       updated_at: new Date(),
     });
     if (res.affected === 0) throw new NotFoundException(`Job posting with ID ${id} not found`);
-    return this.findJobPostingById(id);
+    return this.findJobPostingByIdInternal(id);
   }
 
   async deactivateJobPosting(id: string): Promise<void> {
@@ -849,18 +929,18 @@ export class JobPostingService {
       order = 'desc'
     } = params;
 
+    // Build the base query for filtering and counting
     const qb = this.jobPostingRepository
       .createQueryBuilder('jp')
-      .leftJoinAndSelect('jp.contracts', 'contracts')
-      .leftJoinAndSelect('contracts.employer', 'employer')
-      .leftJoinAndSelect('contracts.agency', 'agency')
-      .leftJoinAndSelect('contracts.positions', 'positions')
-      .leftJoinAndSelect('positions.salaryConversions', 'salaryConversions')
+      .leftJoin('jp.contracts', 'contracts')
+      .leftJoin('contracts.employer', 'employer')
+      .leftJoin('contracts.agency', 'agency')
+      .leftJoin('contracts.positions', 'positions')
       .where('jp.is_active = :isActive', { isActive: true })
       .andWhere('jp.is_draft = :isDraft', { isDraft: false });
 
     // Keyword search across multiple fields using OR logic
-    if (keyword) {
+    if (keyword && keyword.trim()) {
       qb.andWhere(`(
         jp.posting_title ILIKE :keyword OR
         positions.title ILIKE :keyword OR
@@ -878,24 +958,46 @@ export class JobPostingService {
       qb.andWhere('positions.monthly_salary_amount <= :max_salary AND positions.salary_currency = :currency', { max_salary, currency });
     }
 
+    // Get distinct job posting IDs that match the criteria
+    const matchingIds = await qb
+      .select('DISTINCT jp.id', 'id')
+      .getRawMany<{ id: string }>();
+
+    const total = matchingIds.length;
+
+    // Now fetch the full job postings with relations for the paginated results
+    const jobIds = matchingIds
+      .slice((page - 1) * limit, page * limit)
+      .map(r => r.id);
+
+    if (jobIds.length === 0) {
+      return { data: [], total, page, limit, keyword, filters: { country, min_salary, max_salary, currency } };
+    }
+
+    const dataQb = this.jobPostingRepository
+      .createQueryBuilder('jp')
+      .leftJoinAndSelect('jp.contracts', 'contracts')
+      .leftJoinAndSelect('contracts.employer', 'employer')
+      .leftJoinAndSelect('contracts.agency', 'agency')
+      .leftJoinAndSelect('contracts.positions', 'positions')
+      .leftJoinAndSelect('positions.salaryConversions', 'salaryConversions')
+      .whereInIds(jobIds);
+
     // Sorting
     switch (sort_by) {
       case 'salary':
-        qb.orderBy('positions.monthly_salary_amount', order.toUpperCase() as 'ASC' | 'DESC');
+        dataQb.orderBy('positions.monthly_salary_amount', order.toUpperCase() as 'ASC' | 'DESC');
         break;
       case 'relevance':
-        // For relevance, we could add more sophisticated scoring later
-        // For now, just use posting date as fallback
-        qb.orderBy('jp.posting_date_ad', 'DESC');
+        dataQb.orderBy('jp.posting_date_ad', 'DESC');
         break;
       case 'posted_at':
       default:
-        qb.orderBy('jp.posting_date_ad', order.toUpperCase() as 'ASC' | 'DESC');
+        dataQb.orderBy('jp.posting_date_ad', order.toUpperCase() as 'ASC' | 'DESC');
         break;
     }
 
-    const total = await qb.getCount();
-    const data = await qb.skip((page - 1) * limit).take(limit).getMany();
+    const data = await dataQb.getMany();
     
     return { data, total, page, limit, keyword, filters: { country, min_salary, max_salary, currency } };
   }

@@ -19,9 +19,10 @@ export enum InterviewTypeEnum {
 }
 
 export class GetWorkflowCandidatesDto {
-  @ApiPropertyOptional({ enum: WorkflowStageEnum, default: 'all' })
+  
   @IsOptional()
   @IsEnum(WorkflowStageEnum)
+    @ApiPropertyOptional({ description: 'Stage', enum: WorkflowStageEnum, default: 'all' })
   stage?: WorkflowStageEnum;
 
   @ApiPropertyOptional({ description: 'Filter by job posting ID' })
@@ -34,24 +35,27 @@ export class GetWorkflowCandidatesDto {
   @IsString()
   search?: string;
 
-  @ApiPropertyOptional({ default: 1, minimum: 1 })
+  
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
+    @ApiPropertyOptional({ description: 'Page', default: 1, minimum: 1 })
   page?: number;
 
-  @ApiPropertyOptional({ default: 15, minimum: 1, maximum: 100 })
+  
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(100)
+    @ApiPropertyOptional({ description: 'Limit', default: 15, minimum: 1, maximum: 100 })
   limit?: number;
 
-  @ApiPropertyOptional({ enum: ['newest', 'oldest', 'name'], default: 'newest' })
+  
   @IsOptional()
   @IsString()
+    @ApiPropertyOptional({ description: 'Sort', enum: ['newest', 'oldest', 'name'], default: 'newest' })
   sort?: 'newest' | 'oldest' | 'name';
 }
 
@@ -81,9 +85,10 @@ export class InterviewDetailsDto {
   @IsString()
   contact_person?: string;
 
-  @ApiPropertyOptional({ enum: InterviewTypeEnum, default: InterviewTypeEnum.IN_PERSON })
+  
   @IsOptional()
   @IsEnum(InterviewTypeEnum)
+    @ApiPropertyOptional({ description: 'Type', enum: InterviewTypeEnum, default: InterviewTypeEnum.IN_PERSON })
   type?: InterviewTypeEnum;
 }
 

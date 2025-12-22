@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Body, Param, ParseUUIDPipe, Query, HttpCode, NotFoundException, UseGuards, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, ParseUUIDPipe, Query, HttpCode, NotFoundException, UseGuards, BadRequestException, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApplicationService } from './application.service';
 import { ApiOperation, ApiParam, ApiTags, ApiOkResponse, ApiQuery, ApiBody, ApiCreatedResponse, ApiBadRequestResponse, ApiNotFoundResponse, ApiBearerAuth, ApiForbiddenResponse, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { ApplyJobDto, ApplyJobResponseDto } from './dto/apply-job.dto';
@@ -7,11 +8,20 @@ import { PaginatedJobApplicationsDto } from './dto/paginated-job-applications.dt
 import { ApplicationDetailDto } from './dto/application-detail.dto';
 import { ApplicationDetailsDto } from './dto/application-details.dto';
 import { AgencyAuthGuard } from '../auth/agency-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { GetUser } from '../auth/get-user.decorator';
+import { User } from '../user/user.entity';
+import { CandidateService } from '../candidate/candidate.service';
+import { ImageUploadService, UploadType } from '../shared/image-upload.service';
 
 @ApiTags('applications')
 @Controller('applications')
 export class ApplicationController {
-  constructor(private readonly apps: ApplicationService) {}
+  constructor(
+    private readonly apps: ApplicationService,
+    private readonly candidates: CandidateService,
+    private readonly imageUploadService: ImageUploadService,
+  ) {}
 
   // Apply to a job posting
   @Post()
@@ -104,7 +114,9 @@ export class ApplicationController {
         status: item.status,
         agency_name: item.agency_name,
         interview: item.interview,
+        position: item.position, // Include position information
         job_posting: item.job_posting, // Include job_posting in the response
+        history_blob: item.history_blob, // Include application history with notes
         created_at: item.created_at,
         updated_at: item.updated_at,
       })),
@@ -116,17 +128,20 @@ export class ApplicationController {
 
   // Shortlist an application
   @Post(':id/shortlist')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(200)
   async shortlist(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() body: { note?: string | null; updatedBy?: string | null },
+    @GetUser() user?: User,
   ) {
-    const saved = await this.apps.updateStatus(id, 'shortlisted', { note: body?.note, updatedBy: body?.updatedBy });
+    const saved = await this.apps.updateStatus(id, 'shortlisted', { note: body?.note, updatedBy: body?.updatedBy }, user?.role);
     return { id: saved.id, status: saved.status };
   }
 
   // Schedule an interview for an application
   @Post(':id/schedule-interview')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(200)
   async scheduleInterview(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -143,13 +158,15 @@ export class ApplicationController {
       note?: string | null;
       updatedBy?: string | null;
     },
+    @GetUser() user?: User,
   ) {
-    const saved = await this.apps.scheduleInterview(id, body, { note: body?.note, updatedBy: body?.updatedBy });
+    const saved = await this.apps.scheduleInterview(id, body, { note: body?.note, updatedBy: body?.updatedBy }, user?.role);
     return { id: saved.id, status: saved.status, interview: (saved as any).interview };
   }
 
   // Reschedule an interview for an application
   @Post(':id/reschedule-interview')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(200)
   @ApiOperation({
     summary: 'Reschedule an interview',
@@ -176,6 +193,7 @@ export class ApplicationController {
       note?: string | null;
       updatedBy?: string | null;
     },
+    @GetUser() user?: User,
   ) {
     // Extract only interview-related fields for the update
     const interviewUpdates = {
@@ -189,40 +207,45 @@ export class ApplicationController {
       notes: body.notes,
     };
     
-    const saved = await this.apps.rescheduleInterview(id, body.interview_id, interviewUpdates, { note: body?.note, updatedBy: body?.updatedBy });
+    const saved = await this.apps.rescheduleInterview(id, body.interview_id, interviewUpdates, { note: body?.note, updatedBy: body?.updatedBy }, user?.role);
     return { id: saved.id, status: saved.status };
   }
 
   // Complete interview with pass/fail result
   @Post(':id/complete-interview')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(200)
   async completeInterview(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() body: { result: 'passed' | 'failed'; note?: string | null; updatedBy?: string | null },
+    @GetUser() user?: User,
   ) {
     const note = body?.note ?? `Interview ${body.result} via agency workflow`;
-    const saved = await this.apps.completeInterview(id, body.result, { note, updatedBy: body?.updatedBy });
+    const saved = await this.apps.completeInterview(id, body.result, { note, updatedBy: body?.updatedBy }, user?.role);
     return { id: saved.id, status: saved.status };
   }
 
   // Withdraw an application
   @Post(':id/withdraw')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(200)
   async withdraw(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() body: { note?: string | null; updatedBy?: string | null },
+    @GetUser() user?: User,
   ) {
     // Fetch application by id, then call withdraw using candidate_id and job_posting_id
     const app = await this.apps.getById(id);
     if (!app) {
       throw new Error('Application not found');
     }
-    const saved = await this.apps.withdraw(app.candidate_id, app.job_posting_id, { note: body?.note, updatedBy: body?.updatedBy });
+    const saved = await this.apps.withdraw(app.candidate_id, app.job_posting_id, { note: body?.note, updatedBy: body?.updatedBy }, user?.role);
     return { id: saved.id, status: saved.status };
   }
 
   // Reject an application with reason
   @Post(':id/reject')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(200)
   @ApiOperation({
     summary: 'Reject an application',
@@ -246,11 +269,12 @@ export class ApplicationController {
   async rejectApplication(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() body: { reason: string; updatedBy?: string | null },
+    @GetUser() user?: User,
   ) {
     if (!body.reason || body.reason.trim().length === 0) {
       throw new Error('Rejection reason is required');
     }
-    const saved = await this.apps.rejectApplication(id, body.reason, { updatedBy: body.updatedBy });
+    const saved = await this.apps.rejectApplication(id, body.reason, { updatedBy: body.updatedBy }, user?.role);
     return { id: saved.id, status: saved.status };
   }
 
@@ -287,19 +311,23 @@ export class ApplicationController {
   async bulkRejectApplications(
     @Param('jobPostingId', new ParseUUIDPipe({ version: '4' })) jobPostingId: string,
     @Body() body: { reason: string; updatedBy?: string | null },
+    @GetUser() user?: User,
   ) {
     if (!body.reason || body.reason.trim().length === 0) {
       throw new Error('Rejection reason is required');
     }
-    const result = await this.apps.bulkRejectApplicationsForJobPosting(jobPostingId, body.reason, { updatedBy: body.updatedBy });
+    const result = await this.apps.bulkRejectApplicationsForJobPosting(jobPostingId, body.reason, { updatedBy: body.updatedBy }, user?.role);
     return result;
   }
 
   // Get comprehensive application details for frontend
+  // Simplified endpoint: GET /applications/:id/details
+  // Takes only application ID, infers agency from JWT token
+  // Returns combined candidate + application data for S2 component
   @Get(':id/details')
   @ApiOperation({
     summary: 'Get comprehensive application details',
-    description: 'Returns detailed application information formatted for frontend consumption, including job details, interview info, employer details, and documents.',
+    description: 'Returns detailed application information formatted for frontend consumption, including candidate profile, job details, interview info, employer details, and documents. Agency is inferred from JWT token.',
   })
   @ApiParam({
     name: 'id',
@@ -319,13 +347,15 @@ export class ApplicationController {
     },
   })
   async getApplicationDetails(
-    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-  ): Promise<ApplicationDetailsDto> {
-    const details = await this.apps.getApplicationDetails(id);
-    if (!details) {
+    @Param('id', new ParseUUIDPipe({ version: '4' })) applicationId: string,
+  ): Promise<any> {
+    const app = await this.apps.getApplicationDetailsWithCandidate(applicationId);
+    
+    if (!app) {
       throw new NotFoundException('Application not found');
     }
-    return details;
+
+    return app;
   }
 
   // Get single application details with full history
@@ -380,5 +410,139 @@ export class ApplicationController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
   ) {
     return this.apps.getAnalytics(id);
+  }
+
+  // Document endpoints - derive job, position, candidate from application ID
+  // Documents are now included in the /details endpoint
+  @Get(':id/documents')
+  @ApiOperation({
+    summary: 'Get documents for an application (DEPRECATED)',
+    description: 'DEPRECATED: Use GET /applications/:id/details instead. Documents are now included in the details response.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Application UUID (v4)',
+    example: '075ce7d9-fcdb-4f7e-b794-4190f49d729f',
+  })
+  async getApplicationDocuments(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) applicationId: string,
+  ) {
+    const app = await this.apps.getById(applicationId);
+    if (!app) {
+      throw new NotFoundException('Application not found');
+    }
+    // Return documents from details endpoint
+    const details = await this.apps.getApplicationDetailsWithCandidate(applicationId);
+    return { documents: details.documents, slots: details.slots };
+  }
+
+  @Post(':id/documents')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('file'))
+  @HttpCode(201)
+  @ApiOperation({
+    summary: 'Upload document for an application',
+    description: 'Upload a document for a candidate in an application. Server derives job, position, and candidate from application ID.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Application UUID (v4)',
+    example: '075ce7d9-fcdb-4f7e-b794-4190f49d729f',
+  })
+  async uploadApplicationDocument(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) applicationId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body() body: any,
+    @GetUser() user?: User,
+  ) {
+    const app = await this.apps.getById(applicationId);
+    if (!app) {
+      throw new NotFoundException('Application not found');
+    }
+    
+    if (!file) {
+      throw new BadRequestException('File is required');
+    }
+
+    if (!body.document_type_id) {
+      throw new BadRequestException('document_type_id is required');
+    }
+
+    const candidateId = app.candidate_id;
+
+    // Create document record first to get ID
+    const document = await this.candidates.createDocument(candidateId, {
+      document_type_id: body.document_type_id,
+      name: body.name || file.originalname,
+      description: body.description,
+      notes: body.notes,
+      document_url: '', // Will be updated after upload
+      file_type: file.mimetype,
+      file_size: file.size,
+    });
+
+    // Upload the file with document ID
+    const result = await this.imageUploadService.uploadFile(
+      file,
+      UploadType.CANDIDATE_DOCUMENT,
+      candidateId,
+      document.id
+    );
+
+    if (result.success && result.url) {
+      // Update document with the actual URL
+      await this.candidates.updateDocumentUrl(document.id, result.url);
+      document.document_url = result.url;
+    } else {
+      // If upload failed, delete the document record
+      await this.candidates.deleteDocument(document.id);
+      throw new BadRequestException(result.error || 'Failed to upload document');
+    }
+
+    return document;
+  }
+
+  @Post(':id/documents/:documentId/verify')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Verify (approve/reject) a document for an application',
+    description: 'Approve or reject a document for a candidate in an application. Server derives job, position, and candidate from application ID.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Application UUID (v4)',
+    example: '075ce7d9-fcdb-4f7e-b794-4190f49d729f',
+  })
+  @ApiParam({
+    name: 'documentId',
+    description: 'Document UUID (v4)',
+    example: '075ce7d9-fcdb-4f7e-b794-4190f49d729f',
+  })
+  async verifyApplicationDocument(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) applicationId: string,
+    @Param('documentId', new ParseUUIDPipe({ version: '4' })) documentId: string,
+    @Body() body: { status: 'approved' | 'rejected'; rejection_reason?: string },
+    @GetUser() user?: User,
+  ) {
+    const app = await this.apps.getById(applicationId);
+    if (!app) {
+      throw new NotFoundException('Application not found');
+    }
+
+    // Verify the document exists and belongs to the candidate
+    const document = await this.candidates.findDocumentById(documentId);
+    if (!document || document.candidate_id !== app.candidate_id) {
+      throw new NotFoundException('Document not found');
+    }
+
+    // Update document verification status
+    const verificationStatus = body.status === 'approved' ? 'approved' : 'rejected';
+    await this.candidates.updateDocumentVerification(documentId, {
+      status: verificationStatus,
+      rejection_reason: body.rejection_reason,
+    });
+
+    return { success: true, status: verificationStatus };
   }
 }

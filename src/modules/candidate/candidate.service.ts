@@ -120,7 +120,7 @@ export class CandidateService {
       existing.gender = input.gender;
     }
     if (input.date_of_birth !== undefined) {
-      existing.date_of_birth = input.date_of_birth ? new Date(input.date_of_birth) : null;
+      existing.date_of_birth = input.date_of_birth ? new Date(input.date_of_birth) : undefined;
     }
 
     if (input.profile_image !== undefined) {
@@ -797,7 +797,7 @@ export class CandidateService {
     if (!candidate) {
       throw new NotFoundException('Candidate not found');
     }
-    candidate.profile_image = imageUrl;
+    candidate.profile_image = imageUrl ?? undefined;
     await this.repo.save(candidate);
   }
 

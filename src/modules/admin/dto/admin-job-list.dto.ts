@@ -45,11 +45,17 @@ export class AdminJobItemDto {
   @ApiProperty({ description: 'Salary amount' })
   salary_amount!: number;
 
-  @ApiProperty({ description: 'Total applications count' })
+  @ApiProperty({ description: 'Total applications count (all statuses)' })
   applications_count!: number;
+
+  @ApiProperty({ description: 'Applied candidates count' })
+  applied_count!: number;
 
   @ApiProperty({ description: 'Shortlisted candidates count' })
   shortlisted_count!: number;
+
+  @ApiProperty({ description: 'Withdrawn applications count' })
+  withdrawn_count!: number;
 
   @ApiProperty({ description: 'Interviews scheduled for today' })
   interviews_today!: number;

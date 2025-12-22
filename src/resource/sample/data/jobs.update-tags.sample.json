@@ -1,0 +1,20 @@
+{
+  "skills": [
+    "customer service",
+    "english communication",
+    "POS handling"
+  ],
+  "education_requirements": [
+    "High School Diploma"
+  ],
+  "experience_requirements": {
+    "min_years": 1,
+    "preferred_years": 3,
+    "domains": [
+      "hospitality"
+    ]
+  },
+  "canonical_title_ids": [
+    "11111111-1111-1111-1111-111111111111"
+  ]
+}

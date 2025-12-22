@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
-import { JobPosting } from '../domain/domain.entity';
+import { JobPosting, JobPosition } from '../domain/domain.entity';
 import { InterviewDetail } from '../domain/domain.entity';
 
 export type JobApplicationHistoryEntry = {
@@ -38,9 +38,13 @@ export class JobApplication {
   @Column('uuid')
   position_id: string;
 
-  @ManyToOne(() => JobPosting, jobPosting => jobPosting.applications)
+  @ManyToOne(() => JobPosting)
   @JoinColumn({ name: 'job_posting_id' })
   job_posting: JobPosting;
+
+  @ManyToOne(() => JobPosition)
+  @JoinColumn({ name: 'position_id' })
+  position: JobPosition;
 
   @OneToMany(() => InterviewDetail, interview => interview.job_application)
   interview_details: InterviewDetail[];

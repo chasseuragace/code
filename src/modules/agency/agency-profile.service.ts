@@ -4,6 +4,15 @@ import { Repository } from 'typeorm';
 import { PostingAgency } from '../domain/PostingAgency';
 import { UpdateAgencyDto } from './dto/agency.dto';
 
+/**
+ * Normalize license number by replacing URL-breaking characters
+ * Converts slashes (/) to dashes (-) to prevent routing issues
+ */
+function normalizeLicenseNumber(licenseNumber: string): string {
+  if (!licenseNumber) return licenseNumber;
+  return licenseNumber.replace(/\//g, '-');
+}
+
 @Injectable()
 export class AgencyProfileService {
   constructor(
@@ -24,8 +33,8 @@ export class AgencyProfileService {
       name: payload.name,
       description: payload.description,
       established_year: payload.established_year,
-      // license_number is technically mutable but usually stable
-      license_number: payload.license_number,
+      // Normalize license number to prevent URL routing issues
+      license_number: payload.license_number ? normalizeLicenseNumber(payload.license_number) : payload.license_number,
     } as any;
 
     await this.agencyRepository.update(agencyId, {

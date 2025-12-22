@@ -13,10 +13,11 @@ import {
   BadRequestException,
   UseInterceptors,
   UploadedFile,
-  Req
+  Req,
+  UseGuards
 } from '@nestjs/common';
 import { Request } from 'express';
-import { ApiTags, ApiOperation, ApiParam, ApiQuery, ApiOkResponse, ApiBody, ApiBadRequestResponse, ApiConsumes, ApiCreatedResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiParam, ApiQuery, ApiOkResponse, ApiBody, ApiBadRequestResponse, ApiConsumes, ApiCreatedResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -34,6 +35,8 @@ import { JobApplication } from '../application/job-application.entity';
 import { Candidate } from '../candidate/candidate.entity';
 import { CandidateJobProfile } from '../candidate/candidate-job-profile.entity';
 import { JobPosting } from '../domain/domain.entity';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { User } from '../user/user.entity';
 
 import {
   GetJobCandidatesQueryDto,
@@ -94,7 +97,7 @@ export class JobCandidatesController {
     @Param('jobId', ParseUUIDPipe) jobId: string,
   ): Promise<JobDetailsWithAnalyticsDto> {
     // Verify agency owns this job
-    const job = await this.jobPostingService.findJobPostingById(jobId);
+    const job = await this.jobPostingService.findJobPostingByIdInternal(jobId);
     const belongs = job.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) {
       throw new ForbiddenException('Cannot access job posting of another agency');
@@ -215,7 +218,7 @@ export class JobCandidatesController {
     @Query() query: GetJobCandidatesQueryDto,
   ): Promise<GetJobCandidatesResponseDto> {
     // Verify agency owns this job
-    const job = await this.jobPostingService.findJobPostingById(jobId);
+    const job = await this.jobPostingService.findJobPostingByIdInternal(jobId);
     const belongs = job.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) {
       throw new ForbiddenException('Cannot access job posting of another agency');
@@ -226,13 +229,14 @@ export class JobCandidatesController {
     // Parse skills filter
     const skillsArray = skills ? skills.split(',').map(s => s.trim()).filter(Boolean) : [];
 
-    // Fetch applications for this job and stage with interview details
+    // Fetch applications for this job and stage with interview details and position data
     // When stage is 'interview_scheduled', also include 'interview_rescheduled' status
     let applications: JobApplication[];
     if (stage === 'interview_scheduled') {
       applications = await this.jobAppRepo
         .createQueryBuilder('ja')
         .leftJoinAndSelect('ja.interview_details', 'interview')
+        .leftJoinAndSelect('ja.position', 'position')
         .where('ja.job_posting_id = :jobId', { jobId })
         .andWhere('(ja.status = :stage OR ja.status = :rescheduledStage)', { 
           stage: 'interview_scheduled',
@@ -243,6 +247,7 @@ export class JobCandidatesController {
       applications = await this.jobAppRepo
         .createQueryBuilder('ja')
         .leftJoinAndSelect('ja.interview_details', 'interview')
+        .leftJoinAndSelect('ja.position', 'position')
         .where('ja.job_posting_id = :jobId', { jobId })
         .andWhere('ja.status = :stage', { stage })
         .getMany();
@@ -250,42 +255,41 @@ export class JobCandidatesController {
 
     // Apply interview filtering if requested (only for interview_scheduled stage)
     if (stage === 'interview_scheduled' && interview_filter && interview_filter !== 'all') {
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
+      // Get current time from database to ensure timezone consistency
+      const dbTimeResult = await this.jobAppRepo.query('SELECT NOW() as now');
+      const dbNow = new Date(dbTimeResult[0].now);
+      
+      // Import timezone utilities
+      const { getNepalNow, getNepalToday, getNepalTomorrow, getNepalDayAfterTomorrow, parseInterviewDateTime, getInterviewEndTime, isInterviewToday, isInterviewTomorrow, isInterviewUnattended } = await import('../../shared/timezone.util');
+      
+      const nepalNow = getNepalNow(dbNow);
+      const today = getNepalToday(nepalNow);
+      const tomorrow = getNepalTomorrow(today);
+      const dayAfterTomorrow = getNepalDayAfterTomorrow(tomorrow);
       
       applications = applications.filter(app => {
         const interview = app.interview_details?.[0];
         if (!interview || !interview.interview_date_ad) return false;
         
         const interviewDate = new Date(interview.interview_date_ad);
-        const interviewDateTime = new Date(interviewDate);
-        
-        // Parse time if available (format: "HH:MM:SS" or "HH:MM")
-        if (interview.interview_time) {
-          const timeParts = interview.interview_time.toString().split(':');
-          const hours = parseInt(timeParts[0], 10);
-          const minutes = parseInt(timeParts[1], 10);
-          interviewDateTime.setHours(hours, minutes, 0, 0);
-        }
+        const interviewDateTime = parseInterviewDateTime(interview.interview_date_ad, interview.interview_time);
+        const endTime = getInterviewEndTime(interviewDateTime, interview.duration_minutes);
         
         switch (interview_filter) {
           case 'today':
-            return interviewDate >= today && interviewDate < tomorrow;
+            // Today filter: scheduled for today AND hasn't passed grace period yet
+            const todayMatch = isInterviewToday(interviewDate, today, tomorrow);
+            const notYetPassed = nepalNow <= endTime;
+            return todayMatch && notYetPassed;
           
           case 'tomorrow':
-            const dayAfterTomorrow = new Date(tomorrow);
-            dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
-            return interviewDate >= tomorrow && interviewDate < dayAfterTomorrow;
+            return isInterviewTomorrow(interviewDate, tomorrow, dayAfterTomorrow);
           
           case 'unattended':
-            // Interview time + duration + 30min grace period has passed
-            const duration = interview.duration_minutes || 60;
-            const gracePeriod = 30; // minutes
-            const endTime = new Date(interviewDateTime);
-            endTime.setMinutes(endTime.getMinutes() + duration + gracePeriod);
-            return now > endTime;
+            // Unattended: scheduled for today AND has passed grace period
+            const todayUnattended = isInterviewToday(interviewDate, today, tomorrow);
+            const hasPassed = isInterviewUnattended(interviewDateTime, nepalNow, interview.duration_minutes);
+            return todayUnattended && hasPassed;
           
           default:
             return true;
@@ -517,32 +521,65 @@ export class JobCandidatesController {
     // Apply pagination
     const paginatedResults = candidatesWithScores.slice(offset, offset + limit);
 
+    // Fetch salary conversions for positions in paginated results
+    const positionIds = paginatedResults
+      .map(r => (r.application as any).position?.id)
+      .filter(Boolean);
+    
+    const salaryConversions = positionIds.length > 0
+      ? await this.jobAppRepo.query(
+          `SELECT job_position_id, converted_amount, converted_currency, conversion_rate 
+           FROM salary_conversions 
+           WHERE job_position_id = ANY($1) 
+           ORDER BY conversion_date DESC`,
+          [positionIds]
+        )
+      : [];
+
+    const conversionMap = new Map<string, any>();
+    for (const conversion of salaryConversions) {
+      if (!conversionMap.has(conversion.job_position_id)) {
+        conversionMap.set(conversion.job_position_id, conversion);
+      }
+    }
+
     // Map to response DTOs
-    const candidateDtos: JobCandidateDto[] = paginatedResults.map(({ application, candidate, profileBlob, candidateSkills, priority_score }) => {
+    const candidateDtos: JobCandidateDto[] = paginatedResults.map(({ application, candidate, profileBlob, priority_score }) => {
       // Extract address from candidate
       const address = candidate.address as any;
-      const city = address?.municipality || address?.district || 'N/A';
-      const country = 'Nepal'; // Default, could be in profile
+      const addressStr = address?.name || address?.municipality || address?.district || 'N/A';
 
       // Extract interview data if available
       const interview = application.interview_details?.[0];
 
+      // Extract position data if available
+      const position = (application as any).position;
+      
+      // Get salary conversion if available
+      const conversion = position ? conversionMap.get(position.id) : null;
+
       return {
         id: candidate.id,
         name: candidate.full_name,
+        gender: candidate.gender || undefined,
         priority_score,
-        location: {
-          city,
-          country,
-        },
+        address: addressStr,
         phone: candidate.phone,
-        email: candidate.email || 'N/A',
-        experience: profileBlob.experience || 'N/A',
-        skills: candidateSkills,
+        email: candidate.email || undefined,
+        position: position ? {
+          id: position.id,
+          title: position.title,
+          salary: {
+            amount: Number(position.monthly_salary_amount),
+            currency: position.salary_currency,
+            converted_amount: conversion?.converted_amount ? Number(conversion.converted_amount) : undefined,
+            converted_currency: conversion?.converted_currency || undefined,
+            conversion_rate: conversion?.conversion_rate ? Number(conversion.conversion_rate) : undefined,
+          },
+        } : null,
         applied_at: application.created_at.toISOString(),
         application_id: application.id,
         status: application.status,
-        documents: (application as any).documents || [],
         interview: interview ? {
           id: interview.id,
           scheduled_at: interview.interview_date_ad 
@@ -554,8 +591,6 @@ export class JobCandidatesController {
           duration: interview.duration_minutes || 60,
           location: interview.location || null,
           interviewer: interview.contact_person || null,
-          notes: interview.notes || null,
-          required_documents: interview.required_documents || []
         } : null
       };
     });
@@ -576,6 +611,8 @@ export class JobCandidatesController {
    * POST /agencies/:license/jobs/:jobId/candidates/bulk-shortlist
    */
   @Post(':jobId/candidates/bulk-shortlist')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @HttpCode(200)
   @ApiOperation({
     summary: 'Bulk shortlist candidates',
@@ -593,53 +630,49 @@ export class JobCandidatesController {
     @Param('license') license: string,
     @Param('jobId', ParseUUIDPipe) jobId: string,
     @Body() body: BulkShortlistDto,
+    @Req() req: any,
   ): Promise<BulkActionResponseDto> {
+    const user = req.user as User;
+    
     // Verify agency owns this job
-    const job = await this.jobPostingService.findJobPostingById(jobId);
+    const job = await this.jobPostingService.findJobPostingByIdInternal(jobId);
     const belongs = job.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) {
       throw new ForbiddenException('Cannot access job posting of another agency');
     }
 
-    const { candidate_ids } = body;
+    const { application_ids } = body;
     const failed: string[] = [];
     const errors: Record<string, string> = {};
     let updated_count = 0;
 
-    // Process each candidate
-    for (const candidateId of candidate_ids) {
+    // Process each application
+    for (const applicationId of application_ids) {
       try {
-        // Find application for this candidate and job
+        // Find application
         const application = await this.jobAppRepo.findOne({
           where: {
-            candidate_id: candidateId,
+            id: applicationId,
             job_posting_id: jobId,
           },
         });
 
         if (!application) {
-          failed.push(candidateId);
-          errors[candidateId] = 'Application not found';
+          failed.push(applicationId);
+          errors[applicationId] = 'Application not found';
           continue;
         }
 
-        // Only shortlist if currently in "applied" stage
-        if (application.status !== 'applied') {
-          failed.push(candidateId);
-          errors[candidateId] = `Cannot shortlist from "${application.status}" stage`;
-          continue;
-        }
-
-        // Update to shortlisted
+        // Update to shortlisted using the same method as individual shortlist
         await this.applicationService.updateStatus(application.id, 'shortlisted', {
           note: 'Bulk shortlisted via agency workflow',
           updatedBy: 'agency',
-        });
+        }, user?.role);
 
         updated_count++;
       } catch (error) {
-        failed.push(candidateId);
-        errors[candidateId] = error.message || 'Unknown error';
+        failed.push(applicationId);
+        errors[applicationId] = error.message || 'Unknown error';
       }
     }
 
@@ -687,7 +720,7 @@ export class JobCandidatesController {
     @Query('stage') stage: string = 'applied',
   ): Promise<{ available_skills: string[]; total_candidates: number }> {
     // Verify agency owns this job
-    const job = await this.jobPostingService.findJobPostingById(jobId);
+    const job = await this.jobPostingService.findJobPostingByIdInternal(jobId);
     const belongs = job.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) {
       throw new ForbiddenException('Cannot access job posting of another agency');
@@ -754,6 +787,8 @@ export class JobCandidatesController {
    * POST /agencies/:license/jobs/:jobId/candidates/bulk-reject
    */
   @Post(':jobId/candidates/bulk-reject')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @HttpCode(200)
   @ApiOperation({
     summary: 'Bulk reject candidates',
@@ -771,9 +806,12 @@ export class JobCandidatesController {
     @Param('license') license: string,
     @Param('jobId', ParseUUIDPipe) jobId: string,
     @Body() body: BulkRejectDto,
+    @Req() req: any,
   ): Promise<BulkActionResponseDto> {
+    const user = req.user as User;
+    
     // Verify agency owns this job
-    const job = await this.jobPostingService.findJobPostingById(jobId);
+    const job = await this.jobPostingService.findJobPostingByIdInternal(jobId);
     const belongs = job.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) {
       throw new ForbiddenException('Cannot access job posting of another agency');
@@ -808,7 +846,8 @@ export class JobCandidatesController {
           {
             note: reason || 'Bulk rejected via agency workflow',
             updatedBy: 'agency',
-          }
+          },
+          user?.role
         );
 
         updated_count++;
@@ -831,6 +870,8 @@ export class JobCandidatesController {
    * POST /agencies/:license/jobs/:jobId/candidates/bulk-schedule-interview
    */
   @Post(':jobId/candidates/bulk-schedule-interview')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @HttpCode(200)
   @ApiOperation({
     summary: 'Bulk schedule interviews for multiple candidates',
@@ -848,9 +889,12 @@ export class JobCandidatesController {
     @Param('license') license: string,
     @Param('jobId', ParseUUIDPipe) jobId: string,
     @Body() body: BulkScheduleInterviewDto,
+    @Req() req: any,
   ): Promise<BulkActionResponseDto> {
+    const user = req.user as User;
+    
     // Verify agency owns this job
-    const job = await this.jobPostingService.findJobPostingById(jobId);
+    const job = await this.jobPostingService.findJobPostingByIdInternal(jobId);
     const belongs = job.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) {
       throw new ForbiddenException('Cannot access job posting of another agency');
@@ -901,7 +945,8 @@ export class JobCandidatesController {
           {
             note: 'Bulk scheduled via agency workflow',
             updatedBy: interviewData.updatedBy || 'agency',
-          }
+          },
+          user?.role
         );
 
         scheduled_count++;
@@ -924,6 +969,8 @@ export class JobCandidatesController {
    * POST /agencies/:license/jobs/:jobId/candidates/multi-batch-schedule
    */
   @Post(':jobId/candidates/multi-batch-schedule')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @HttpCode(200)
   @ApiOperation({
     summary: 'Schedule multiple batches of interviews in a single request',
@@ -941,9 +988,12 @@ export class JobCandidatesController {
     @Param('license') license: string,
     @Param('jobId', ParseUUIDPipe) jobId: string,
     @Body() body: MultiBatchScheduleDto,
+    @Req() req: any,
   ): Promise<BulkActionResponseDto> {
+    const user = req.user as User;
+    
     // Verify agency owns this job
-    const job = await this.jobPostingService.findJobPostingById(jobId);
+    const job = await this.jobPostingService.findJobPostingByIdInternal(jobId);
     const belongs = job.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) {
       throw new ForbiddenException('Cannot access job posting of another agency');
@@ -959,29 +1009,29 @@ export class JobCandidatesController {
       const duration = batch.duration_minutes || 60;
       let currentTimeOffset = 0; // Minutes to add to start time
 
-      // Process each candidate in the batch with incremented time
-      for (let i = 0; i < batch.candidate_ids.length; i++) {
-        const candidateId = batch.candidate_ids[i];
+      // Process each application in the batch with incremented time
+      for (let i = 0; i < batch.application_ids.length; i++) {
+        const applicationId = batch.application_ids[i];
         
         try {
-          // Find application for this candidate and job
+          // Find application by ID
           const application = await this.jobAppRepo.findOne({
             where: {
-              candidate_id: candidateId,
+              id: applicationId,
               job_posting_id: jobId,
             },
           });
 
           if (!application) {
-            failed.push(candidateId);
-            errors[candidateId] = 'Application not found';
+            failed.push(applicationId);
+            errors[applicationId] = 'Application not found';
             continue;
           }
 
           // Only schedule if currently in "shortlisted" stage
           if (application.status !== 'shortlisted') {
-            failed.push(candidateId);
-            errors[candidateId] = `Cannot schedule from "${application.status}" stage`;
+            failed.push(applicationId);
+            errors[applicationId] = `Cannot schedule from "${application.status}" stage`;
             continue;
           }
 
@@ -1004,7 +1054,8 @@ export class JobCandidatesController {
             {
               note: 'Multi-batch scheduled via agency workflow',
               updatedBy: body.updatedBy || 'agency',
-            }
+            },
+            user?.role
           );
 
           scheduled_count++;
@@ -1012,8 +1063,8 @@ export class JobCandidatesController {
           // Increment time offset for next candidate in this batch
           currentTimeOffset += duration;
         } catch (error) {
-          failed.push(candidateId);
-          errors[candidateId] = error.message || 'Unknown error';
+          failed.push(applicationId);
+          errors[applicationId] = error.message || 'Unknown error';
           // Still increment time even if this candidate failed, to maintain spacing
           currentTimeOffset += duration;
         }
@@ -1030,7 +1081,7 @@ export class JobCandidatesController {
 
   /**
    * Get complete candidate details for a job application (unified endpoint)
-   * GET /agencies/:license/jobs/:jobId/candidates/:candidateId/details
+   * GET /agencies/:license/jobs/:jobId/candidates/:candidateId/details?application_id=...
    */
   @Get(':jobId/candidates/:candidateId/details')
   @HttpCode(200)
@@ -1041,6 +1092,7 @@ export class JobCandidatesController {
   @ApiParam({ name: 'license', description: 'Agency license number', example: 'LIC-AG-0001' })
   @ApiParam({ name: 'jobId', description: 'Job posting ID (UUID)', example: 'job-uuid' })
   @ApiParam({ name: 'candidateId', description: 'Candidate ID (UUID)', example: 'candidate-uuid' })
+  @ApiQuery({ name: 'application_id', required: true, description: 'Specific application ID to fetch', example: 'app-uuid' })
   @ApiOkResponse({ 
     description: 'Complete candidate details',
     type: CandidateFullDetailsDto 
@@ -1049,9 +1101,10 @@ export class JobCandidatesController {
     @Param('license') license: string,
     @Param('jobId', ParseUUIDPipe) jobId: string,
     @Param('candidateId', ParseUUIDPipe) candidateId: string,
+    @Query('application_id', ParseUUIDPipe) applicationId: string,
   ): Promise<CandidateFullDetailsDto> {
     // 1. Verify agency owns this job
-    const job = await this.jobPostingService.findJobPostingById(jobId);
+    const job = await this.jobPostingService.findJobPostingByIdInternal(jobId);
     const belongs = job.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) {
       throw new ForbiddenException('Cannot access job posting of another agency');
@@ -1072,9 +1125,10 @@ export class JobCandidatesController {
     const profile = jobProfiles[0];
     const profileBlob = (profile?.profile_blob as any) || {};
 
-    // 4. Fetch application with history
+    // 4. Fetch specific application by ID
     const application = await this.jobAppRepo.findOne({
       where: {
+        id: applicationId,
         candidate_id: candidateId,
         job_posting_id: jobId,
       },
@@ -1082,7 +1136,7 @@ export class JobCandidatesController {
     });
 
     if (!application) {
-      throw new NotFoundException('Application not found for this candidate and job');
+      throw new NotFoundException('Application not found');
     }
 
     // 5. Get interview details (if exists)
@@ -1113,47 +1167,116 @@ export class JobCandidatesController {
       };
     };
 
-    // 8. Extract and flatten skills to array of strings
+    // 8. Extract and format skills with experience details
     const skills = Array.isArray(profileBlob.skills)
       ? profileBlob.skills
-          .map((s: any) => (typeof s === 'string' ? s : s?.title))
-          .filter((v: any) => typeof v === 'string' && v.trim().length > 0)
+          .map((s: any) => {
+            if (typeof s === 'string') {
+              return { title: s, years: undefined, duration_months: undefined, formatted: s };
+            }
+            const title = s?.title || 'Unknown';
+            const years = s?.years || undefined;
+            const duration_months = s?.duration_months || undefined;
+            
+            // Format: "English (1 year, 3 months)" or "English (1 year)" or "English"
+            let formatted = title;
+            const parts: string[] = [];
+            if (years) parts.push(`${years} year${years > 1 ? 's' : ''}`);
+            if (duration_months) parts.push(`${duration_months} month${duration_months > 1 ? 's' : ''}`);
+            if (parts.length > 0) {
+              formatted = `${title} (${parts.join(', ')})`;
+            }
+            
+            return {
+              title,
+              years,
+              duration_months,
+              formatted,
+            };
+          })
+          .filter((v: any) => v.title && v.title.trim().length > 0)
       : [];
 
-    // 9. Extract education
+    // 9. Extract and format education
     const education = Array.isArray(profileBlob.education)
       ? profileBlob.education.map((e: any) => {
-          if (typeof e === 'string') {
-            return { degree: e, institution: null, year_completed: null };
+          const degree = e.degree || e.title || e.name || 'Unknown';
+          const institution = e.institute || e.institution || undefined;
+          const year_completed = e.year_completed || undefined;
+          
+          // Format: "SLC from Nepal School" or just "SLC"
+          let formatted = degree;
+          if (institution) {
+            formatted = `${degree} from ${institution}`;
           }
+          
           return {
-            degree: e.degree || e.title || e.name || 'Unknown',
-            institution: e.institution || null,
-            year_completed: e.year_completed || null,
+            degree,
+            institution,
+            year_completed,
+            formatted,
           };
         })
       : [];
 
-    // 10. Extract trainings
+    // 10. Extract and format trainings
     const trainings = Array.isArray(profileBlob.trainings)
-      ? profileBlob.trainings.map((t: any) => ({
-          title: t.title || 'Unknown',
-          provider: t.provider || null,
-          hours: t.hours || null,
-          certificate: t.certificate || false,
-        }))
+      ? profileBlob.trainings.map((t: any) => {
+          const title = t.title || 'Unknown';
+          const provider = t.provider || undefined;
+          const hours = t.hours || undefined;
+          const certificate = t.certificate || false;
+          
+          // Format: "Cook - Kathmandu Kitchen (40 hours)" or "Cook (40 hours)" or "Cook"
+          let formatted = title;
+          const parts: string[] = [];
+          if (provider) parts.push(provider);
+          if (hours) parts.push(`${hours} hour${hours > 1 ? 's' : ''}`);
+          
+          if (parts.length > 0) {
+            formatted = `${title} - ${parts.join(' (')}${parts.length > 1 ? ')' : ''}`;
+          }
+          
+          return {
+            title,
+            provider,
+            hours,
+            certificate,
+            formatted,
+          };
+        })
       : [];
 
-    // 11. Extract experience
+    // 11. Extract and format experience
     const experience = Array.isArray(profileBlob.experience)
-      ? profileBlob.experience.map((exp: any) => ({
-          title: exp.title || 'Unknown',
-          employer: exp.employer || null,
-          start_date_ad: exp.start_date_ad || null,
-          end_date_ad: exp.end_date_ad || null,
-          months: exp.months || exp.duration_months || null,
-          description: exp.description || null,
-        }))
+      ? profileBlob.experience.map((exp: any) => {
+          const title = exp.title || 'Unknown';
+          const employer = exp.employer || undefined;
+          const start_date_ad = exp.start_date_ad || undefined;
+          const end_date_ad = exp.end_date_ad || undefined;
+          const months = exp.months || exp.duration_months || undefined;
+          const description = exp.description || undefined;
+          
+          // Format: "Mason at Local Construction (1 month)" or "Mason (1 month)" or "Mason"
+          let formatted = title;
+          const parts: string[] = [];
+          if (employer) parts.push(`at ${employer}`);
+          if (months) parts.push(`${months} month${months > 1 ? 's' : ''}`);
+          
+          if (parts.length > 0) {
+            formatted = `${title} (${parts.join(', ')})`;
+          }
+          
+          return {
+            title,
+            employer,
+            start_date_ad,
+            end_date_ad,
+            months,
+            description,
+            formatted,
+          };
+        })
       : [];
 
     // 12. Build and return response
@@ -1164,7 +1287,6 @@ export class JobCandidatesController {
         phone: candidate.phone,
         email: candidate.email || null,
         gender: candidate.gender || null,
-        age: candidate.age || null,
         address: formatAddress(candidate.address),
         passport_number: candidate.passport_number || null,
         profile_image: candidate.profile_image || null,
@@ -1250,7 +1372,7 @@ export class JobCandidatesController {
     @Query('date_range') dateRange?: 'today' | 'week' | 'month' | 'all',
   ): Promise<InterviewStatsDto> {
     // Verify agency owns this job
-    const job = await this.jobPostingService.findJobPostingById(jobId);
+    const job = await this.jobPostingService.findJobPostingByIdInternal(jobId);
     const belongs = job.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) {
       throw new ForbiddenException('Cannot access job posting of another agency');
@@ -1340,7 +1462,7 @@ export class JobCandidatesController {
     @Param('candidateId', ParseUUIDPipe) candidateId: string,
   ): Promise<DocumentsWithSlotsResponseDto> {
     // Verify agency owns this job
-    const job = await this.jobPostingService.findJobPostingById(jobId);
+    const job = await this.jobPostingService.findJobPostingByIdInternal(jobId);
     const belongs = job.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) {
       throw new ForbiddenException('Cannot access job posting of another agency');
@@ -1413,7 +1535,7 @@ export class JobCandidatesController {
     @Req() req: Request,
   ): Promise<CandidateDocumentResponseDto> {
     // Verify agency owns this job
-    const job = await this.jobPostingService.findJobPostingById(jobId);
+    const job = await this.jobPostingService.findJobPostingByIdInternal(jobId);
     const belongs = job.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) {
       throw new ForbiddenException('Cannot access job posting of another agency');
@@ -1540,7 +1662,7 @@ export class JobCandidatesController {
     @Req() req: Request,
   ): Promise<UploadResponseDto> {
     // Verify agency owns this job
-    const job = await this.jobPostingService.findJobPostingById(jobId);
+    const job = await this.jobPostingService.findJobPostingByIdInternal(jobId);
     const belongs = job.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) {
       throw new ForbiddenException('Cannot access job posting of another agency');
@@ -1658,7 +1780,7 @@ export class JobCandidatesController {
     @Req() req: Request,
   ): Promise<UploadResponseDto> {
     // Verify agency owns this job
-    const job = await this.jobPostingService.findJobPostingById(jobId);
+    const job = await this.jobPostingService.findJobPostingByIdInternal(jobId);
     const belongs = job.contracts?.some(c => c.agency?.license_number === license);
     if (!belongs) {
       throw new ForbiddenException('Cannot access job posting of another agency');

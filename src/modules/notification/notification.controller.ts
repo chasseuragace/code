@@ -211,8 +211,8 @@ export class NotificationController {
   async sendTestNotificationToToken(@Body() body: SendTestNotificationToTokenDto): Promise<any> {
     return this.notificationApiService.sendTestNotificationToToken(
       body.token,
-      body.title,
-      body.body,
+      body.title || '',
+      body.body || '',
       body.data
     );
   }

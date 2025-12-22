@@ -39,9 +39,11 @@ class InterviewDetailsDto {
   @ApiProperty({ description: 'Interview mode', example: 'Online via Zoom' })
   mode: string;
 
-  
+  @ApiPropertyOptional({ description: 'Interview location', example: 'Office', required: false })
+  location?: string;
+
   @ApiPropertyOptional({ description: 'Interview link', example: 'https://zoom.us/12345', required: false })
-    link?: string;
+  link?: string;
 
   @ApiProperty({ description: 'Required documents', type: [String], example: ['Passport Copy', 'Experience Certificate'] })
   documents: string[];
@@ -57,6 +59,9 @@ class InterviewDetailsDto {
 
   @ApiProperty({ description: 'Contact email', example: 'hr@alfuttaim.com' })
   contactEmail: string;
+
+  @ApiPropertyOptional({ description: 'Interview notes', example: 'Candidate should bring original documents', required: false })
+  notes?: string | null;
 }
 
 class EmployerDetailsDto {

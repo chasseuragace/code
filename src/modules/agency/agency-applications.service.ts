@@ -38,7 +38,7 @@ export interface CandidateInfo {
   phone: string;
   email: string | null;
   skills: string[];
-  age: number | null;
+  age?: number | null;
   gender: string | null;
 }
 
@@ -281,7 +281,6 @@ export class AgencyApplicationsService {
           phone: candidate.phone,
           email: candidate.email ?? null,
           skills,
-          age: candidate.age ?? null,
           gender: candidate.gender ?? null,
         };
       }

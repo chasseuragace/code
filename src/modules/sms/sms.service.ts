@@ -33,6 +33,15 @@ export class SmsService {
   private readonly url = process.env.SMS_URL || 'https://sms.aakashsms.com/sms/v3/send/';
 
   public async sendSmsNotification(body: sendSmsNotificationDto) {
+    // DEVELOPMENT MODE: Always skip actual SMS sending
+    // eslint-disable-next-line no-console
+    console.log('[SMS-DEV] Skipping SMS send (development mode)', {
+      to: body.contactNumber,
+      message: body.message,
+    });
+    return;
+
+    // Production code below (unreachable in dev)
     if (!this.token || !this.url) {
       // eslint-disable-next-line no-console
       console.log('SMS_TOKEN or SMS_URL not configured; skipping SMS send');

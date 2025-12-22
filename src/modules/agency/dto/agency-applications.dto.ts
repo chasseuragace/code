@@ -186,12 +186,12 @@ export class CandidateInfoDto {
   })
   skills: string[];
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Candidate age',
     example: 28,
     nullable: true,
   })
-  age: number | null;
+  age?: number | null;
 
   @ApiProperty({
     description: 'Candidate gender',

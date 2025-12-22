@@ -22,6 +22,13 @@ export class JwtAuthGuard implements CanActivate {
       const payload: any = await this.jwt.verifyAsync(token);
       const user = await this.users.findOne({ where: { id: payload.sub } });
       if (!user) throw new UnauthorizedException('Invalid user');
+      
+      // Override role from JWT payload (for agency members, JWT has the specific role like 'recruiter')
+      // while User entity has generic 'agency_user' role
+      if (payload.role) {
+        user.role = payload.role;
+      }
+      
       req.user = user;
       return true;
     } catch (e) {

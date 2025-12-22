@@ -5,6 +5,7 @@ import {
   ParseUUIDPipe,
   Req,
   NotFoundException,
+  Inject,
 } from '@nestjs/common';
 import {
   ApiOperation,
@@ -13,6 +14,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Request } from 'express';
+import { JwtService } from '@nestjs/jwt';
 
 import { JobPostingService, InterviewService, ExpenseService } from '../domain/domain.service';
 import { CurrencyConversionService } from '../currency/currency-conversion.service';
@@ -20,7 +22,7 @@ import { ApplicationService } from '../application/application.service';
 import { FitnessScoreService } from '../shared/fitness-score.service';
 import { CandidateService } from './candidate.service';
 
-import { MobileJobPostingDto } from './dto/mobile-job.dto';
+import { MobileJobPostingDto, MobileJobPositionDto } from './dto/mobile-job.dto';
 
 @ApiTags('mobile-jobs')
 @Controller('mobile-jobs')
@@ -33,6 +35,7 @@ export class MobileJobController {
     private readonly applicationService: ApplicationService,
     private readonly fitnessScoreService: FitnessScoreService,
     private readonly expenseService: ExpenseService,
+    private readonly jwtService: JwtService,
   ) {}
 
   // Mobile-friendly job details including match percentage
@@ -49,9 +52,20 @@ export class MobileJobController {
     @Req() req: Request,
     @Param('jobId', new ParseUUIDPipe({ version: '4' })) jobId: string,
   ): Promise<MobileJobPostingDto> {
-    // Extract user ID from token if available (optional)
-    const user = (req as any).user;
-    const id = user?.id;
+    // Extract candidate ID from token if available (optional)
+    let id: string | undefined;
+    const authHeader = req.headers['authorization'] || req.headers['Authorization'];
+    const auth = Array.isArray(authHeader) ? authHeader[0] : authHeader;
+    if (auth && typeof auth === 'string' && auth.startsWith('Bearer ')) {
+      const token = auth.slice('Bearer '.length);
+      try {
+        const payload: any = await this.jwtService.verifyAsync(token);
+        // JWT contains 'cid' for candidate ID
+        id = payload.cid;
+      } catch (e) {
+        // Token is invalid, continue without user context
+      }
+    }
 
     // Base mobile projection with salary conversions preference NPR > USD > first
     const mobile = await this.jobPostingService.jobbyidmobile(jobId);
@@ -77,10 +91,13 @@ export class MobileJobController {
         const appliedPositionIds = await this.applicationService.getAppliedPositionIds(id, positionIds);
 
         if (mobile.positions) {
-          mobile.positions = mobile.positions.map(pos => ({
-            ...pos,
-            hasApplied: appliedPositionIds.has(pos.id)
-          }));
+          mobile.positions = mobile.positions.map(pos => {
+            const updated = new MobileJobPositionDto();
+            Object.assign(updated, pos);
+            updated.hasApplied = appliedPositionIds.has(pos.id);
+            updated.canApply = !appliedPositionIds.has(pos.id);
+            return updated;
+          });
         }
       } catch (error) {
         // Log error but don't fail - return base data without user-specific enrichment

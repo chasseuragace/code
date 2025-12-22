@@ -83,8 +83,8 @@ export class AgencyDashboardService {
     // Total jobs (all time)
     const total = jobPostings.length;
     const active = jobPostings.filter(jp => jp.is_active).length;
-    const inactive = total - active;
-    const drafts = 0; // TODO: Requires status field
+    const inactive = jobPostings.filter(jp => !jp.is_active).length;
+    const drafts = jobPostings.filter(jp => jp.is_draft).length;
 
     // Time-scoped metrics
     let recentInRange = 0;
@@ -110,8 +110,12 @@ export class AgencyDashboardService {
           openInTimeframe++;
         }
 
-        // Draft jobs created or updated in timeframe (TODO: requires status field)
-        // For now, this will be 0
+        // Draft jobs created or updated in timeframe
+        if (jp.is_draft &&
+            ((createdAt && createdAt >= startDate && createdAt <= endDate) ||
+             (updatedAt && updatedAt >= startDate && updatedAt <= endDate))) {
+          draftInTimeframe++;
+        }
       });
     }
 
@@ -137,7 +141,7 @@ export class AgencyDashboardService {
     const jobPostingsQuery = this.jobPostingRepo
       .createQueryBuilder('jp')
       .innerJoin('jp.contracts', 'jc')
-      .select('jp.id')
+      .select('jp.id as jp_id')
       .where('jc.posting_agency_id = :agencyId', { agencyId });
 
     if (query.country) {
@@ -223,7 +227,7 @@ export class AgencyDashboardService {
     const jobPostingsQuery = this.jobPostingRepo
       .createQueryBuilder('jp')
       .innerJoin('jp.contracts', 'jc')
-      .select('jp.id')
+      .select('jp.id as jp_id')
       .where('jc.posting_agency_id = :agencyId', { agencyId });
 
     if (query.country) {
@@ -257,11 +261,16 @@ export class AgencyDashboardService {
       .getMany();
 
     const total = interviews.length;
-    const now = new Date();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    // Import timezone utilities
+    const { getNepalNow, getNepalToday, getNepalTomorrow } = await import('../../shared/timezone.util');
+    
+    // Get current time from database for consistency
+    const dbTimeResult = await this.interviewRepo.query('SELECT NOW() as now');
+    const dbNow = new Date(dbTimeResult[0].now);
+    const nepalNow = getNepalNow(dbNow);
+    const today = getNepalToday(nepalNow);
+    const tomorrow = getNepalTomorrow(today);
 
     // Count by status - pending means scheduled and in the future
     const pending = interviews.filter(iv => {
@@ -283,7 +292,7 @@ export class AgencyDashboardService {
         interviewDate.setHours(23, 59, 59, 999);
       }
       
-      return interviewDate > now;
+      return interviewDate > nepalNow;
     }).length;
 
     const completed = interviews.filter(iv => iv.status === 'completed').length;
@@ -308,8 +317,10 @@ export class AgencyDashboardService {
     let recentInRange = 0;
     if (startDate && endDate) {
       recentInRange = interviews.filter(iv => {
-        const interviewDate = iv.interview_date_ad;
-        return interviewDate && interviewDate >= startDate && interviewDate <= endDate;
+        if (!iv.interview_date_ad) return false;
+        // Convert interview_date_ad to Date for proper comparison
+        const interviewDate = new Date(iv.interview_date_ad);
+        return interviewDate >= startDate && interviewDate <= endDate;
       }).length;
     }
 

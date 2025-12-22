@@ -102,8 +102,7 @@ export interface AuditableRequest extends Request {
   headers: Record<string, string | string[] | undefined>;
   query: Record<string, any>;
   body: any;
-  ip?: string;
-  socket?: { remoteAddress?: string };
+  ip: string;
 }
 
 @Injectable()

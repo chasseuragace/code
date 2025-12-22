@@ -47,13 +47,16 @@ export class CreateJobPostingWithTagsDto implements CreateJobPostingDto {
     @IsString()
     notes?: string;
   @ApiProperty({ description: 'Posting agency', example: null })
-    @IsObject()
+    @ValidateNested()
+    @Type(() => Object)
     posting_agency: any;
   @ApiProperty({ description: 'Employer', example: null })
-    @IsObject()
+    @ValidateNested()
+    @Type(() => Object)
     employer: any;
   @ApiProperty({ description: 'Contract', example: null })
-    @IsObject()
+    @ValidateNested()
+    @Type(() => Object)
     contract: any;
   @ApiProperty({ description: 'Positions', example: [] })
     @IsArray()

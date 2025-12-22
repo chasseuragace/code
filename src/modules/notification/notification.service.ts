@@ -499,6 +499,12 @@ export class NotificationService implements OnModuleInit {
           message: `Thank you for your interest in "${jobTitle}" at ${agencyName}. Unfortunately, you were not selected this time.`
         };
 
+      case 'withdrawn':
+        return {
+          title: 'Application Withdrawn',
+          message: `Your application for "${jobTitle}" at ${agencyName} has been withdrawn. The job posting has been closed.`
+        };
+
       default:
         return {
           title: 'Application Update',

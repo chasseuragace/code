@@ -922,12 +922,15 @@ export class JobPostingService {
       country, 
       min_salary, 
       max_salary, 
-      currency, 
+      currency: providedCurrency, 
       page = 1, 
       limit = 10,
       sort_by = 'posted_at',
       order = 'desc'
     } = params;
+
+    // Default currency to NPR if not provided but salary filters are used
+    const currency = providedCurrency || (min_salary || max_salary ? 'NPR' : undefined);
 
     // Build the base query for filtering and counting
     const qb = this.jobPostingRepository
@@ -951,11 +954,39 @@ export class JobPostingService {
 
     // Other filters
     if (country) qb.andWhere('jp.country ILIKE :country', { country: `%${country}%` });
-    if (min_salary && currency) {
-      qb.andWhere('positions.monthly_salary_amount >= :min_salary AND positions.salary_currency = :currency', { min_salary, currency });
-    }
-    if (max_salary && currency) {
-      qb.andWhere('positions.monthly_salary_amount <= :max_salary AND positions.salary_currency = :currency', { max_salary, currency });
+    
+    // Salary filters with currency conversion
+    if ((min_salary || max_salary) && currency) {
+      // Get the target currency multiplier
+      const targetCurrencyResult = await this.jobPostingRepository.query(
+        'SELECT npr_multiplier FROM countries WHERE currency_code = $1',
+        [currency]
+      );
+      
+      if (targetCurrencyResult.length > 0) {
+        const targetMultiplier = targetCurrencyResult[0].npr_multiplier;
+        
+        // Join with countries to get source currency multiplier
+        qb.leftJoin('countries', 'c', 'c.currency_code = positions.salary_currency');
+        
+        // Convert position salary to target currency and filter
+        // npr_multiplier tells us: 1 unit of currency = X NPR
+        // So to convert: salary_in_currency * npr_multiplier = salary_in_npr
+        // To convert from currency A to currency B: salary_A * multiplier_A / multiplier_B = salary_B
+        if (min_salary) {
+          qb.andWhere(
+            'positions.monthly_salary_amount * COALESCE(c.npr_multiplier, 1) / :targetMultiplier >= :min_salary',
+            { min_salary, targetMultiplier }
+          );
+        }
+        
+        if (max_salary) {
+          qb.andWhere(
+            'positions.monthly_salary_amount * COALESCE(c.npr_multiplier, 1) / :targetMultiplier <= :max_salary',
+            { max_salary, targetMultiplier }
+          );
+        }
+      }
     }
 
     // Get distinct job posting IDs that match the criteria

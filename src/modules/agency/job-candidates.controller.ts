@@ -1598,39 +1598,6 @@ export class JobCandidatesController {
     if (result.success && result.url) {
       await this.candidateService.updateDocumentUrl(document.id, result.url);
       document.document_url = result.url;
-
-      // Audit log: document uploaded by agency (use auditContext from middleware if available)
-      const auditContext = (req as any).auditContext || {};
-      await this.auditService.log(
-        {
-          method: 'POST',
-          path: `/agencies/${license}/jobs/${jobId}/candidates/${candidateId}/documents`,
-          correlationId: auditContext.correlationId,
-          originIp: auditContext.originIp,
-          userAgent: auditContext.userAgent,
-          userId: auditContext.userId,
-          userEmail: auditContext.userEmail,
-          userRole: auditContext.userRole,
-          agencyId: auditContext.agencyId || job.contracts?.[0]?.agency?.id,
-          clientId: auditContext.clientId,
-        },
-        {
-          action: AuditActions.UPLOAD_DOCUMENT,
-          category: AuditCategories.CANDIDATE,
-          resourceType: 'candidate_document',
-          resourceId: document.id,
-          metadata: {
-            candidate_id: candidateId,
-            job_id: jobId,
-            document_type_id: body.document_type_id,
-            document_name: body.name,
-            file_type: file.mimetype,
-            file_size: file.size,
-            uploaded_by_agency: license,
-          },
-        },
-        { outcome: 'success', statusCode: 201 },
-      );
     } else {
       await this.candidateService.deleteDocument(document.id);
       throw new BadRequestException(result.error || 'Failed to upload document');
@@ -1700,37 +1667,6 @@ export class JobCandidatesController {
 
     // Delete document record
     await this.candidateService.deleteDocument(documentId);
-
-    // Audit log: document deleted by agency
-    const auditContext = (req as any).auditContext || {};
-    await this.auditService.log(
-      {
-        method: 'DELETE',
-        path: `/agencies/${license}/jobs/${jobId}/candidates/${candidateId}/documents/${documentId}`,
-        correlationId: auditContext.correlationId,
-        originIp: auditContext.originIp,
-        userAgent: auditContext.userAgent,
-        userId: auditContext.userId,
-        userEmail: auditContext.userEmail,
-        userRole: auditContext.userRole,
-        agencyId: auditContext.agencyId || job.contracts?.[0]?.agency?.id,
-        clientId: auditContext.clientId,
-      },
-      {
-        action: AuditActions.DELETE_DOCUMENT,
-        category: AuditCategories.CANDIDATE,
-        resourceType: 'candidate_document',
-        resourceId: documentId,
-        metadata: {
-          candidate_id: candidateId,
-          job_id: jobId,
-          document_name: documentInfo.name,
-          document_type_id: documentInfo.document_type_id,
-          deleted_by_agency: license,
-        },
-      },
-      { outcome: 'success', statusCode: 200 },
-    );
 
     return {
       success: true,
@@ -1817,41 +1753,6 @@ export class JobCandidatesController {
       status: body.status,
       rejection_reason: body.rejection_reason,
     });
-
-    // Audit log: document verification status changed
-    const auditContext = (req as any).auditContext || {};
-    await this.auditService.log(
-      {
-        method: 'POST',
-        path: `/agencies/${license}/jobs/${jobId}/candidates/${candidateId}/documents/${documentId}/verify`,
-        correlationId: auditContext.correlationId,
-        originIp: auditContext.originIp,
-        userAgent: auditContext.userAgent,
-        userId: auditContext.userId,
-        userEmail: auditContext.userEmail,
-        userRole: auditContext.userRole,
-        agencyId: auditContext.agencyId || job.contracts?.[0]?.agency?.id,
-        clientId: auditContext.clientId,
-      },
-      {
-        action: AuditActions.VERIFY_DOCUMENT,
-        category: AuditCategories.CANDIDATE,
-        resourceType: 'candidate_document',
-        resourceId: documentId,
-        stateChange: {
-          verification_status: [previousStatus, body.status],
-        },
-        metadata: {
-          candidate_id: candidateId,
-          job_id: jobId,
-          document_name: document.name,
-          new_status: body.status,
-          rejection_reason: body.rejection_reason || null,
-          verified_by_agency: license,
-        },
-      },
-      { outcome: 'success', statusCode: 200 },
-    );
 
     return {
       success: true,

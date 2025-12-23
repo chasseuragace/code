@@ -47,6 +47,7 @@ const ROUTE_MAPPINGS: Array<{
   { method: 'POST', pattern: /^\/agencies\/([^/]+)\/job-postings$/, action: AuditActions.CREATE_JOB_POSTING, category: AuditCategories.JOB_POSTING, resourceType: 'job_posting' },
   { method: 'PATCH', pattern: /^\/agencies\/([^/]+)\/job-postings\/([^/]+)$/, action: AuditActions.UPDATE_JOB_POSTING, category: AuditCategories.JOB_POSTING, resourceType: 'job_posting' },
   { method: 'PATCH', pattern: /^\/agencies\/([^/]+)\/job-postings\/([^/]+)\/tags$/, action: AuditActions.UPDATE_JOB_TAGS, category: AuditCategories.JOB_POSTING, resourceType: 'job_posting' },
+  { method: 'PATCH', pattern: /^\/agencies\/([^/]+)\/job-postings\/([^/]+)\/toggle-draft$/, action: AuditActions.TOGGLE_JOB_POSTING_DRAFT, category: AuditCategories.JOB_POSTING, resourceType: 'job_posting' },
   { method: 'POST', pattern: /^\/agencies\/([^/]+)\/job-postings\/([^/]+)\/close$/, action: AuditActions.CLOSE_JOB_POSTING, category: AuditCategories.JOB_POSTING, resourceType: 'job_posting' },
 
   // Agency
@@ -56,14 +57,28 @@ const ROUTE_MAPPINGS: Array<{
   { method: 'PATCH', pattern: /^\/agencies\/owner\/agency\//, action: AuditActions.UPDATE_AGENCY, category: AuditCategories.AGENCY, resourceType: 'agency' },
   { method: 'POST', pattern: /^\/agencies\/([^/]+)\/members$/, action: AuditActions.ADD_TEAM_MEMBER, category: AuditCategories.AGENCY, resourceType: 'agency_user' },
   { method: 'POST', pattern: /^\/agencies\/owner\/members\/invite$/, action: AuditActions.ADD_TEAM_MEMBER, category: AuditCategories.AGENCY, resourceType: 'agency_user' },
+  { method: 'POST', pattern: /^\/agencies\/owner\/members\/([^/]+)\/reset-password$/, action: AuditActions.ADD_TEAM_MEMBER, category: AuditCategories.AGENCY, resourceType: 'agency_user' },
+  { method: 'PATCH', pattern: /^\/agencies\/owner\/members\/([^/]+)$/, action: AuditActions.ADD_TEAM_MEMBER, category: AuditCategories.AGENCY, resourceType: 'agency_user' },
+  { method: 'PATCH', pattern: /^\/agencies\/owner\/members\/([^/]+)\/status$/, action: AuditActions.ADD_TEAM_MEMBER, category: AuditCategories.AGENCY, resourceType: 'agency_user' },
   { method: 'DELETE', pattern: /^\/agencies\/([^/]+)\/members\/([^/]+)$/, action: AuditActions.REMOVE_TEAM_MEMBER, category: AuditCategories.AGENCY, resourceType: 'agency_user' },
   { method: 'DELETE', pattern: /^\/agencies\/owner\/members\/([^/]+)$/, action: AuditActions.REMOVE_TEAM_MEMBER, category: AuditCategories.AGENCY, resourceType: 'agency_user' },
+  
+  // Agency Image Uploads
+  { method: 'POST', pattern: /^\/agencies\/([^/]+)\/logo$/, action: AuditActions.UPDATE_AGENCY, category: AuditCategories.AGENCY, resourceType: 'agency' },
+  { method: 'DELETE', pattern: /^\/agencies\/([^/]+)\/logo$/, action: AuditActions.UPDATE_AGENCY, category: AuditCategories.AGENCY, resourceType: 'agency' },
+  { method: 'POST', pattern: /^\/agencies\/([^/]+)\/banner$/, action: AuditActions.UPDATE_AGENCY, category: AuditCategories.AGENCY, resourceType: 'agency' },
+  { method: 'DELETE', pattern: /^\/agencies\/([^/]+)\/banner$/, action: AuditActions.UPDATE_AGENCY, category: AuditCategories.AGENCY, resourceType: 'agency' },
 
   // Candidate
   { method: 'POST', pattern: /^\/candidates$/, action: AuditActions.CREATE_PROFILE, category: AuditCategories.CANDIDATE, resourceType: 'candidate' },
   { method: 'PUT', pattern: /^\/candidates\/([^/]+)$/, action: AuditActions.UPDATE_PROFILE, category: AuditCategories.CANDIDATE, resourceType: 'candidate' },
   { method: 'PATCH', pattern: /^\/candidates\/([^/]+)$/, action: AuditActions.UPDATE_PROFILE, category: AuditCategories.CANDIDATE, resourceType: 'candidate' },
   { method: 'PUT', pattern: /^\/candidates\/([^/]+)\/job-profiles$/, action: AuditActions.UPDATE_JOB_PROFILE, category: AuditCategories.CANDIDATE, resourceType: 'candidate_job_profile' },
+
+  // Candidate Documents
+  { method: 'POST', pattern: /^\/agencies\/([^/]+)\/jobs\/([^/]+)\/candidates\/([^/]+)\/documents$/, action: AuditActions.UPLOAD_DOCUMENT, category: AuditCategories.CANDIDATE, resourceType: 'candidate_document' },
+  { method: 'DELETE', pattern: /^\/agencies\/([^/]+)\/jobs\/([^/]+)\/candidates\/([^/]+)\/documents\/([^/]+)$/, action: AuditActions.DELETE_DOCUMENT, category: AuditCategories.CANDIDATE, resourceType: 'candidate_document' },
+  { method: 'POST', pattern: /^\/agencies\/([^/]+)\/jobs\/([^/]+)\/candidates\/([^/]+)\/documents\/([^/]+)\/verify$/, action: AuditActions.VERIFY_DOCUMENT, category: AuditCategories.CANDIDATE, resourceType: 'candidate_document' },
 
   // Admin
   { method: 'POST', pattern: /^\/admin\/jobs\/bulk-reject$/, action: AuditActions.BULK_REJECT, category: AuditCategories.ADMIN, resourceType: 'job_posting' },
@@ -230,7 +245,7 @@ export class AuditMiddleware implements NestMiddleware {
     const isSuccess = res.statusCode >= 200 && res.statusCode < 400;
 
     try {
-      await this.auditService.log(
+      await this.auditService.recordAuditEvent(
         req.auditContext,
         {
           action: mapping.action,

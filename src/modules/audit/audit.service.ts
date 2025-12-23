@@ -71,9 +71,20 @@ export class AuditService {
   ) {}
 
   /**
-   * Log an audit event
+   * Record an audit event (internal method)
+   * 
+   * INTERNAL USE ONLY - Called exclusively by AuditMiddleware via recordAuditEvent()
+   * 
+   * This method is intentionally private to enforce centralized audit logging
+   * via middleware. Controllers must NOT call this method directly.
+   * All audit logging must go through the middleware layer to ensure:
+   * - Consistent logging across all endpoints
+   * - Proper request/response context capture
+   * - Centralized audit trail management
+   * 
+   * @internal
    */
-  async log(
+  private async log(
     context: AuditContext,
     activity: AuditActivity,
     outcome: AuditOutcome,
@@ -109,6 +120,23 @@ export class AuditService {
     });
 
     return this.auditRepo.save(entry);
+  }
+
+  /**
+   * Record an audit event (public wrapper for middleware)
+   * 
+   * This is the only public method for recording audit events.
+   * Called exclusively by AuditMiddleware to ensure centralized logging.
+   * 
+   * Controllers must NOT call this method directly - all audit logging
+   * must go through the middleware layer.
+   */
+  async recordAuditEvent(
+    context: AuditContext,
+    activity: AuditActivity,
+    outcome: AuditOutcome,
+  ): Promise<AuditLog> {
+    return this.log(context, activity, outcome);
   }
 
   /**

@@ -179,6 +179,10 @@ export class ApplicationService {
       take: limit,
     });
 
+    // Fetch public notes for all applications in this batch
+    const applicationIds = items.map(app => app.id);
+    const notesMap = await this.getPublicNotesForApplications(applicationIds);
+
     // Map to DTOs with the required structure
     const result = items.map((app) => {
       // Get the first contract (assuming there's at least one)
@@ -257,6 +261,7 @@ export class ApplicationService {
         agency_name: agency?.name || null,
         interview: interviewDetails,
         history_blob: app.history_blob, // Include application history with notes
+        public_notes: notesMap.get(app.id) || [], // Include public notes
         created_at: app.created_at,
         updated_at: app.updated_at
       };
@@ -797,6 +802,43 @@ export class ApplicationService {
   // Count total applications for a job posting
   async countApplicationsByJobPosting(jobPostingId: string): Promise<number> {
     return this.appRepo.count({ where: { job_posting_id: jobPostingId } });
+  }
+
+  // Helper method to fetch public notes for multiple applications
+  private async getPublicNotesForApplications(applicationIds: string[]): Promise<Map<string, any[]>> {
+    if (applicationIds.length === 0) {
+      return new Map();
+    }
+
+    const noteRepo = this.dataSource.getRepository('ApplicationNote');
+    const notes = await noteRepo.find({
+      where: {
+        job_application_id: In(applicationIds),
+        is_private: false, // Only fetch public notes
+      },
+      order: {
+        created_at: 'DESC',
+      },
+    });
+
+    // Group notes by application ID
+    const notesMap = new Map<string, any[]>();
+    for (const appId of applicationIds) {
+      notesMap.set(appId, []);
+    }
+
+    for (const note of notes) {
+      const appNotes = notesMap.get(note.job_application_id) || [];
+      appNotes.push({
+        id: note.id,
+        note_text: note.note_text,
+        added_by_name: note.added_by_name,
+        created_at: note.created_at,
+      });
+      notesMap.set(note.job_application_id, appNotes);
+    }
+
+    return notesMap;
   }
 
   // Analytics for a candidate's applications

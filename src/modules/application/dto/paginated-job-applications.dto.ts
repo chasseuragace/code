@@ -115,6 +115,20 @@ class ApplicationHistoryEntryDto {
   note?: string | null;
 }
 
+class PublicNoteDto {
+  @ApiProperty({ description: 'Note ID', example: '123e4567-e89b-12d3-a456-426614174000' })
+  id: string;
+
+  @ApiProperty({ description: 'Note text', example: 'Candidate has excellent experience' })
+  note_text: string;
+
+  @ApiProperty({ description: 'Name of the person who added the note', example: 'John Doe' })
+  added_by_name: string;
+
+  @ApiProperty({ description: 'Date the note was created', example: '2025-12-22T03:41:28.750Z' })
+  created_at: Date;
+}
+
 export class JobApplicationListItemDto {
   @ApiProperty({ description: 'Job application UUID', example: '075ce7d9-fcdb-4f7e-b794-4190f49d729f' })
   id!: string;
@@ -166,6 +180,13 @@ export class JobApplicationListItemDto {
         required: false
       })
     history_blob?: ApplicationHistoryEntryDto[];
+
+  @ApiPropertyOptional({ 
+        description: 'Public notes added to the application by agency',
+        type: [PublicNoteDto],
+        required: false
+      })
+    public_notes?: PublicNoteDto[];
 
   @ApiProperty({ description: 'Date the application was created', example: '2025-09-21T10:30:00.000Z' })
   created_at!: Date;

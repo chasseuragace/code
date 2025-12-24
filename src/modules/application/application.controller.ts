@@ -117,6 +117,7 @@ export class ApplicationController {
         position: item.position, // Include position information
         job_posting: item.job_posting, // Include job_posting in the response
         history_blob: item.history_blob, // Include application history with notes
+        public_notes: item.public_notes, // Include public notes
         created_at: item.created_at,
         updated_at: item.updated_at,
       })),

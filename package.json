@@ -20,8 +20,10 @@
     "dto:metrics": "ts-node -r tsconfig-paths/register scripts/dto-validation/dto-metrics.ts"
   },
   "dependencies": {
+    "@nestjs/axios": "^4.0.1",
     "@nestjs/core": "^10.4.7",
     "@nestjs/platform-express": "^10.4.7",
+    "@nestjs/schedule": "^6.1.0",
     "@nestjs/swagger": "^7.3.1",
     "axios": "^1.13.2",
     "bcryptjs": "^2.4.3",

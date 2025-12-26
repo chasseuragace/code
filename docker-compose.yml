@@ -37,6 +37,8 @@ services:
       FIREBASE_SA_KEY: ${FIREBASE_SA_KEY}
       SMS_TOKEN: ${SMS_TOKEN}
       SMS_URL: ${SMS_URL}
+      FASTFOREX_API_KEY: ${FASTFOREX_API_KEY}
+      FASTFOREX_API_URL: ${FASTFOREX_API_URL}
     ports:
       - "3000:3000"
     volumes:

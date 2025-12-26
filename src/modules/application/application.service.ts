@@ -438,7 +438,7 @@ export class ApplicationService {
   }
 
   // Reschedule an interview; updates interview details and application status
-  async rescheduleInterview(applicationId: string, interviewId: string, updates: RescheduleInterviewInput, opts: UpdateOptions = {}, userRole?: UserRole): Promise<JobApplication> {
+  async rescheduleInterview(applicationId: string, updates: RescheduleInterviewInput, opts: UpdateOptions = {}, userRole?: UserRole): Promise<JobApplication> {
     checkPermission(userRole, 'reschedule_interview');
 
     const app = await this.getById(applicationId);
@@ -447,8 +447,12 @@ export class ApplicationService {
     const allowedFrom = ['interview_scheduled', 'interview_rescheduled'];
     if (!allowedFrom.includes(app.status)) throw new Error(`Invalid reschedule from status ${app.status}`);
 
+    // Find the interview for this application
+    const interview = await this.interviewHelperSvc.findLatestInterviewForApplication(applicationId);
+    if (!interview) throw new Error('No interview found for this application');
+
     // Use interview helper to reschedule (sets rescheduled_at timestamp)
-    await this.interviewHelperSvc.rescheduleInterview(interviewId, {
+    await this.interviewHelperSvc.rescheduleInterview(interview.id, {
       ...updates,
       notes: opts.note || undefined,
     });
@@ -467,7 +471,7 @@ export class ApplicationService {
 
     // Trigger notification for interview rescheduled
     try {
-      await this.notificationService.createNotificationFromApplication(savedApp, 'interview_rescheduled', interviewId);
+      await this.notificationService.createNotificationFromApplication(savedApp, 'interview_rescheduled', interview.id);
     } catch (error) {
       console.error('Failed to create notification for interview rescheduled:', error);
       // Don't fail the main operation if notification fails

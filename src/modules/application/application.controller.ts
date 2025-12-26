@@ -182,7 +182,6 @@ export class ApplicationController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body()
     body: {
-      interview_id: string;
       interview_date_ad?: string;
       interview_date_bs?: string;
       interview_time?: string;
@@ -208,7 +207,7 @@ export class ApplicationController {
       notes: body.notes,
     };
     
-    const saved = await this.apps.rescheduleInterview(id, body.interview_id, interviewUpdates, { note: body?.note, updatedBy: body?.updatedBy }, user?.role);
+    const saved = await this.apps.rescheduleInterview(id, interviewUpdates, { note: body?.note, updatedBy: body?.updatedBy }, user?.role);
     return { id: saved.id, status: saved.status };
   }
 

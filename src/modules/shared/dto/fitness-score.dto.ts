@@ -15,7 +15,6 @@ export interface JobRequirements {
     min_years?: number;
     max_years?: number;
   };
-  };
 }
 
 export interface FitnessScoreBreakdown {

@@ -3,7 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { OwnerAnalyticsService } from './owner-analytics.service';
 import { OwnerAnalyticsController } from './owner-analytics.controller';
 import { PlatformAnalyticsController } from './platform-analytics.controller';
-import { JobPosting, InterviewDetail, JobPosition } from 'src/modules/domain/domain.entity';
+import { JobPosting, InterviewDetail, JobPosition } from '../domain/domain.entity';
 import { PostingAgency } from '../domain/PostingAgency';
 import { JobApplication } from '../application/job-application.entity';
 

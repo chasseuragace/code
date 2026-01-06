@@ -558,7 +558,7 @@ export class JobCandidatesController {
       // Get salary conversion if available
       const conversion = position ? conversionMap.get(position.id) : null;
 
-      return {
+      const base: JobCandidateDto = {
         id: candidate.id,
         name: candidate.full_name,
         gender: candidate.gender || undefined,
@@ -566,17 +566,27 @@ export class JobCandidatesController {
         address: addressStr,
         phone: candidate.phone,
         email: candidate.email || undefined,
-        position: position ? {
-          id: position.id,
-          title: position.title,
-          salary: {
-            amount: Number(position.monthly_salary_amount),
-            currency: position.salary_currency,
-            converted_amount: conversion?.converted_amount ? Number(conversion.converted_amount) : undefined,
-            converted_currency: conversion?.converted_currency || undefined,
-            conversion_rate: conversion?.conversion_rate ? Number(conversion.conversion_rate) : undefined,
-          },
-        } : null,
+        // Provide a minimal placeholder position when missing to satisfy DTO type
+        position: position
+          ? {
+              id: position.id,
+              title: position.title,
+              salary: {
+                amount: Number(position.monthly_salary_amount),
+                currency: position.salary_currency,
+                converted_amount: conversion?.converted_amount ? Number(conversion.converted_amount) : undefined,
+                converted_currency: conversion?.converted_currency || undefined,
+                conversion_rate: conversion?.conversion_rate ? Number(conversion.conversion_rate) : undefined,
+              },
+            }
+          : {
+              id: 'unknown',
+              title: 'Unknown Position',
+              salary: {
+                amount: 0,
+                currency: 'N/A',
+              },
+            },
         applied_at: application.created_at.toISOString(),
         application_id: application.id,
         status: application.status,
@@ -591,8 +601,10 @@ export class JobCandidatesController {
           duration: interview.duration_minutes || 60,
           location: interview.location || null,
           interviewer: interview.contact_person || null,
-        } : null
+        } : null,
       };
+
+      return base;
     });
 
     return {

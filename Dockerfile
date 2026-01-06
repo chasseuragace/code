@@ -1,14 +1,25 @@
-FROM node:20-alpine
-
+# build stage
+FROM node:20-alpine AS build
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
-RUN npm install
+RUN npm ci
 
 COPY tsconfig.json tsconfig.build.json ./
 COPY src ./src
-COPY test ./test
+COPY scripts ./scripts
+
+RUN npm run build
+
+# runtime stage
+FROM node:20-alpine
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm ci --include=dev
+
+COPY --from=build /app/dist ./dist
 
 EXPOSE 3000
 
-CMD ["npm", "run", "start:dev"]
+CMD ["node", "dist/main.js"]

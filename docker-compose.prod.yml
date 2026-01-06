@@ -1,0 +1,56 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: nest_pg_prod
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-app_db}
+    command: -c timezone=Asia/Kathmandu
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    # In many prod setups you do NOT expose the DB port publicly.
+    # Uncomment only if you need external DB access (e.g. from a bastion or BI tool).
+    # ports:
+    #   - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  server:
+    # IMPORTANT: replace this with your real registry/image:tag
+    # e.g. ghcr.io/your-org/agency-service:1.0.0 or your-dockerhub-user/agency-service:1.0.0
+    image: chasseuragace/agency-service:latest
+    container_name: nest_server_prod
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      # This file should contain all DB/JWT/Firebase/SMS/Forex envs for PROD
+      # Example keys (adapt to your actual config):
+      #   NODE_ENV=production
+      #   DB_HOST=db
+      #   DB_PORT=5432
+      #   DB_USERNAME=postgres
+      #   DB_PASSWORD=postgres
+      #   DB_DATABASE=app_db
+      #   AUTH_JWT_SECRET=...
+      #   FIREBASE_SA_ENC=...
+      #   FIREBASE_SA_KEY=...
+      #   SMS_TOKEN=...
+      #   SMS_URL=...
+      #   FASTFOREX_API_KEY=...
+      #   FASTFOREX_API_URL=...
+      - .env.prod
+    ports:
+      - "3000:3000"
+    # If your image still defaults to `npm run start:dev`, you can override it here
+    # to use the production entrypoint once your Dockerfile is updated to build the app.
+    # command: ["npm", "run", "start"]
+
+volumes:
+  pg_data:

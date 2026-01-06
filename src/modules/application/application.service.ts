@@ -667,6 +667,8 @@ export class ApplicationService {
         agencyEmail: 'info@agency.com', // TODO: Add email field to agency
         agencyAddress: 'Address not available', // TODO: Add address field to agency
       },
+      // Default empty documents list; can be overridden by callers that enrich with real documents
+      documents: [],
     };
 
     // Add interview details if available
@@ -931,6 +933,9 @@ export class ApplicationService {
     // Get documents and slots for the candidate
     const documentsWithSlots = await this.candidateService.getDocumentsWithSlots(app.candidate_id);
 
+    // Separate documents from other application details so we can override documents with enriched data
+    const { documents: _ignoredDocuments, ...restDetails } = details as any;
+
     // Return combined response with candidate + application data for S2 component
     return {
       candidate: {
@@ -957,7 +962,7 @@ export class ApplicationService {
         summary: profileBlob.summary || null,
       },
       documents: documentsWithSlots.data,
-      ...details, // Include all the original details (job, employer, interview, etc.)
+      ...restDetails, // Include all the original details (job, employer, interview, etc.) except documents
     };
   }
 }

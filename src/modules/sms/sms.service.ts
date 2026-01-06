@@ -49,7 +49,7 @@ export class SmsService {
     }
 
     const params = new URLSearchParams({
-      auth_token: this.token,
+      auth_token: this.token ?? '',
       to: body.contactNumber,
       text: body.message,
     }).toString();

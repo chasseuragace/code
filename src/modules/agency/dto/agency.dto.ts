@@ -408,6 +408,14 @@ export class UpdateAgencyDto {
     @ApiPropertyOptional({ description: 'Name', example: 'Example Name' })
   name?: string;
 
+  @ApiPropertyOptional({ description: 'Unique license number for the agency (URL-safe characters only)' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z0-9\-_]+$/, {
+    message: 'License number can only contain letters, numbers, hyphens, and underscores (no slashes or special characters)'
+  })
+  license_number?: string;
+
   
   @IsOptional()
   @IsString()

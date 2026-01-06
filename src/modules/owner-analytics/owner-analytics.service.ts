@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { JobPosting, InterviewDetail, JobPosition } from 'src/modules/domain/domain.entity';
+import { JobPosting, InterviewDetail, JobPosition } from '../domain/domain.entity';
 import { PostingAgency } from '../domain/PostingAgency';
 import { JobApplication } from '../application/job-application.entity';
 

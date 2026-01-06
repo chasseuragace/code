@@ -1,9 +1,9 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from 'src/app.module';
-import { JobPostingService, ExpenseService, InterviewService, AnnouncementType, OvertimePolicy, ProvisionType, ExpensePayer, ExpenseType } from 'src/modules/domain/domain.service';
+import { AppModule } from '../app.module';
+import { JobPostingService, ExpenseService, InterviewService, AnnouncementType, OvertimePolicy, ProvisionType, ExpensePayer, ExpenseType } from '../modules/domain/domain.service';
+import { JobTitle } from '../modules/job-title/job-title.entity';
 import { DataSource } from 'typeorm';
-import { JobTitle } from 'src/modules/job-title/job-title.entity';
 import * as fs from 'fs';
 import * as path from 'path';
 

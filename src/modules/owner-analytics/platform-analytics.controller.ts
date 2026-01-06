@@ -122,7 +122,7 @@ export class PlatformAnalyticsController {
       const weeklyInterviews = await this.ownerAnalytics.getInterviewsTimeSeriesWeekly();
       
       // Generate monthly trends from weekly data
-      const monthlyData = [];
+      const monthlyData: any[] = [];
       for (let i = 11; i >= 0; i--) {
         const date = new Date();
         date.setMonth(date.getMonth() - i);
@@ -235,8 +235,10 @@ export class PlatformAnalyticsController {
       return {
         overview: this.flattenObject(dashboardData.overview),
         top_agencies: dashboardData.agency_performance || [],
-        monthly_trends: dashboardData.trends?.monthly || [],
-        job_titles: dashboardData.market_insights?.job_distribution || [],
+        // Match structure returned by getPlatformTrends (monthly_data)
+        monthly_trends: dashboardData.trends?.monthly_data || [],
+        // Match structure returned by getMarketInsights (job_market.top_job_titles)
+        job_titles: dashboardData.market_insights?.job_market?.top_job_titles || [],
       };
     }
 
@@ -283,11 +285,12 @@ export class PlatformAnalyticsController {
     );
   }
 
-  private async getCachedData(key: string, dataFetcher: () => Promise<any>) {
+  private async getCachedData(key: string, dataFetcher: () => Promise<any>, ttlOverrideMs?: number) {
     const cached = this.cache.get(key);
     const now = Date.now();
+    const ttl = ttlOverrideMs ?? this.CACHE_TTL_MS;
     
-    if (cached && (now - cached.timestamp) < this.CACHE_TTL_MS) {
+    if (cached && (now - cached.timestamp) < ttl) {
       return cached.data;
     }
 
@@ -297,7 +300,7 @@ export class PlatformAnalyticsController {
   }
 
   private flattenObject(obj: any, prefix: string = ''): any[] {
-    const result = [];
+    const result: any[] = [];
     
     for (const key in obj) {
       if (obj.hasOwnProperty(key)) {

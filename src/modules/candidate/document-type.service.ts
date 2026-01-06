@@ -56,4 +56,8 @@ export class DocumentTypeService {
   async findByTypeCode(typeCode: string): Promise<DocumentType | null> {
     return this.repo.findOne({ where: { type_code: typeCode, is_active: true } });
   }
+
+  async count(): Promise<number> {
+    return this.repo.count({ where: { is_active: true } });
+  }
 }

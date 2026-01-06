@@ -99,4 +99,8 @@ export class CountryService {
     
     return country;
   }
+
+  async count(): Promise<number> {
+    return this.repo.count();
+  }
 }

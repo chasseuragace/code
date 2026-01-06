@@ -51,4 +51,8 @@ export class JobTitleService {
     );
     return { affected: rows.length };
   }
+
+  async count(): Promise<number> {
+    return this.repo.count();
+  }
 }
